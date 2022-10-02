@@ -63,7 +63,7 @@ traffic.
 All functions accept a username and an API key as optional parameters, for
 users that have an account.
 
-`create_alias` creates a short URL and has the parameters:
+`create_url` creates an alias and has the parameters:
 * url (string): Original URL to be shortened (required).
 * ttl (int): Time-to-live for the URL, in hours, stored as an expiration
   timestamp in the database (optional).
@@ -74,7 +74,7 @@ users that have an account.
 * alias (string): Short URL.
 * Returns (string): Original URL or null if alias does not exist.
 
-`delete_alias` deletes an alias:
+`delete_url` deletes an alias:
 * alias (string): Short URL.
 * Returns: code indicating success or failure.
 
@@ -83,17 +83,18 @@ users that have an account.
 We need the following tables:
 
 * users
-    * id (integer, primary key)
+    * user_name (string, primary key)
     * first_name (string)
     * last_name (string)
     * joined_on (timestamp)
     * birthday (date)
     * api_key (string)
+    * last_login (timestamp)
 
 * urls
     * alias (string, primary key)
     * original (string)
-    * created_by (integer, ref users.id)
+    * created_by (string)
     * created_on (timestamp)
     * ttl (timestamp)
     * accesses (obj)
@@ -101,6 +102,14 @@ We need the following tables:
 
 Given the estimated application throughput, a distributed key-value or document
 store is appropriate.
+
+We will shard the users table by `user_name` because it has unique values
+(maximum cardinality). The value should be hashed to decrease the
+probability of hot shards. Range-based sharding would not perform as well
+because user names do not use the full range of available characters.
+
+The urls table will be sharded by alias. We can use range-based sharding
+because all possible values for aliases are used.
 
 ## Short URL generation
 
@@ -125,3 +134,17 @@ aliases can be loaded into memory. If a server crashes, the aliases remaining
 in memory will be wasted, but this is acceptable because we pre-generated
 aliases in excess. The total storage necessary will be 1 byte * 6 characters *
 75 billion aliases = 452 GB.
+
+## High-level design
+
+Our application will be presented as a website and as an API.
+
+Our system will have, at a minimum, the following components:
+* application servers run the website and the API, store and retrieve URL
+  aliases
+* general database servers store the users and aliases tables
+* alias key database servers store the pre-generated aliases
+
+We will keep application servers stateless, allowing us to scale the
+application by adding more application servers. Load balancers will balance
+traffic from clients to the cluster of application servers.
