@@ -127,9 +127,7 @@ def test_get_aliases_batch():
         con.close()
 
 
-def create_url(url, user_name, aliases_pool, con, ttl=24, alias=None):
-    if alias is None:
-        alias = aliases_pool.pop()
+def create_url(alias, original, user_name, con, ttl=24):
     now = datetime.datetime.now()
     with con.cursor() as cur:
         cur.execute(
@@ -138,7 +136,13 @@ def create_url(url, user_name, aliases_pool, con, ttl=24, alias=None):
                 "(alias, original, created_by, created_on, ttl) "
                 "VALUES (%s, %s, %s, %s, %s);"
             ),
-            (alias, url, user_name, now, now + datetime.timedelta(hours=ttl)),
+            (
+                alias,
+                original,
+                user_name,
+                now,
+                now + datetime.timedelta(hours=ttl)
+            ),
         )
         con.commit()
 
@@ -150,7 +154,7 @@ def get_url(alias, con):
             (alias,),
         )
         result = cur.fetchone()
-    if len(result) == 1:
+    if result is not None:
         return result[0]
 
 
@@ -177,13 +181,13 @@ def test_create_alias():
         print("creating aliases")
         create_url(
             "https://www.facebook.com",
-            "jehard",
+            "jschnab",
             aliases,
             con
         )
         create_url(
-            "https://www.lemonde.com/articles/putin-losing-war.html",
-            "jehard",
+            "https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application",
+            "jschnab",
             aliases,
             con,
             ttl=24*7,
@@ -232,7 +236,7 @@ def test_delete_expired_aliases():
         con.close()
 
 
-def main():
+def test_delete_alias():
     print("connecting to database")
     con = connect()
     try:
@@ -243,6 +247,10 @@ def main():
         print(e)
     finally:
         con.close()
+
+
+def main():
+    test_create_alias()
 
 
 if __name__ == "__main__":
