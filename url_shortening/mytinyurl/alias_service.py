@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 
-import database
+import postgres
 
 
 class Batch:
     def __init__(self, size=1000):
         print("connecting to database")
-        self.con = database.connect()
+        self.con = postgres.connect()
         self.size = size
         self.items = []
         self.load_batch()
@@ -16,9 +16,9 @@ class Batch:
             return
         if self.con.closed:
             print("connecting to database")
-            self.con = database.connect()
+            self.con = postgres.connect()
         print("getting new batch of aliases")
-        self.items = database.get_aliases_batch(self.con, self.size)
+        self.items = postgres.get_aliases_batch(self.con, self.size)
 
     def get_alias(self):
         if len(self.items) == 0:

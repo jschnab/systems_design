@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h2>{% block title %}Enter a long URL to make it short{% endblock %}</h2>
+{% endblock %}
+
+{% block content %}
+  {% if message %}
+    <div class="flash">{{ message }}</div>
+  {% endif %}
+  <form method="post">
+      <label for="longurl">Long URL</label>
+      <input name="longurl" id="longurl" required>
+      <input type="submit" value="Make short">
+  </form>
+  {% for url in myurls %}
+    <div class="url-item">
+      <ul class="url-item-details">
+          <li class="alias-url">{{ url['alias'] }}</li>
+          <li class="original-url">{{ url['original'] }}</li>
+          <li class="created-on">Created on: {{ url['created_on'] }}</li>
+      </ul>
+    </div>
+  {% endfor %}
+{% endblock %}

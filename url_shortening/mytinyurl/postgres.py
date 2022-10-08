@@ -29,9 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
   user_name VARCHAR(20) PRIMARY KEY,
   first_name VARCHAR(40),
   last_name VARCHAR(40),
+  password VARCHAR(255),
   joined_on TIMESTAMP,
-  birthday DATE,
-  api_key VARCHAR(255),
   last_login TIMESTAMP
 );
 """
@@ -186,7 +185,10 @@ def test_create_alias():
             con
         )
         create_url(
-            "https://flask.palletsprojects.com/en/2.0.x/quickstart/#a-minimal-application",
+            (
+                "https://flask.palletsprojects.com/en/2.0.x/quickstart/"
+                "#a-minimal-application"
+            ),
             "jschnab",
             aliases,
             con,
@@ -247,6 +249,75 @@ def test_delete_alias():
         print(e)
     finally:
         con.close()
+
+
+def register_user(username, firstname, lastname, password):
+    con = connect()
+    try:
+        with con.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM users WHERE user_name = %s;", (username,)
+            )
+            if cur.fetchone() is not None:
+                return f"Username {username} already exists"
+            cur.execute(
+                (
+                    "INSERT INTO users "
+                    "(user_name, first_name, last_name, password, joined_on) "
+                    "VALUES (%s, %s, %s, %s, %s);"
+                ),
+                (
+                    username,
+                    firstname,
+                    lastname,
+                    password,
+                    datetime.datetime.now(),
+                )
+            )
+            con.commit()
+    except Exception as e:
+        print(e)
+        return "Error during user registration"
+    finally:
+        con.close()
+
+
+def get_user(username):
+    con = connect()
+    try:
+        with con.cursor(cursor_factory=extras.DictCursor) as cur:
+            cur.execute(
+                "select * from users where user_name = %s;", (username,)
+            )
+            result = cur.fetchone()
+            if result is not None:
+                cur.execute(
+                    "update users set last_login = %s where user_name = %s;",
+                    (datetime.datetime.now(), username)
+                )
+                con.commit()
+            return result
+    except Exception as e:
+        print(e)
+    finally:
+        con.close()
+
+
+class DB:
+    def __init__(self):
+        self.con = connect()
+
+    def get_url(self, alias):
+        if self.con.closed:
+            self.con = connect()
+        return get_url(alias, self.con)
+
+    def create_url(self, alias, original, user, ttl):
+        if self.con.closed:
+            self.con = connect()
+        create_url(
+            alias, original, user, self.con, ttl
+        )
 
 
 def main():

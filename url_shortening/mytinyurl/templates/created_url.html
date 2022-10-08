@@ -5,9 +5,10 @@
 {% endblock %}
 
 {% block content %}
+  <div class="message">{{ message }}</div>
   <form method="post">
       <label for="longurl">Long URL</label>
       <input name="longurl" id="longurl" required>
-      <input type="submit" value="Send">
+      <input type="submit" value="Make short">
   </form>
 {% endblock %}
