@@ -74,6 +74,10 @@ users that have an account.
 * alias (string): Short URL.
 * Returns (string): Original URL or null if alias does not exist.
 
+`get_urls_by_user` retrieves the aliases created by a user:
+* user_name (string): Username.
+* Returns (list): List of URLs created by the user.
+
 `delete_url` deletes an alias:
 * alias (string): Short URL.
 * Returns: code indicating success or failure.
@@ -87,8 +91,7 @@ We need the following tables:
     * first_name (string)
     * last_name (string)
     * joined_on (timestamp)
-    * birthday (date)
-    * api_key (string)
+    * password (string)
     * last_login (timestamp)
 
 * urls
@@ -110,6 +113,9 @@ because user names do not use the full range of available characters.
 
 The urls table will be sharded by alias. We can use range-based sharding
 because all possible values for aliases are used.
+
+To increase the performance of retrieving URLs created by a logged user, we
+will create an index on the field `created_by` in the `urls` table.
 
 ## Short URL generation
 
