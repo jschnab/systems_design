@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from pymongo import MongoClient
+import pymongo
 
 
 class Client:
@@ -11,13 +11,13 @@ class Client:
         self.db_name = os.getenv("APP_DB_DATABASE")
         self.coll_users = os.getenv("APP_DB_COLLECTION_USERS")
         self.coll_urls = os.getenv("APP_DB_COLLECTION_URLS")
-        self.client = MongoClient(self.host, self.port)
+        self.client = pymongo.MongoClient(self.host, self.port)
         self.db = self.client[self.db_name]
         self.users = self.db[self.coll_users]
         self.urls = self.db[self.coll_urls]
 
     def create_urls_users_index(self):
-        self.urls.create_index("created_by")
+        self.urls.create_index(("created_by", pymongo.HASHED))
 
     def create_url(self, alias, original, user_name, ttl):
         now = datetime.datetime.now()
@@ -57,9 +57,3 @@ class Client:
         self.users.update_one(
             {"_id": user_name}, {"$set": {"last_login": now}}
         )
-
-
-if __name__ == "__main__":
-    client = Client()
-    client.update_user_last_login("jdoe")
-    print(client.get_user("jdoe"))

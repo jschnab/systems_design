@@ -109,7 +109,7 @@ store is appropriate.
 We will shard the users table by `user_name` because it has unique values
 (maximum cardinality). The value should be hashed to decrease the
 probability of hot shards. Range-based sharding would not perform as well
-because user names do not use the full range of available characters.
+because user names do not use the full range of possible strings.
 
 The urls table will be sharded by alias. We can use range-based sharding
 because all possible values for aliases are used.
