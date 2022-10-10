@@ -10,8 +10,9 @@ nav ul  { display: flex; list-style: none; margin: 0; padding: 0; }
 nav ul li a, nav ul li span, header .action { display: block; padding: 0.5rem; }
 .flash { margin: 1em 0; padding: 1em; background: #cae6f6; border: 1px solid #377ba8; }
 form { display: flex; flex-direction: column; }
-input { margin-bottom: 1em; }
+input, select { margin-bottom: 1em; }
 input[type=submit] { align-self: start; min-width: 10em; }
 .url-item-details { list-style: none; }
 .alias-url { font-weight: bold; }
 .created-on { font-style: italic; }
+.expires-on { font-style: italic; }

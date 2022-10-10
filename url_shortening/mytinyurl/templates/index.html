@@ -12,6 +12,16 @@
   <form method="post">
       <label for="longurl">Long URL</label>
       <input name="longurl" id="longurl" required>
+      <label for="custom-alias">Custom alias (optional)</label>
+      <input name="custom-alias" id="custom-alias">
+      <label for="ttl">Expire after</label>
+      <select name="ttl" id="ttl">
+        <option value="1h">1 hour</option>
+        <option value="1d">1 day</option>
+        <option value="1w" selected="selected" >1 week</option>
+        <option value="1m">1 month</option>
+        <option value="1y">1 year</option>
+      </select>
       <input type="submit" value="Make short">
   </form>
 
@@ -23,6 +33,7 @@
              <li class="alias-url">{{ url['alias'] }}</li>
              <li class="original-url">{{ url['original'] }}</li>
              <li class="created-on">Created on: {{ url['created_on'] }}</li>
+             <li class="expires-on">Expires on: {{url['ttl'] }}</li>
          </ul>
        </div>
      {% endfor %}
