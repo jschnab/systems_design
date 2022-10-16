@@ -297,7 +297,7 @@ variables:
 
 * ALIAS_DB_HOST: Database host, i.e. URL or IP address.
 * ALIAS_DB_PORT: Port the database server listens to.
-* ALIAS_DB_DATABASE: Databse name.
+* ALIAS_DB_DATABASE: Database name.
 * ALIAS_DB_USER: Username for authentication.
 * ALIAS_DB_PASSWORD: Password for authentication.
 
@@ -335,9 +335,10 @@ def get_aliases_batch(con, size=1000):
     return result
 ```
 
-The function `get_aliases()` takes a `psycopg2` connection object and retrieves
-a batch of aliases from the database. To avoid reusing aliases, we delete and
-return their values.
+The function `get_aliases()` takes a `psycopg2` [connection
+object](https://www.psycopg.org/docs/connection.html#the-connection-class) such
+as the one managed by the class `DB` and retrieves a batch of aliases from the
+database. To avoid reusing aliases, we delete and return their values.
 
 We enclose the database query in a `try except` block and catch serialization
 errors with the error `psycopg2.errors.SerializationFailure`. If such an error
