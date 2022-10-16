@@ -70,7 +70,6 @@ def create_app(test_config=None):
                 u["created_on"] = u["created_on"].strftime("%m/%d/%Y %H:%M:%S")
                 u["ttl"] = u["ttl"].strftime("%m/%d/%Y %H:%M:%S")
 
-
         return render_template("index.html", message=msg, myurls=user_urls)
 
     @app.route("/<alias>")
