@@ -18,7 +18,7 @@ import time
 import psycopg2
 import psycopg2.errors
 import psycopg2.extensions
-from psycopg2 import extras
+import psycopg2.extras
 
 CREATE_ALIASES_TABLE_SQL = """
 CREATE TABLE aliases (id VARCHAR(6));
@@ -74,7 +74,7 @@ def generate_aliases(length=6):
 def store_aliases(aliases, con, page_size=10000):
     with con.cursor() as cur:
         cur.execute("TRUNCATE TABLE aliases;")
-        extras.execute_batch(
+        psycopg2.extras.execute_batch(
             cur,
             "INSERT INTO aliases VALUES (%s);",
             aliases,
