@@ -403,17 +403,26 @@ We will store `urls` and `users` tables in a document database. Many databases
 support the document model, we will use [MongoDB](https://www.mongodb.com/)
 because of the following attributes:
 
-* can be deployed in a cluster, a requirement based on our calculations on
-  data volume
+* can be deployed in a cluster and
+  [sharded](https://www.mongodb.com/docs/v4.4/core/sharded-cluster-shards/), a
+  requirement based on our calculations on data volume
 * support for [indexes](https://www.mongodb.com/docs/manual/indexes/)
-* powerful yet simple query interface
+* powerful yet simple [query
+  interface](https://www.mongodb.com/docs/manual/tutorial/query-documents/)
 * reliable Python client library,
   [PyMongo](https://pymongo.readthedocs.io/en/stable/)
 
 With MongoDB, we don't need to create database or tables upfront. Any operation
 on databases or tables will create them.
 
-First, we create an index on the field `created_by` of the `users` table, to
+The tables `users` needs to be indexed by `user_name` and the `urls` needs to
+be indexed by `alias`. Since these fields are the primary key for records and
+contain unique values, and MongoDB always creates an index on the [`_id`
+field](https://www.mongodb.com/docs/manual/core/document/#std-label-document-id-field)
+of a document, we will store the user name in the `_id` field of the `users`
+table and the URL alias in the `_id` field of the the `urls` table.
+
+We also create an index on the field `created_by` of the `users` table, to
 allow efficient query of short URLs created by a logged user. MongoDB supports
 range and hash indexes, we will create a hash index because usernames may
 cluster under some prefixes, depending on letters frequency in names:
@@ -556,3 +565,114 @@ Our URL shortening service has a web application frontend. We will use
 [Flask](https://flask.palletsprojects.com/en/2.2.x/), a minimalistic and
 Python-based web development framework that contains all the features we need
 for this project.
+
+To create a URL alias, the user can fill the following HTML form (the rest of
+the HTML page is ommitted for brevity):
+
+```
+<form method="post">
+    <label for="longurl">Long URL</label>
+    <input name="longurl" id="longurl" required>
+    <label for="custom-alias">Custom alias (optional)</label>
+    <input name="custom-alias" id="custom-alias">
+    <label for="ttl">Expire after</label>
+    <select name="ttl" id="ttl">
+      <option value="1h">1 hour</option>
+      <option value="1d">1 day</option>
+      <option value="1w" selected="selected" >1 week</option>
+      <option value="1m">1 month</option>
+      <option value="1y">1 year</option>
+    </select>
+    <input type="submit" value="Make short">
+</form>
+```
+
+The form contents are processed by the following Flask app:
+
+```python
+import os
+import secrets
+from urllib.parse import quote_plus
+
+import requests
+from flask import (
+    Flask,
+    render_template,
+    request,
+)
+
+from . import mongo
+
+APP_URL = os.getenv("APP_URL")
+TTL_TO_HOURS = {
+    "1h": 1,
+    "1d": 24,
+    "1w": 24 * 7,
+    "1m": 24 * 30,
+    "1y": 24 * 365,
+}
+
+mongo_client = mongo.Client()
+
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = secrets.token_hex()
+
+    @app.route("/", methods=("GET", "POST"))
+    def index():
+        msg = None
+
+        if request.method == "POST":
+            long_url = request.form["longurl"]
+            alias = request.form["custom-alias"]
+            ttl = TTL_TO_HOURS[request.form["ttl"]]
+
+            if alias:
+                alias = quote_plus(alias)
+                if mongo_client.get_url(alias) is not None:
+                    msg = f"Error: alias '{alias}' already exists"
+            else:
+                alias_host = os.getenv("ALIAS_SERVICE_HOST")
+                alias_port = os.getenv("ALIAS_SERVICE_PORT")
+                alias = requests.get(
+                    f"http://{alias_host}:{alias_port}/get-alias"
+                ).json()["alias"]
+
+            if msg is None:
+                mongo_client.create_url(alias, long_url, username, ttl)
+                msg = f"Created short URL: {APP_URL}/{alias}"
+
+        return render_template("index.html", message=msg, myurls=user_urls)
+
+    return app
+```
+
+If the request method is POST, this means the form was submitted, in which case
+we retrieve the form contents. If a custom alias was proposed by the user, we
+check if it already exists in the database and return an error if it does, else
+we use the custom alias. If the user did not pass a custom alias, we fetch one
+from the URL alias service. We then store the URL and its alias in the database
+and return a message to the user indicating success.
+
+The following code shows how to retrieve the original URL of an alias and
+redirect the user to it (other lines of code are ommitted for brevity):
+
+```python
+# imports are ommitted
+
+def create_app():
+    # code ommitted
+
+    @app.route("/<alias>")
+    def alias(alias):
+        original_url = mongo_client.get_url(alias)
+        if original_url is None:
+            abort(404)
+        return redirect(original_url)
+
+    return app
+```
+
+The code simply retrieves the alias from the database and redirects the user to
+it, or returns a 404 error if the alias does not exist.
