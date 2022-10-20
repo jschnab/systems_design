@@ -394,3 +394,165 @@ empty, a new batch of aliases is requested.
 
 Our API has a single endpoint located at `/get-alias`, which returns a single
 alias.
+
+### URL shortening service
+
+#### Data storage
+
+We will store `urls` and `users` tables in a document database. Many databases
+support the document model, we will use [MongoDB](https://www.mongodb.com/)
+because of the following attributes:
+
+* can be deployed in a cluster, a requirement based on our calculations on
+  data volume
+* support for [indexes](https://www.mongodb.com/docs/manual/indexes/)
+* powerful yet simple query interface
+* reliable Python client library,
+  [PyMongo](https://pymongo.readthedocs.io/en/stable/)
+
+With MongoDB, we don't need to create database or tables upfront. Any operation
+on databases or tables will create them.
+
+First, we create an index on the field `created_by` of the `users` table, to
+allow efficient query of short URLs created by a logged user. MongoDB supports
+range and hash indexes, we will create a hash index because usernames may
+cluster under some prefixes, depending on letters frequency in names:
+
+```
+db.urls.createIndex({"created_by": "hashed"})
+```
+
+Now, let's focus on functions run by our application. Creating a client using
+PyMongo is simple, the following example connects to `mongos` running on the
+local host and listening on port 27017.
+
+```python
+import pymongo
+
+client = pymongo.MongoClient("localhost", 27017)
+```
+
+We define a function to register a new user, storing data in the database
+`shorturls` and table `users`:
+
+```python
+import datetime
+
+
+def register_user(client, user_name, first_name, last_name, password):
+    """
+    Registers a new user.
+
+    :param pymongo.MongoClient: MongoDB client.
+    :param str user_name: User login name.
+    :param str first_name: User first name.
+    :param str last_name: User last name.
+    :param str password: Hashed password.
+    :returns: None.
+    """
+    client.shorturls.users.insert_one(
+        {
+            "_id": user_name,
+            "first_name": first_name,
+            "last_name": last_name,
+            "password": password,
+            "joined_on": datetime.datetime.now(),
+        }
+    )
+```
+
+We define a function to store a new URL:
+
+```python
+import datetime
+
+
+def create_url(client, alias, original, user_name, ttl):
+    """
+    Store a new URL.
+
+    :param pymongo.MongoClient client: MongoDB client.
+    :param str alias: Short URL.
+    :param str original: Original URL.
+    :param str user_name: Name of the user who created the URL.
+    :param int ttl: Time-to-live, in hours.
+    :returns: None.
+    """
+    now = datetime.datetime.now()
+    doc = {
+        "_id": alias,
+        "original": original,
+        "created_by": user_name,
+        "created_on": now,
+        "ttl": now + datetime.timedelta(hours=ttl),
+    }
+    client.shorturls.urls.insert_one(doc)
+```
+
+The following functions implement common read queries of our application:
+
+```python
+def get_url(client, alias):
+    """
+    Retrieve a long URL based on the alias.
+
+    :param pymongo.MongoClient client: MongoDB client.
+    :param str alias: Short URL.
+    :returns (str|None): Original URL, or None if it does not exist.
+    """
+    result = client.shorturls.urls.find_one(
+        {"_id": alias}, {"_id": 0, "original": 1}
+    )
+    if result is not None:
+        return result["original"]
+
+
+def get_user(client, user_name):
+    """
+    Checks if a user exists in the database.
+
+    :param pymongo.MongoClient client: MongoDB client.
+    :param str user_name: User login name.
+    :returns (str|None): User name if exists, else None.
+    """
+    return client.shorturls.users.find_one({"_id": user_name})
+
+
+def get_urls_by_user(client, user_name):
+    """
+    Get the list of URLs created by a user.
+
+    :param pymongo.MongoClient client: MongoDB client.
+    :param str user_name: User login name.
+    :returns (list(str)): URLs created by a user.
+    """
+    return list(client.shorturls.urls.find({"created_by": user_name}))
+```
+
+Finally, we update the timestamp of the last login of a user, when they login
+to the application:
+
+```python
+import datetime
+
+
+def update_user_last_login(client, user_name):
+    """
+    Update the last user login timestamp.
+
+    :param pymongo.MongoClient client: MongoDB client.
+    :param str user_name: User login name.
+    :returns: None.
+    """
+    now = datetime.datetime.now()
+    client.shorturls.users.update_one(
+        {"_id": user_name}, {"$set": {"last_login": now}}
+    )
+```
+
+#### Frontend
+
+Our URL shortening service has a web application frontend. We will use
+[Flask](https://flask.palletsprojects.com/en/2.2.x/), a minimalistic and
+Python-based web development framework that contains all the features we need
+for this project.
