@@ -52,7 +52,7 @@ If we store URLs for up to 5 years, we will store 10^10 URLs in total (10
 billion).
 
 If storing a URL and its alias takes 10^2 bytes, we will need up to 10^12 bytes
-of storage (1 TB).
+of storage (terabyte range).
 
 Coming back to read and write throughput, there will be 10^2 bytes * 10^4 =
 10^6 bytes (1 MB) per second of read traffic, and 10^4 (10 KB) of write
@@ -71,15 +71,15 @@ users that have an account.
 * Returns: code indicating success or failure.
 
 `get_url` maps an alias to the original URL:
-* alias (string): Short URL.
+* alias (string): Short URL (required).
 * Returns (string): Original URL or null if alias does not exist.
 
 `get_urls_by_user` retrieves the aliases created by a user:
-* user_name (string): Username.
+* user_name (string): Username (required).
 * Returns (list): List of URLs created by the user.
 
 `delete_url` deletes an alias:
-* alias (string): Short URL.
+* alias (string): Short URL (required).
 * Returns: code indicating success or failure.
 
 ## Data model
@@ -153,6 +153,10 @@ We will keep application servers stateless, allowing us to scale the
 application by adding more application servers. Load balancers will balance
 traffic from clients to the cluster of application servers.
 
+Since the application is read-heavy, caching would be beneficial. A cache
+holding 20% of daily traffic would store 17GB of data (read throughput is 1MB
+per second). This volume of data easily fits on a single server.
+
 ## Detailed design
 
 We will build our system using the programming language Python. Python has
@@ -180,10 +184,17 @@ The following code shows how to generate a list of URL aliases:
 
 ```python
 import itertools
+import random
 import string
 
 
 def generate_aliases(length=6):
+    """
+    Generates a list of aliases of the desired length, in random order.
+
+    :param int length: Desired alias length.
+    :returns (list(str)): Aliases.
+    """
     alphabet = string.ascii_letters + string.digits + "-_."
     aliases = [
         ("".join(i),) for i in itertools.product(alphabet, repeat=length)
@@ -213,7 +224,15 @@ import psycopg2.extras
 
 
 def store_aliases(aliases, con, page_size=10000):
-    with con.cursor() as curL
+    """
+    Stores URL aliases in the database, in batches.
+
+    :param list(str) aliases: Aliases to store.
+    :param psycopg2.connection con: Psycopg2 connection object.
+    :param int page_size: Alias batch size.
+    :returns: None.
+    """
+    with con.cursor() as cur:
         cur.execute("TRUNCATE TABLE aliases;")
         psycopg2.extras.execute_batch(
             cur,
@@ -314,6 +333,14 @@ BACKOFF_FACTOR = 0.3
 
 
 def get_aliases_batch(con, size=1000):
+    """
+    Gets a batch of aliases from the database, and removes them from the
+    database.
+
+    :param psycopg2.connection con: Psycopg2 connection object.
+    :param int size: Batch size.
+    :returns (list(str)): Batch of aliases.
+    """
     with con.cursor() as cur:
         retry = True
         retries = MAX_RETRIES
@@ -350,7 +377,7 @@ We now have all the tools to write our REST API endpoint. It's quite simple:
 ```python
 from fastapi import FastAPI
 
-import postgres
+import postgres  # defines the DB class and get_aliases_batch function
 
 
 class Batch:
@@ -365,9 +392,7 @@ class Batch:
         if len(self.items) > 0:
             return
         if self.db.con.closed:
-            print("connecting to database")
             self.db.connect()
-        print("getting new batch of aliases")
         self.items = postgres.get_aliases_batch(self.db.con, self.size)
 
     def get_alias(self):
@@ -405,7 +430,7 @@ because of the following attributes:
 
 * can be deployed in a cluster and
   [sharded](https://www.mongodb.com/docs/v4.4/core/sharded-cluster-shards/), a
-  requirement based on our calculations on data volume
+  requirement based on our calculations on data throughput
 * support for [indexes](https://www.mongodb.com/docs/manual/indexes/)
 * powerful yet simple [query
   interface](https://www.mongodb.com/docs/manual/tutorial/query-documents/)
@@ -416,16 +441,17 @@ With MongoDB, we don't need to create database or tables upfront. Any operation
 on databases or tables will create them.
 
 The tables `users` needs to be indexed by `user_name` and the `urls` needs to
-be indexed by `alias`. Since these fields are the primary key for records and
-contain unique values, and MongoDB always creates an index on the [`_id`
+be indexed by `alias`. These fields are the primary key for records and
+contain unique values. MongoDB always creates an index on the [`_id`
 field](https://www.mongodb.com/docs/manual/core/document/#std-label-document-id-field)
-of a document, we will store the user name in the `_id` field of the `users`
-table and the URL alias in the `_id` field of the the `urls` table.
+of a document, therefore  will store the user name in the `_id` field of the
+`users` table and the URL alias in the `_id` field of the the `urls` table.
 
 We also create an index on the field `created_by` of the `users` table, to
 allow efficient query of short URLs created by a logged user. MongoDB supports
 range and hash indexes, we will create a hash index because usernames may
-cluster under some prefixes, depending on letters frequency in names:
+cluster under some prefixes, depending on letters frequency in names. The
+following query is run in the `mongoshell`:
 
 ```
 db.urls.createIndex({"created_by": "hashed"})
@@ -433,12 +459,16 @@ db.urls.createIndex({"created_by": "hashed"})
 
 Now, let's focus on functions run by our application. Creating a client using
 PyMongo is simple, the following example connects to `mongos` running on the
-local host and listening on port 27017.
+host and port defined by environment variables `APP_DB_HOST` and `APP_DB_PORT`.
 
 ```python
+import os
+
 import pymongo
 
-client = pymongo.MongoClient("localhost", 27017)
+client = pymongo.MongoClient(
+    os.getenv("APP_DB_HOST"), os.getenv("APP_DB_PORT")
+)
 ```
 
 We define a function to register a new user, storing data in the database
@@ -567,7 +597,7 @@ Python-based web development framework that contains all the features we need
 for this project.
 
 To create a URL alias, the user can fill the following HTML form (the rest of
-the HTML page is ommitted for brevity):
+the HTML page is omitted for brevity):
 
 ```
 <form method="post">
@@ -601,7 +631,7 @@ from flask import (
     request,
 )
 
-from . import mongo
+from . import mongo  # defines our custom MongoDB functions
 
 APP_URL = os.getenv("APP_URL")
 TTL_TO_HOURS = {
@@ -656,13 +686,13 @@ from the URL alias service. We then store the URL and its alias in the database
 and return a message to the user indicating success.
 
 The following code shows how to retrieve the original URL of an alias and
-redirect the user to it (other lines of code are ommitted for brevity):
+redirect the user to it (other lines of code are omitted for brevity):
 
 ```python
-# imports are ommitted
+# imports are omitted
 
 def create_app():
-    # code ommitted
+    # code omitted
 
     @app.route("/<alias>")
     def alias(alias):
