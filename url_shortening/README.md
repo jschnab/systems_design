@@ -101,8 +101,9 @@ We need the following tables:
     * created_on (timestamp)
     * ttl (timestamp)
 
-Given the estimated application throughput, a distributed key-value or document
-store is appropriate.
+Given the estimated application throughput (tens of thousands of operations
+per second) and data volume (several terabytes), a distributed key-value or
+document store is appropriate.
 
 We will shard the users table by `user_name` because it has unique values
 (maximum cardinality). The value should be hashed to decrease the
@@ -162,6 +163,9 @@ per second). This volume of data easily fits on a single server.
 We will build our system using the programming language Python. Python has
 libraries that support REST API services, web servers, many database clients,
 etc. so we will be able to build our whole system using this language.
+
+The following sections contain only code highlights for brevity. The full code
+is available in the directory named 'mytinyurl'.
 
 ### URL alias service
 
