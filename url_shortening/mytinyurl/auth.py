@@ -12,10 +12,10 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from . import mongo
+from . import couchdb
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
-mongo_client = mongo.Client()
+db_client = couchdb.Client()
 
 
 @bp.route("/register", methods=("GET", "POST"))
@@ -34,7 +34,7 @@ def register():
 
         if error is None:
             print("registering user")
-            result = mongo_client.register_user(
+            result = db_client.register_user(
                 username,
                 firstname,
                 lastname,
@@ -59,14 +59,14 @@ def login():
         password = request.form["password"]
 
         error = None
-        user = mongo_client.get_user(username)
+        user = db_client.get_user(username)
         if user is None:
             error = "Incorrect username"
         elif not check_password_hash(user["password"], password):
             error = "Incorrect password"
 
         if error is None:
-            mongo_client.update_user_last_login(username)
+            db_client.update_user_last_login(username)
             session.clear()
             session["username"] = username
             return redirect(url_for("index"))
@@ -82,7 +82,7 @@ def load_logged_in_user():
     if username is None:
         g.user = None
     else:
-        g.user = mongo_client.get_user(username)
+        g.user = db_client.get_user(username)
 
 
 @bp.route("/logout")

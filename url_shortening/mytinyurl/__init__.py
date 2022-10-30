@@ -13,7 +13,7 @@ from flask import (
     session,
 )
 
-from . import mongo
+from . import couchdb
 
 APP_URL = "127.0.0.1:5000"
 DEFAULT_USER = "anonymous"
@@ -25,7 +25,7 @@ TTL_TO_HOURS = {
     "1y": 24 * 365,
 }
 
-mongo_client = mongo.Client()
+db_client = couchdb.Client()
 
 
 def create_app(test_config=None):
@@ -50,7 +50,7 @@ def create_app(test_config=None):
 
             if alias:
                 alias = quote_plus(alias)
-                if mongo_client.get_url(alias) is not None:
+                if db_client.get_url(alias) is not None:
                     msg = f"Error: alias '{alias}' already exists"
             else:
                 alias_host = os.getenv("ALIAS_SERVICE_HOST")
@@ -60,11 +60,11 @@ def create_app(test_config=None):
                 ).json()["alias"]
 
             if msg is None:
-                mongo_client.create_url(alias, long_url, username, ttl)
+                db_client.create_url(alias, long_url, username, ttl)
                 msg = f"Created short URL: {APP_URL}/{alias}"
 
         if g.user:
-            user_urls = mongo_client.get_urls_by_user(g.user["_id"])
+            user_urls = db_client.get_urls_by_user(g.user["_id"])
             for u in user_urls:
                 u["alias"] = f"{APP_URL}/{u['_id']}"
                 u["created_on"] = u["created_on"].strftime("%m/%d/%Y %H:%M:%S")
@@ -74,7 +74,7 @@ def create_app(test_config=None):
 
     @app.route("/<alias>")
     def alias(alias):
-        original_url = mongo_client.get_url(alias)
+        original_url = db_client.get_url(alias)
         if original_url is None:
             abort(404)
         return redirect(original_url)
