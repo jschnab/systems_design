@@ -8,10 +8,7 @@ DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
 URLS_BY_USER_VIEW = """
 function(doc) {
-  var
-    key = doc.created_by,
-    value = doc.created_by;
-  emit(key, value);
+  emit(doc.created_by, null);
 }
 """
 
