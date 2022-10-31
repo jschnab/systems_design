@@ -10,7 +10,7 @@ URLS_BY_USER_VIEW = """
 function(doc) {
   var
     key = doc.created_by,
-    value = doc;
+    value = doc.created_by;
   emit(key, value);
 }
 """
@@ -49,7 +49,7 @@ class Client:
                 "views": {"created_by": {"map": view_func}}
             }
         else:
-            design_doc.update({"views": {"urls": {"map": view_func}}})
+            design_doc.update({"views": {"created_by": {"map": view_func}}})
         self.urls.save(design_doc)
 
     def create_url(self, alias, original, user_name, ttl):
@@ -100,15 +100,15 @@ class Client:
 
     def get_urls_by_user(self, user_name):
         result = self.urls.view(
-            "urls", "created_by", key=json.dumps(user_name)
+            "urls", "created_by", key=json.dumps(user_name), include_docs=True,
         )
         if result["total_rows"] == 0:
             return []
-        values = [row["value"] for row in result["rows"]]
-        for v in values:
-            v["created_on"] = self.str_to_datetime(v["created_on"])
-            v["ttl"] = self.str_to_datetime(v["ttl"])
-        return values
+        docs = [row["doc"] for row in result["rows"]]
+        for d in docs:
+            d["created_on"] = self.str_to_datetime(d["created_on"])
+            d["ttl"] = self.str_to_datetime(d["ttl"])
+        return docs
 
     def update_user_last_login(self, user_name):
         now = self.datetime_to_str(datetime.datetime.now())
