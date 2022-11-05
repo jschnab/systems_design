@@ -58,6 +58,10 @@ def create_app(test_config=None):
                 alias = requests.get(
                     f"http://{alias_host}:{alias_port}/get-alias"
                 ).json()["alias"]
+                while db_client.get_url(alias) is not None:
+                    alias = requests.get(
+                        f"http://{alias_host}:{alias_port}/get-alias"
+                    ).json()["alias"]
 
             if msg is None:
                 db_client.create_url(alias, long_url, username, ttl)

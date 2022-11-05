@@ -429,168 +429,206 @@ alias.
 #### Data storage
 
 We will store `urls` and `users` tables in a document database. Many databases
-support the document model, we will use [MongoDB](https://www.mongodb.com/)
+support the document model, we will use [CouchDB](https://couchdb.apache.org/)
 because of the following attributes:
 
 * can be deployed in a cluster and
-  [sharded](https://www.mongodb.com/docs/v4.4/core/sharded-cluster-shards/), a
+  [sharded](https://docs.couchdb.org/en/3.2.2-docs/cluster/sharding.html), a
   requirement based on our calculations on data throughput
-* support for [indexes](https://www.mongodb.com/docs/manual/indexes/)
-* powerful yet simple [query
-  interface](https://www.mongodb.com/docs/manual/tutorial/query-documents/)
-* reliable Python client library,
-  [PyMongo](https://pymongo.readthedocs.io/en/stable/)
-
-With MongoDB, we don't need to create database or tables upfront. Any operation
-on databases or tables will create them.
+* query interface via
+  [views](https://docs.couchdb.org/en/3.2.2-docs/ddocs/views/index.html) that
+  are indexed
+* Python client [library](https://pypi.org/project/CouchDB3/)
 
 The tables `users` needs to be indexed by `user_name` and the `urls` needs to
 be indexed by `alias`. These fields are the primary key for records and
-contain unique values. MongoDB always creates an index on the [`_id`
-field](https://www.mongodb.com/docs/manual/core/document/#std-label-document-id-field)
+contain unique values. CouchDB creates an index on the [`_id`
+field](https://docs.couchdb.org/en/3.2.2-docs/intro/overview.html#document-storage)
 of a document, therefore  will store the user name in the `_id` field of the
 `users` table and the URL alias in the `_id` field of the the `urls` table.
 
-We also create an index on the field `created_by` of the `users` table, to
-allow efficient query of short URLs created by a logged user. MongoDB supports
-range and hash indexes, we will create a hash index because usernames may
-cluster under some prefixes, depending on letters frequency in names. The
-following query is run in the `mongoshell`:
 
 ```
-db.urls.createIndex({"created_by": "hashed"})
+function(doc) {
+  emit(doc.created_by, null)
+}
 ```
 
-Now, let's focus on functions run by our application. Creating a client using
-PyMongo is simple, the following example connects to `mongos` running on the
-host and port defined by environment variables `APP_DB_HOST` and `APP_DB_PORT`.
+Now, let's focus on functions run by our application. An important fact to
+consider is that to update a document in CouchDB, the application has to
+provide the revision number, stored in the `_rev` field. If the value does not
+match the current revision, the update is rejected. Our code currently does not
+handle such rejections. More info
+[here](https://docs.couchdb.org/en/3.2.2-docs/api/document/common.html?highlight=update%20existing%20document#updating-an-existing-document).
+
+The application relies on environment variables:
+
+* APP_DB_HOST: URL the CouchDB client connects to.
+* APP_DB_PORT: Port the CouchDB client connects to.
+* APP_DB_USER: Username to authenticate to CouchDB.
+* APP_DB_PASSWORD: Password to authenticate to CouchDB.
+* APP_DB_DATABASE_USERS: Name of the database that stores documents for users.
+* APP_DB_DATABASE_URLS: Name of the database that stores documents for URLs.
+
+We create a custom class `Client` to manage all database functions. Here is the
+constructor method for this class (we will detail all methods later):
 
 ```python
 import os
 
-import pymongo
+import couchdb3
 
-client = pymongo.MongoClient(
-    os.getenv("APP_DB_HOST"), os.getenv("APP_DB_PORT")
-)
+
+class Client:
+    def __init__(self):
+        self.host = os.getenv("APP_DB_HOST", "localhost")
+        self.port = int(os.getenv("APP_DB_PORT", 5984))
+        self.db_users = os.getenv("APP_DB_DATABASE_USERS")
+        self.db_urls = os.getenv("APP_DB_DATABASE_URLS")
+        self.client = couchdb3.Server(
+            f"{self.host}:{self.port}",
+            user=os.getenv("APP_DB_USER"),
+            password=os.getenv("APP_DB_PASSWORD"),
+        )
+        if self.db_users not in self.client:
+            self.client.create(self.db_users)
+        self.users = self.client.get(self.db_users)
+        if self.db_urls not in self.client:
+            self.client.create(self.db_urls)
+        self.urls = self.client.get(self.db_urls)
 ```
 
-We define a function to register a new user, storing data in the database
-`shorturls` and table `users`:
+The following functions get user information and create a new user. Since
+the `couchdb3` library does not automatically serialize `datetime` objects,
+we add two functions to do it. All these functions are methods of the
+`Client` class, the above code is omitted for brevity.
 
 ```python
 import datetime
 
+DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
-def register_user(client, user_name, first_name, last_name, password):
-    """
-    Registers a new user.
 
-    :param pymongo.MongoClient: MongoDB client.
-    :param str user_name: User login name.
-    :param str first_name: User first name.
-    :param str last_name: User last name.
-    :param str password: Hashed password.
-    :returns: None.
-    """
-    client.shorturls.users.insert_one(
-        {
-            "_id": user_name,
-            "first_name": first_name,
-            "last_name": last_name,
-            "password": password,
-            "joined_on": datetime.datetime.now(),
+class Client:
+
+    def str_to_datetime(self, s, fmt=DATETIME_FMT):
+        return datetime.datetime.strptime(s, fmt)
+
+    def datetime_to_str(self, d, fmt=DATETIME_FMT):
+        return d.strftime(fmt)
+
+    def register_user(self, user_name, first_name, last_name, password):
+        if self.get_user(user_name) is not None:
+            return
+        self.users.save(
+            {
+                "_id": user_name,
+                "first_name": first_name,
+                "last_name": last_name,
+                "password": password,
+                "joined_on": self.datetime_to_str(datetime.datetime.now()),
+            }
+        )
+
+    def get_user(self, user_name):
+        doc = self.users.get(user_name)
+        if doc is None:
+            return
+        last_login = None
+        if "last_login" in doc:
+            last_login = self.str_to_datetime(doc["last_login"])
+        doc.update(
+            {
+                "joined_on": self.str_to_datetime(doc["joined_on"]),
+                "last_login": last_login,
+            }
+        )
+        return doc
+```
+
+We define a method to store a new URL:
+
+```python
+class Client:
+
+   def create_url(self, alias, original, user_name, ttl):
+        now = datetime.datetime.now()
+        doc = {
+            "_id": alias,
+            "original": original,
+            "created_by": user_name,
+            "created_on": self.datetime_to_str(now),
+            "ttl": self.datetime_to_str(
+                now + datetime.timedelta(hours=ttl)
+            ),
         }
-    )
+        self.urls.save(doc)
 ```
 
-We define a function to store a new URL:
+We create a view on the field `created_by` of the `users` table, to
+allow efficient query of short URLs created by a logged user. The map function
+of the view is very simple, it takes a document as an input and emits the field
+`created_by` as a key, with no value. CouchDB will create a index on
+`created_by`.
 
 ```python
-import datetime
+URLS_BY_USER_VIEW = """
+function(doc) {
+  emit(doc.created_by, null);
+}
+"""
 
 
-def create_url(client, alias, original, user_name, ttl):
-    """
-    Store a new URL.
+class Client:
 
-    :param pymongo.MongoClient client: MongoDB client.
-    :param str alias: Short URL.
-    :param str original: Original URL.
-    :param str user_name: Name of the user who created the URL.
-    :param int ttl: Time-to-live, in hours.
-    :returns: None.
-    """
-    now = datetime.datetime.now()
-    doc = {
-        "_id": alias,
-        "original": original,
-        "created_by": user_name,
-        "created_on": now,
-        "ttl": now + datetime.timedelta(hours=ttl),
-    }
-    client.shorturls.urls.insert_one(doc)
+    def create_urls_users_view(self, view_func=URLS_BY_USER_VIEW):
+        design_doc = self.urls.get_design("urls")
+        if design_doc is None:
+            design_doc = {
+                "_id": "_design/urls",
+                "language": "javascript",
+                "views": {"created_by": {"map": view_func}}
+            }
+        else:
+            design_doc.update({"views": {"created_by": {"map": view_func}}})
+        self.urls.save(design_doc)
 ```
 
-The following functions implement common read queries of our application:
+The following methods implement common read queries of our application:
 
 ```python
-def get_url(client, alias):
-    """
-    Retrieve a long URL based on the alias.
+class Client:
 
-    :param pymongo.MongoClient client: MongoDB client.
-    :param str alias: Short URL.
-    :returns (str|None): Original URL, or None if it does not exist.
-    """
-    result = client.shorturls.urls.find_one(
-        {"_id": alias}, {"_id": 0, "original": 1}
-    )
-    if result is not None:
-        return result["original"]
+    def get_url(self, alias):
+        result = self.urls.get(alias)
+        if result is not None:
+            return result["original"]
 
-
-def get_user(client, user_name):
-    """
-    Checks if a user exists in the database.
-
-    :param pymongo.MongoClient client: MongoDB client.
-    :param str user_name: User login name.
-    :returns (str|None): User name if exists, else None.
-    """
-    return client.shorturls.users.find_one({"_id": user_name})
-
-
-def get_urls_by_user(client, user_name):
-    """
-    Get the list of URLs created by a user.
-
-    :param pymongo.MongoClient client: MongoDB client.
-    :param str user_name: User login name.
-    :returns (list(str)): URLs created by a user.
-    """
-    return list(client.shorturls.urls.find({"created_by": user_name}))
+    def get_urls_by_user(self, user_name):
+        result = self.urls.view(
+            "urls", "created_by", key=json.dumps(user_name), include_docs=True,
+        )
+        if result["total_rows"] == 0:
+            return []
+        docs = [row["doc"] for row in result["rows"]]
+        for d in docs:
+            d["created_on"] = self.str_to_datetime(d["created_on"])
+            d["ttl"] = self.str_to_datetime(d["ttl"])
+        return docs
 ```
 
 Finally, we update the timestamp of the last login of a user, when they login
 to the application:
 
 ```python
-import datetime
+class Client:
 
-
-def update_user_last_login(client, user_name):
-    """
-    Update the last user login timestamp.
-
-    :param pymongo.MongoClient client: MongoDB client.
-    :param str user_name: User login name.
-    :returns: None.
-    """
-    now = datetime.datetime.now()
-    client.shorturls.users.update_one(
-        {"_id": user_name}, {"$set": {"last_login": now}}
-    )
+    def update_user_last_login(self, user_name):
+        now = self.datetime_to_str(datetime.datetime.now())
+        doc = self.users.get(user_name)
+        if doc is not None:
+            doc.update({"last_login": now})
+            self.users.save(doc)
 ```
 
 #### Frontend
@@ -635,7 +673,7 @@ from flask import (
     request,
 )
 
-from . import mongo  # defines our custom MongoDB functions
+from . import couchdb  # defines our custom couchdb functions
 
 APP_URL = os.getenv("APP_URL")
 TTL_TO_HOURS = {
@@ -646,7 +684,7 @@ TTL_TO_HOURS = {
     "1y": 24 * 365,
 }
 
-mongo_client = mongo.Client()
+db_client = couchdb.Client()
 
 
 def create_app():
@@ -664,7 +702,7 @@ def create_app():
 
             if alias:
                 alias = quote_plus(alias)
-                if mongo_client.get_url(alias) is not None:
+                if db_client.get_url(alias) is not None:
                     msg = f"Error: alias '{alias}' already exists"
             else:
                 alias_host = os.getenv("ALIAS_SERVICE_HOST")
@@ -674,7 +712,7 @@ def create_app():
                 ).json()["alias"]
 
             if msg is None:
-                mongo_client.create_url(alias, long_url, username, ttl)
+                db_client.create_url(alias, long_url, username, ttl)
                 msg = f"Created short URL: {APP_URL}/{alias}"
 
         return render_template("index.html", message=msg, myurls=user_urls)
@@ -700,7 +738,7 @@ def create_app():
 
     @app.route("/<alias>")
     def alias(alias):
-        original_url = mongo_client.get_url(alias)
+        original_url = db_client.get_url(alias)
         if original_url is None:
             abort(404)
         return redirect(original_url)
