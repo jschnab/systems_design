@@ -447,13 +447,6 @@ field](https://docs.couchdb.org/en/3.2.2-docs/intro/overview.html#document-stora
 of a document, therefore  will store the user name in the `_id` field of the
 `users` table and the URL alias in the `_id` field of the the `urls` table.
 
-
-```
-function(doc) {
-  emit(doc.created_by, null)
-}
-```
-
 Now, let's focus on functions run by our application. An important fact to
 consider is that to update a document in CouchDB, the application has to
 provide the revision number, stored in the `_rev` field. If the value does not
