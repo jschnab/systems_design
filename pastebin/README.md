@@ -47,8 +47,8 @@ totalizing 5 x 10^13 bytes (50 TB) of pastes.
 The following functions compose the application programming interface (all
 functions have the user ID as a parameter, so it is ommitted):
 
-* store_text(text_body, ttl): Stores a text entered by a user, with a given
-  time-to-live (ttl).
+* store_text(text_id, text_body, ttl): Stores a text entered by a user, with a
+  given time-to-live (ttl).
 
 * retrieve_text(text_id): Returns a text that was previously stored.
 
