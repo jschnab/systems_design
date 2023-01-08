@@ -36,8 +36,8 @@ There are 10^6 pastes writes per day (10^1 pastes writes per second, 10^8
 pastes writes per year), and 10^7 paste reads per day (10^2 pastes reads per
 second).
 
-Write traffic is 10^6 bytes per second on average, read traffic is 10^7 bytes
-per second on average.
+Write traffic is 10^6 bytes per second on average (10^11 bytes per day). Read
+traffic is 10^7 bytes per second on average (10^12 bytes per day).
 
 Pastes will be stored for up to 5 years, so we may store up to 5 x 10^8 pastes,
 totalizing 5 x 10^13 bytes (50 TB) of pastes.
@@ -51,6 +51,8 @@ functions have the user ID as a parameter, so it is ommitted):
   time-to-live (ttl).
 
 * retrieve_text(text_id): Returns a text that was previously stored.
+
+* delete_text(text_id): Permanently deletes a text.
 
 ## Data model
 
@@ -107,13 +109,40 @@ request a new text identifier from the identifier service when needed.
 When a user requests an existing text, he uses the text identifier. The
 corresponding text is retrieve from the object store and presented to the user.
 
-### Infrastructure components
-
-
-## Detailed design
-
-### User quotas
+### User quotas and text limitations
 
 Unauthenticated users will be allowed 10 "pastes" per day, while
 authenticated users will be allowed 100 pastes per day. We could have a paid
 subscription with increased user quotas.
+
+A text is a string of UTF-8 characters and can be up to 512 KB.
+
+### Infrastructure components
+
+Application servers process client requests and display stored text to users.
+For redundancy and to facilitate updates we should have at least two servers. A
+load balancer could process client requests and send them to application
+servers using a round-robin mechanism. AWS EC2 instances with ELB would provide
+these features.
+
+The metadata database is stored in a relational engine: PostgreSQL. We have two
+database servers with one serving as a synchronous replica, for data
+durability. The asynchronous replica should be stored in a different data
+center. AWS RDS with multi-AZ would provide all these features.
+
+For text storage, an object store such as AWS S3 would be suitable. We would
+use the standard storage class to start with. It may be beneficial to use the
+Intelligent Tiering storage class, which adapts the data access tier
+automatically based on access frequency. However, objects smaller than 128 KB
+will be always charged like they are 128KB, so we would analyze the size
+distribution of store objects before making a decision.
+
+Most of the traffic will be reads, so we could cache texts in memory for faster
+retrieval. If we cache 20% of write traffic, this would represent in the order
+of 10^10 bytes (10 GB) per day. This fits easily on the memory of a single
+server. Cache eviction can simply follow a least-recently used policy. Cache
+invalidation can use 'write around', to process writes faster and avoid
+updating the cache with a value that may not be subsequently retrieved.
+
+## Detailed design
+
