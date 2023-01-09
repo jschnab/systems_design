@@ -1,5 +1,6 @@
 import os
 import secrets
+from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
 import requests
@@ -12,17 +13,22 @@ from flask import (
     session,
 )
 
+import metadata_database, object_store
+
 APP_HOST = os.getenv("APP_URL", "127.0.0.1")
 APP_PORT = os.getenv("APP_PORT", 5000)
 APP_URL = f"{APP_HOST}:{APP_PORT}"
 DEFAULT_USER = "anonymous"
 TTL_TO_HOURS = {
     "1h": 1,
-    "1d", 24,
-    "1w", 24 * 7,
+    "1d": 24,
+    "1w": 24 * 7,
     "1m": 24 * 30,
     "1y": 24 * 365,
 }
+
+metadata_client = metadata_database.DB()
+object_client = object_store.ObjectStore()
 
 
 def create_app(test_config=None):
@@ -39,10 +45,12 @@ def create_app(test_config=None):
         user_texts = []
 
         if request.method == "POST":
-            username = session.get("username", DEFAULT_USER)
+            user_id = session.get("user_id", DEFAULT_USER)
             text_title = request.form["text-title"]
             text_body = request.form["text-body"]
             ttl = TTL_TO_HOURS[request.form["ttl"]]
+            now = datetime.now()
+            expiration = now + timedelta(hours=ttl)
 
             id_service_host = os.getenv("ID_SERVICE_HOST")
             id_service_port = os.getenv("ID_SERVICE_PORT")
@@ -50,11 +58,27 @@ def create_app(test_config=None):
                 f"http://{id_service_host}:{id_service_port}/get-id"
             ).json()["id"]
 
-            metadata_client.store_text(text_id, text_body, username, ttl)
-            msg = f"Stored text at {APP_URL}/{text_id}"
+            try:
+                text_path = object_client.put_object(
+                    data=text_body,
+                    key=text_id,
+                    created_by=user_id,
+                    creation_timestamp=now,
+                    expiration_timestamp=expiration,
+                )
+                metadata_client.store_text(
+                    text_id=text_id,
+                    text_path=text_path,
+                    user_id=user_id,
+                    creation_timestamp=creation_timestamp,
+                    expiration_timestamp=expiration_timestamp,
+                )
+                msg = f"Stored text at {APP_URL}/{text_id}"
+            except Exception as e:
+                msg = "Something went wrong, please try again"
 
         if g.user:
-            user_texts = metadata_client.get_texts_by_user(g.user["_id"])
+            user_texts = metadata_client.get_texts_by_user(g.user["id"])
             for ut in user_texts:
                 u["url"] = f"{APP_URL}/{ut['text_id']}"
                 u["created_on"] = u["creation_date"].strftime(
@@ -72,6 +96,7 @@ def create_app(test_config=None):
         return render_template("text.html", text_body=text_body)
 
     from . import auth
+
     app.register_blueprint(auth.bp)
 
     return app

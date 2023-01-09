@@ -63,11 +63,11 @@ the database and keep the metadata database size low.
 
 The table 'users' has the following columns:
 
-* username (string, primary key)
+* user_id (string, primary key)
 * first_name (string)
 * last_name (string)
 * joined_date (date)
-* last_connected_date (date)
+* last_connection_date (date)
 
 With 10^8 users, the table would contain 10^8 records. Assuming a record size
 of 10^2 bytes, the table would store 10^10 bytes (10 GB).
