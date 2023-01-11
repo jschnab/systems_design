@@ -146,3 +146,16 @@ updating the cache with a value that may not be subsequently retrieved.
 
 ## Detailed design
 
+do not use classes just to store configuration because config is a permanent
+state (it does not change depending on the application activity), instead use
+modules to encapsulate functions and load configuration to the global scope so
+that all functions in a module can read config
+
+when connecting to postgres, use one connection per SQL statement to simplify
+transaction logic. for example, several cursors could share the same
+transaction, depending on the isolation level, so it may not be immediately
+clear when reading the code if a SQL statement (or a group of SQL statements)
+are running in their own transaction
+
+do not let SQL commands or other database details leak into the frontend code,
+but instead wrap them in functions that are called by the frontend code
