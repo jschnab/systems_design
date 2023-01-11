@@ -13,7 +13,7 @@ from flask import (
     session,
 )
 
-import metadata_database, object_store
+import datastore
 
 APP_HOST = os.getenv("APP_URL", "127.0.0.1")
 APP_PORT = os.getenv("APP_PORT", 5000)
@@ -27,8 +27,7 @@ TTL_TO_HOURS = {
     "1y": 24 * 365,
 }
 
-metadata_client = metadata_database.DB()
-object_client = object_store.ObjectStore()
+data_client = datastore.DataStore()
 
 
 def create_app(test_config=None):
@@ -49,8 +48,8 @@ def create_app(test_config=None):
             text_title = request.form["text-title"]
             text_body = request.form["text-body"]
             ttl = TTL_TO_HOURS[request.form["ttl"]]
-            now = datetime.now()
-            expiration = now + timedelta(hours=ttl)
+            creation_timestamp = datetime.now()
+            expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
 
             id_service_host = os.getenv("ID_SERVICE_HOST")
             id_service_port = os.getenv("ID_SERVICE_PORT")
@@ -59,16 +58,9 @@ def create_app(test_config=None):
             ).json()["id"]
 
             try:
-                text_path = object_client.put_object(
-                    data=text_body,
-                    key=text_id,
-                    created_by=user_id,
-                    creation_timestamp=now,
-                    expiration_timestamp=expiration,
-                )
-                metadata_client.store_text(
+                data_client.put_text(
                     text_id=text_id,
-                    text_path=text_path,
+                    text_body=text_body,
                     user_id=user_id,
                     creation_timestamp=creation_timestamp,
                     expiration_timestamp=expiration_timestamp,
@@ -78,7 +70,7 @@ def create_app(test_config=None):
                 msg = "Something went wrong, please try again"
 
         if g.user:
-            user_texts = metadata_client.get_texts_by_user(g.user["id"])
+            user_texts = data_client.get_texts_by_user(g.user["id"])
             for ut in user_texts:
                 u["url"] = f"{APP_URL}/{ut['text_id']}"
                 u["created_on"] = u["creation_date"].strftime(
@@ -90,7 +82,7 @@ def create_app(test_config=None):
 
     @app.route("/<text_id>")
     def text(text_id):
-        text_body = object_store.get_text(text_id)
+        text_body = data_client.get_text(text_id)
         if text_body is None:
             abort(404)
         return render_template("text.html", text_body=text_body)
