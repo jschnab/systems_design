@@ -159,3 +159,23 @@ are running in their own transaction
 
 do not let SQL commands or other database details leak into the frontend code,
 but instead wrap them in functions that are called by the frontend code
+
+when creating a new user or a new text in the database, we enforce uniqueness
+with the primary key constraint on user ID and text ID, independently of the
+chosen transaction isolation level
+
+error management: to avoid repeated and complicated exceptions management code,
+we manage errors at the lowest possible level (e.g. in the s3.py module for AWS
+S3 operations). we initially thought that low-level functions could return an
+error message to signal an issue to higher-level code, and None to signal
+success, but some functions have to return data (e.g. retrieving a text from
+S3), so we have to distinguish a return value that is an error from a return
+value that is data. one way to do this is to return a tuple (code, data)
+where code indicates success or failure, and which kind of failure happened,
+while data contains the expected data (possibly None in case of failure).
+while this looks elegant in a simple application, there are three potential
+issues in a complex application, (1) we need a system to organize the numerous
+error codes, (2) at a high level we may replicate the complexity of low-level
+error management, simply with different error labels, (3) it becomes difficult
+to call error-managed functions in other error-managed functions, because the
+return value or the higher-level function would become a tuple (code, data).

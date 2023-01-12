@@ -14,6 +14,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import database
+from . import return_codes
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -32,11 +33,20 @@ def register():
         elif not password:
             error = "Password is required"
 
-        if error is not None:
+        if error is None:
             print("registering user")
             now = datetime.now()
-            database.create_user(user_id, firstname, lastname, now, password)
-            return redirect(url_for("auth.login"))
+            rcode, retval = database.create_user(
+                user_id,
+                firstname,
+                lastname,
+                now,
+                password,
+            )
+            if rcode is return_codes.USER_EXISTS:
+                error = f"User ID '{user_id}' is already taken"
+            else:
+                return redirect(url_for("auth.login"))
 
         flash(error)
 
@@ -50,15 +60,15 @@ def login():
         password = request.form["password"]
         error = None
 
-        result = database.get_user(user_id)
-        if result is None:
+        rcode, retval = database.get_user(user_id)
+        if rcode is not return_codes.OK:
             error = "Incorrect user ID"
-        elif not check_password_hash(result["password"], password):
+        elif not check_password_hash(retval["password"], password):
             error = "Incorrect password"
 
         if error is None:
             now = datetime.now()
-            database.update_user_last_connection(user_id, now)
+            rcode, retval = database.update_user_last_connection(user_id, now)
             session.clear()
             session["user_id"] = user_id
             return redirect(url_for("index"))

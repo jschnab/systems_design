@@ -11,6 +11,7 @@ from flask import (
 )
 
 from . import database
+from . import return_codes
 from . import s3
 from .config import config
 
@@ -51,26 +52,32 @@ def create_app(test_config=None):
                 f"http://{id_service_host}:{id_service_port}/get-alias"
             ).json()["alias"]
 
-            try:
-                database.put_text(
+            rcode, response = s3.put_text(key=text_id, text_body=text_body)
+            if rcode != return_codes.OK:
+                msg = "Something went wrong, please try again"
+
+            else:
+                rcode, retval = database.put_text_metadata(
                     text_id=text_id,
-                    text_body=text_body,
                     user_id=user_id,
                     creation_timestamp=creation_timestamp,
                     expiration_timestamp=expiration_timestamp,
                 )
-                msg = f"Stored text at {APP_URL}/{text_id}"
-            except Exception:
-                msg = "Something went wrong, please try again"
+                if rcode != return_codes.OK:
+                    msg = "Something went wrong, please try again"
+                else:
+                    msg = f"Stored text at {APP_URL}/text/{text_id}"
 
         return render_template("index.html", message=msg)
 
-    @app.route("/<text_id>")
+    @app.route("/text/<text_id>")
     def text(text_id):
-        text_body = s3.get_text(text_id)
-        if text_body is None:
+        rcode, text_body = s3.get_text(text_id)
+        if rcode is return_codes.OK:
+            return render_template("text.html", text_body=text_body)
+        if rcode is return_codes.S3_KEY_NOT_EXISTS:
             abort(404)
-        return render_template("text.html", text_body=text_body)
+        abort(500)
 
     from . import auth
 

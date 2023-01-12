@@ -1,9 +1,11 @@
+import functools
+
 import psycopg2
 import psycopg2.errors
 import psycopg2.extensions
 import psycopg2.extras
 
-from . import s3
+from . import return_codes
 from . import sql_queries
 from .config import config
 
@@ -16,14 +18,28 @@ DB_CONFIG = {
 }
 
 
-def put_text(
+def manage_errors(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        rcode = return_codes.OK
+        retval = None
+        try:
+            retval = func(*args, **kwargs)
+        except psycopg2.errors.UniqueViolation:
+            rcode = return_codes.USER_EXISTS
+        except psycopg2.Error:
+            rcode = return_codes.UNKOWN_ERROR
+        return rcode, retval
+    return wrapper
+
+
+@manage_errors
+def put_text_metadata(
     text_id,
-    text_body,
     user_id,
     creation_timestamp,
     expiration_timestamp,
 ):
-    s3.put_text(key=text_id, text_body=text_body)
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor() as cur:
             cur.execute(
@@ -38,6 +54,7 @@ def put_text(
             )
 
 
+@manage_errors
 def get_texts_by_user(user_id):
     with psycopg2.connect(
         **DB_CONFIG, cursor_factory=psycopg2.extras.DictCursor,
@@ -47,16 +64,20 @@ def get_texts_by_user(user_id):
             return cur.fetchall()
 
 
+@manage_errors
 def create_user(user_id, firstname, lastname, joined, password):
     with psycopg2.connect(**DB_CONFIG) as con:
-        con.isolation_level = psycopg2.extensions.ISOLATION_LEVEL_SERIALIZATION
         with con.cursor() as cur:
-            cur.execute(
-                sql_queries.CREATE_USER,
-                (user_id, firstname, lastname, joined, password)
-            )
+            try:
+                cur.execute(
+                    sql_queries.CREATE_USER,
+                    (user_id, firstname, lastname, joined, password)
+                )
+            except psycopg2.errors.UniqueViolation:
+                return return_codes.USER_EXISTS
 
 
+@manage_errors
 def get_user(user_id):
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
@@ -67,6 +88,7 @@ def get_user(user_id):
             return cur.fetchone()
 
 
+@manage_errors
 def update_user_last_connection(user_id, timestamp):
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor() as cur:
