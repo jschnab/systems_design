@@ -10,6 +10,7 @@ from flask import (
     session,
 )
 
+from . import alias_client
 from . import database
 from . import return_codes
 from . import s3
@@ -46,27 +47,26 @@ def create_app(test_config=None):
             creation_timestamp = datetime.now()
             expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
 
-            id_service_host = config["alias_service"]["host"]
-            id_service_port = config["alias_service"]["port"]
-            text_id = requests.get(
-                f"http://{id_service_host}:{id_service_port}/get-alias"
-            ).json()["alias"]
-
-            rcode, response = s3.put_text(key=text_id, text_body=text_body)
+            rcode, text_id = alias_client.get_id()
             if rcode != return_codes.OK:
                 msg = "Something went wrong, please try again"
 
             else:
-                rcode, retval = database.put_text_metadata(
-                    text_id=text_id,
-                    user_id=user_id,
-                    creation_timestamp=creation_timestamp,
-                    expiration_timestamp=expiration_timestamp,
-                )
+                rcode, response = s3.put_text(key=text_id, text_body=text_body)
                 if rcode != return_codes.OK:
                     msg = "Something went wrong, please try again"
+
                 else:
-                    msg = f"Stored text at {APP_URL}/text/{text_id}"
+                    rcode, retval = database.put_text_metadata(
+                        text_id=text_id,
+                        user_id=user_id,
+                        creation_timestamp=creation_timestamp,
+                        expiration_timestamp=expiration_timestamp,
+                    )
+                    if rcode != return_codes.OK:
+                        msg = "Something went wrong, please try again"
+                    else:
+                        msg = f"Stored text at {APP_URL}/text/{text_id}"
 
         return render_template("index.html", message=msg)
 
