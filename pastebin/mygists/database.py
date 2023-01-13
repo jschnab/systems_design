@@ -68,13 +68,10 @@ def get_texts_by_user(user_id):
 def create_user(user_id, firstname, lastname, joined, password):
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor() as cur:
-            try:
-                cur.execute(
-                    sql_queries.CREATE_USER,
-                    (user_id, firstname, lastname, joined, password)
-                )
-            except psycopg2.errors.UniqueViolation:
-                return return_codes.USER_EXISTS
+            cur.execute(
+                sql_queries.CREATE_USER,
+                (user_id, firstname, lastname, joined, password)
+            )
 
 
 @manage_errors
