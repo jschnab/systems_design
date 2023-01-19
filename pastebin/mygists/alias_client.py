@@ -3,7 +3,6 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
 from requests.packages.urllib3.util.retry import Retry
 
-from . import return_codes
 from .config import config
 
 MAX_RETRIES = 5
@@ -40,6 +39,6 @@ def get_id():
         response = SESSION.get(
             f"http://{id_service_host}:{id_service_port}/get-alias"
         )
+        return response.json()["alias"]
     except RequestException:
-        return return_codes.UNKNOWN_ERROR, None
-    return return_codes.OK, response.json()["alias"]
+        pass

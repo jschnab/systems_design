@@ -36,7 +36,7 @@ def register():
         if error is None:
             print("registering user")
             now = datetime.now()
-            rcode, retval = database.create_user(
+            rcode = database.create_user(
                 user_id,
                 firstname,
                 lastname,
@@ -60,15 +60,13 @@ def login():
         password = request.form["password"]
         error = None
 
-        rcode, retval = database.get_user(user_id)
-        if rcode is not return_codes.OK:
-            error = "Incorrect user ID"
-        elif not check_password_hash(retval["password"], password):
+        user_info = database.get_user(user_id)
+        if not check_password_hash(user_info["password"], password):
             error = "Incorrect password"
 
         if error is None:
             now = datetime.now()
-            rcode, retval = database.update_user_last_connection(user_id, now)
+            database.update_user_last_connection(user_id, now)
             session.clear()
             session["user_id"] = user_id
             return redirect(url_for("index"))

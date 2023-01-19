@@ -54,6 +54,12 @@ functions have the user ID as a parameter, so it is ommitted):
 
 * delete_text(text_id): Permanently deletes a text.
 
+* create_user(user_id, first_name, last_name, password, creation_timestamp):
+  Registers a new user in the database.
+
+* get_texts_by_user(user_id): Retrieves the information about the texts stored
+  by a specific user, to display in his profile.
+
 ## Data model
 
 We need to store information about users and stored texts. Texts will be stored

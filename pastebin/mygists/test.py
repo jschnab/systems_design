@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from . import database
-from . import s3
+from . import object_store
 
 
 def test_put_text():
@@ -11,26 +11,20 @@ def test_put_text():
     exp = now + timedelta(days=30)
 
     database.put_text(
-        "DySG",
-        text_body,
-        "anonymous",
-        now,
-        exp,
+        "DySG", text_body, "anonymous", now, exp,
     )
 
 
-def test_s3_put_text():
-    rcode, data = s3.put_text("this-is-the-key", "this-is-the-text-body")
-    if rcode is not None:
-        print(rcode, data)
+def test_put_text_object():
+    object_store.put_text("this-is-the-key", "this-is-the-text-body")
 
 
 def test_get_text():
-    print(s3.get_text("249Y"))
+    print(object_store.get_text("249Y"))
 
 
 def test_get_text_no_such_key():
-    print(s3.get_text("osidmoismdf"))
+    print("object not found:", object_store.get_text("osidmoismdf") is None)
 
 
 def test_get_texts_by_user():
@@ -41,11 +35,15 @@ def test_get_texts_by_user():
 
 
 def test_insert_user_exists():
-    database.create_user("anonymous", "john", "doe", datetime.now(), "blah")
+    print(
+        database.create_user(
+            "anonymous", "john", "doe", datetime.now(), "blah"
+        )
+    )
 
 
 def main():
-    test_get_text_no_such_key()
+    test_insert_user_exists()
 
 
 if __name__ == "__main__":

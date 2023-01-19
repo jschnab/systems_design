@@ -1,7 +1,6 @@
 import secrets
 from datetime import datetime, timedelta
 
-import requests
 from flask import (
     abort,
     Flask,
@@ -12,8 +11,7 @@ from flask import (
 
 from . import alias_client
 from . import database
-from . import return_codes
-from . import s3
+from . import object_store
 from .config import config
 
 APP_URL = f"{config['app']['host']}:{config['app']['port']}"
@@ -47,37 +45,28 @@ def create_app(test_config=None):
             creation_timestamp = datetime.now()
             expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
 
-            rcode, text_id = alias_client.get_id()
-            if rcode != return_codes.OK:
-                msg = "Something went wrong, please try again"
+            text_id = alias_client.get_id()
+            if text_id is None:
+                msg = "Something went wrong, try again later"
 
             else:
-                rcode, response = s3.put_text(key=text_id, text_body=text_body)
-                if rcode != return_codes.OK:
-                    msg = "Something went wrong, please try again"
-
-                else:
-                    rcode, retval = database.put_text_metadata(
-                        text_id=text_id,
-                        user_id=user_id,
-                        creation_timestamp=creation_timestamp,
-                        expiration_timestamp=expiration_timestamp,
-                    )
-                    if rcode != return_codes.OK:
-                        msg = "Something went wrong, please try again"
-                    else:
-                        msg = f"Stored text at {APP_URL}/text/{text_id}"
+                object_store.put_text(key=text_id, text_body=text_body)
+                database.put_text_metadata(
+                    text_id=text_id,
+                    user_id=user_id,
+                    creation_timestamp=creation_timestamp,
+                    expiration_timestamp=expiration_timestamp,
+                )
+                msg = f"Stored text at {APP_URL}/text/{text_id}"
 
         return render_template("index.html", message=msg)
 
     @app.route("/text/<text_id>")
     def text(text_id):
-        rcode, text_body = s3.get_text(text_id)
-        if rcode is return_codes.OK:
-            return render_template("text.html", text_body=text_body)
-        if rcode is return_codes.S3_KEY_NOT_EXISTS:
+        text_body = object_store.get_text(text_id)
+        if text_body is None:
             abort(404)
-        abort(500)
+        return render_template("text.html", text_body=text_body)
 
     from . import auth
 
