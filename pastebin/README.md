@@ -103,15 +103,6 @@ S3. Text metadata is stored in the metadata database. As described in the
 data model section, we will use a relational database for the metadata
 database.
 
-How long should be the text identifier? In the next 5 years we will have to
-store 5 x 10^8 texts, so we will need as many identifiers. If we use 64
-characters (uppercase and lowercase English letters, digits, hyphen and
-underscore), a 5-character identifier should be enough: 64 ^ 5 equal
-approximately 1 billion, which gives a 10-fold headroom. As discussed in the
-design document for the URL shortening service, we will pre-generate text
-identifiers and have a service manage them. The text storage application will
-request a new text identifier from the identifier service when needed.
-
 When a user requests an existing text, he uses the text identifier. The
 corresponding text is retrieve from the object store and presented to the user.
 

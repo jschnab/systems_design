@@ -3,13 +3,14 @@ from datetime import datetime, timedelta
 
 from flask import (
     abort,
+    flash,
     Flask,
     render_template,
     request,
     session,
 )
 
-from . import alias_client
+from . import api
 from . import database
 from . import object_store
 from .config import config
@@ -45,19 +46,13 @@ def create_app(test_config=None):
             creation_timestamp = datetime.now()
             expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
 
-            text_id = alias_client.get_id()
-            if text_id is None:
-                msg = "Something went wrong, try again later"
-
-            else:
-                object_store.put_text(key=text_id, text_body=text_body)
-                database.put_text_metadata(
-                    text_id=text_id,
-                    user_id=user_id,
-                    creation_timestamp=creation_timestamp,
-                    expiration_timestamp=expiration_timestamp,
-                )
-                msg = f"Stored text at {APP_URL}/text/{text_id}"
+            text_id = api.store_text(
+                text_body=text_body,
+                user_id=user_id,
+                creation_timestamp=creation_timestamp,
+                expiration_timestamp=expiration_timestamp,
+            )
+            msg = f"Stored text at {APP_URL}/text/{text_id}"
 
         return render_template("index.html", message=msg)
 
@@ -67,6 +62,18 @@ def create_app(test_config=None):
         if text_body is None:
             abort(404)
         return render_template("text.html", text_body=text_body)
+
+    @app.route("/mytexts")
+    def user_texts():
+        user_id = session.get("user_id")
+        if user_id is None:
+            flash("Please log in to see your saved texts")
+            return render_template("index.html")
+
+        texts = database.get_texts_by_user(user_id)
+        return render_template(
+            "user_texts.html", mytexts=texts, app_url=APP_URL,
+        )
 
     from . import auth
 

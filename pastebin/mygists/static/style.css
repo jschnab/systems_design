@@ -19,3 +19,8 @@ code {
     white-space: pre-wrap;
     background: white;
 }
+.content { padding: 1em; }
+.text-item-details { list-style: none; }
+.text-url { font-weight: bold; }
+.text-created { font-style: italic; }
+.text-expires { font-style: italic; }

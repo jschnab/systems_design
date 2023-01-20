@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+  {% if mytexts %}
+    <h2>My texts</h2>
+    {% for text in mytexts %}
+      <div class="text-item">
+        <ul class="text-item-details">
+            <li class="text-url">
+              <a href="{{ url_for('text', text_id=text['text_id']) }}">{{ app_url }}{{ url_for('text', text_id=text['text_id']) }}</a>
+            </li>
+          <li class="text-creation">Created on: {{ text['creation'] }}</li>
+          <li class="text-expiration">Expires on: {{ text['expiration'] }}</li>
+        </ul>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+{% endblock %}

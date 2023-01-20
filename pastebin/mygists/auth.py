@@ -28,9 +28,9 @@ def register():
         password = generate_password_hash(request.form["password"])
 
         error = None
-        if not user_id:
+        if user_id is None:
             error = "User ID is required"
-        elif not password:
+        elif password is None:
             error = "Password is required"
 
         if error is None:
