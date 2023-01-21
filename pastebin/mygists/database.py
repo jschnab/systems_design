@@ -35,6 +35,12 @@ def put_text_metadata(
             )
 
 
+def delete_text_metadata(text_id):
+    with psycopg2.connect(**DB_CONFIG) as con:
+        with con.cursor() as cur:
+            cur.execute(sql_queries.DELETE_TEXT, (text_id,))
+
+
 def get_texts_by_user(user_id):
     with psycopg2.connect(
         **DB_CONFIG, cursor_factory=psycopg2.extras.DictCursor,

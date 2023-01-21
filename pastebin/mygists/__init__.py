@@ -16,7 +16,7 @@ from . import object_store
 from .config import config
 
 APP_URL = f"{config['app']['host']}:{config['app']['port']}"
-DEFAULT_USER = "anonymous"
+DEFAULT_USER = config["app"]["default_user"]
 TTL_TO_HOURS = {
     "1h": 1,
     "1d": 24,
@@ -46,6 +46,12 @@ def create_app(test_config=None):
             creation_timestamp = datetime.now()
             expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
 
+            if user_id == DEFAULT_USER:
+                user_ip = request.environ.get(
+                    "HTTP_X_REAL_IP",
+                    request.remote_addr
+                )
+
             text_id = api.store_text(
                 text_body=text_body,
                 user_id=user_id,
@@ -57,11 +63,18 @@ def create_app(test_config=None):
         return render_template("index.html", message=msg)
 
     @app.route("/text/<text_id>")
-    def text(text_id):
+    def get_text(text_id):
         text_body = object_store.get_text(text_id)
         if text_body is None:
             abort(404)
         return render_template("text.html", text_body=text_body)
+
+    @app.route("/delete-text", methods=("POST",))
+    def delete_text():
+        if request.method == "POST":
+            text_id = request.form["text-id"]
+            api.delete_text(text_id=text_id)
+        return "OK"
 
     @app.route("/mytexts")
     def user_texts():

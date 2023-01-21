@@ -15,6 +15,9 @@ website.
 Users can signup and authenticated or store text anonymously as unauthenticated
 "guests".
 
+Users have quotas, they cannot store more than a certain number of texts per
+time interval.
+
 ### Non-functional requirements
 
 The application should be highly available, basically always reachable.
@@ -27,28 +30,36 @@ lost.
 
 ## Capacity estimations
 
-We will accomodate 10^8 registered users, and we expect 10^7 daily active
+We will accommodate 10^8 registered users, and we expect 10^7 daily active
 users.
 
-A paste is 10^5 bytes on average (limited to 500 KB).
+A paste is 10^5 bytes on average (limited to 512 KB).
 
-There are 10^6 pastes writes per day (10^1 pastes writes per second, 10^8
-pastes writes per year), and 10^7 paste reads per day (10^2 pastes reads per
+There are 10^6 text writes per day (10^1 text writes per second, 10^8
+text writes per year), and 10^7 text reads per day (10^2 text reads per
 second).
 
 Write traffic is 10^6 bytes per second on average (10^11 bytes per day). Read
 traffic is 10^7 bytes per second on average (10^12 bytes per day).
 
-Pastes will be stored for up to 5 years, so we may store up to 5 x 10^8 pastes,
-totalizing 5 x 10^13 bytes (50 TB) of pastes.
+Pastes will be stored for up to 5 years, so we may store up to 5 x 10^8 texts,
+totalizing 5 x 10^13 bytes (50 TB) of texts.
 
 ## Interface
 
 The following functions compose the application programming interface (all
 functions have the user ID as a parameter, so it is ommitted):
 
-* store_text(text_id, text_body, ttl): Stores a text entered by a user, with a
-  given time-to-live (ttl).
+* store_text(
+    text_id,
+    text_body,
+    user_id,
+    user_ip,
+    creation_timestamp,
+    expiration_timestamp
+  ): Stores a text entered by a user, with a given expiration timestamp.
+  Because some users are not authenticated (anonymous), we also store the IP
+  address of the request to limit the number of requests we serve.
 
 * retrieve_text(text_id): Returns a text that was previously stored.
 
@@ -76,22 +87,32 @@ The table 'users' has the following columns:
 * last_connection_date (date)
 
 With 10^8 users, the table would contain 10^8 records. Assuming a record size
-of 10^2 bytes, the table would store 10^10 bytes (10 GB).
+of 10^2 bytes, the table would store 10^10 bytes (10 GB). An index on user_id
+would increase stored data by 20 % (1 column out of 5), for a total of 12 GB.
 
 The table 'texts' has the following columns:
 
-* text_id (string, primary key)
+* text_id (string, primary key): unique text identifier
 * text_path (string): path to the text object in the object store
-* created_by (string): username of the text creator
-* creation_date (date)
+* user_id (string): user identifier of the text creator
+* user_ip (string): IP of the text creator
+* creation_date (date): date when the text was stored
 * expiration_date (date): date after which the text should be deleted
 
-With 5 x 10^8 stored texts, the table would contain 5 x 10^8 records. Assuming
-a record size of 100 bytes, the table would store 5 x 10^10 bytes (50 GB).
+We anticipate that we will enforce user quotas by querying the 'texts' table,
+and count how many texts were recently stored. This means that we will need
+indexes on user_id, user_ip (for unauthenticated users), and creation_date, in
+order to have a reasonable query performance.
 
-The 'users' and 'texts' tables totalize 60 GB, a modest size for a database.
-Given that we expect a few hundreds of requests per second (mostly reads), a
-relational database such as PostgreSQL or MySQL would fulfill our requirements.
+With 5 x 10^8 stored texts, the table would contain 5 x 10^8 records. Assuming
+a record size of 10^2 bytes, the table would store 5 x 10^10 bytes (50 GB).
+Indexes will probably increase storage by around 70 % (4 columns out of 6), for
+a total storage size of 85 GB.
+
+The 'users' and 'texts' tables totalize around 100 GB, a modest size for a
+database. Given that we expect a few hundreds of requests per second (mostly
+reads), a relational database such as PostgreSQL or MySQL would fulfill our
+requirements.
 
 ## High-level design
 
@@ -108,8 +129,8 @@ corresponding text is retrieve from the object store and presented to the user.
 
 ### User quotas and text limitations
 
-Unauthenticated users will be allowed 10 "pastes" per day, while
-authenticated users will be allowed 100 pastes per day. We could have a paid
+Unauthenticated users will be allowed to store 10 texts per day, while
+authenticated users will be allowed 100 texts per day. We could have a paid
 subscription with increased user quotas.
 
 A text is a string of UTF-8 characters and can be up to 512 KB.
@@ -132,7 +153,10 @@ use the standard storage class to start with. It may be beneficial to use the
 Intelligent Tiering storage class, which adapts the data access tier
 automatically based on access frequency. However, objects smaller than 128 KB
 will be always charged like they are 128KB, so we would analyze the size
-distribution of store objects before making a decision.
+distribution of actually stored objects before making a decision. To guard
+against accidental object deletion, bucket versioning should be enabled.
+Deleted objects will be retained for 7 days as a non-current object version
+before being permanently deleted, thanks to a lifecycle policy.
 
 Most of the traffic will be reads, so we could cache texts in memory for faster
 retrieval. If we cache 20% of write traffic, this would represent in the order

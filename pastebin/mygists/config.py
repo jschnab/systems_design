@@ -9,15 +9,6 @@ def get_config():
             "s3_bucket": os.getenv("MYPASTEBIN_S3_BUCKET"),
             "encoding": os.getenv("MYPASTEBIN_TEXT_ENCODING", "utf-8"),
         },
-        "alias_service": {
-            "db_host": os.getenv("ALIAS_DB_HOST", "localhost"),
-            "db_port": os.getenv("ALIAS_DB_PORT", 5432),
-            "db_database": os.getenv("ALIAS_DB_DATABASE"),
-            "db_user": os.getenv("ALIAS_DB_USER"),
-            "db_password": os.getenv("ALIAS_DB_PASSWORD"),
-            "host": os.getenv("ALIAS_SERVICE_HOST", "localhost"),
-            "port": os.getenv("ALIAS_SERVICE_PORT", 8000),
-        },
         "database": {
             "host": os.getenv("MYPASTEBIN_DB_HOST", "localhost"),
             "port": os.getenv("MYPASTEBIN_DB_PORT", 5432),
@@ -28,6 +19,7 @@ def get_config():
         "app": {
             "host": os.getenv("MYPASTEBIN_HOST", "localhost"),
             "port": os.getenv("MYPASTEBIN_PORT", 5000),
+            "default_user": os.getenv("MYPASTEBIN_DEFAULT_USER", "anonymous"),
         }
     }
 

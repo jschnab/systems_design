@@ -13,6 +13,7 @@ form { display: flex; flex-direction: column; }
 input, select { margin-bottom: 1em; }
 label { margin-top: 0.4em; }
 input[type=submit] { align-self: start; min-width: 10em; background: #12ad2b; }
+input[class=delete-text] { background: #ff0000; }
 select { align-self: start; min-width: 10em; }
 code {
     font-family: Consolas,"Liberation Mono",monospace;
