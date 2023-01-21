@@ -34,7 +34,6 @@ def register():
             error = "Password is required"
 
         if error is None:
-            print("registering user")
             now = datetime.now()
             rcode = database.create_user(
                 user_id, firstname, lastname, now, password,

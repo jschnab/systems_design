@@ -42,7 +42,7 @@ second).
 Write traffic is 10^6 bytes per second on average (10^11 bytes per day). Read
 traffic is 10^7 bytes per second on average (10^12 bytes per day).
 
-Pastes will be stored for up to 5 years, so we may store up to 5 x 10^8 texts,
+Texts will be stored for up to 5 years, so we may store up to 5 x 10^8 texts,
 totalizing 5 x 10^13 bytes (50 TB) of texts.
 
 ## Interface
@@ -86,10 +86,6 @@ The table 'users' has the following columns:
 * joined_on (timestamp)
 * last_connection (timestamp)
 
-With 10^8 users, the table would contain 10^8 records. Assuming a record size
-of 10^2 bytes, the table would store 10^10 bytes (10 GB). An index on user_id
-would increase stored data by 20 % (1 column out of 5), for a total of 12 GB.
-
 The table 'texts' has the following columns:
 
 * text_id (string, primary key): unique text identifier
@@ -105,28 +101,23 @@ and count how many texts were recently stored. This means that we will need
 indexes on user_id, user_ip (for unauthenticated users), and creation_date, in
 order to have a reasonable query performance.
 
-With 5 x 10^8 stored texts, the table would contain 5 x 10^8 records. Assuming
-a record size of 10^2 bytes, the table would store 5 x 10^10 bytes (50 GB).
-Indexes will probably increase storage by around 70 % (4 columns out of 6), for
-a total storage size of 85 GB.
-
-The 'users' and 'texts' tables totalize around 100 GB, a modest size for a
-database. Given that we expect a few hundreds of requests per second (mostly
-reads), a relational database such as PostgreSQL or MySQL would fulfill our
-requirements.
-
 ## High-level design
 
 ### Application workflow
 
-When a user stores a text, a unique text identifier is assigned to the text to
-serve as a URL for the text. The text is stored in an object store, such as AWS
-S3. Text metadata is stored in the metadata database. As described in the
-data model section, we will use a relational database for the metadata
-database.
+When a user stores a text, a unique identifier is assigned to the text. This
+will serve to identify the text metadata in the database and in object storage.
+The application verifies that users quotas are not exceeded (10 texts per day
+for unauthenticated (anonymous) users, and 100 texts per day for authenticated
+users), then stores the text body in object storage and text metadata (who
+created, when it was created, when it expires) in the database.
 
 When a user requests an existing text, he uses the text identifier. The
-corresponding text is retrieve from the object store and presented to the user.
+corresponding text is retrieve from object store and presented to the user.
+
+Authenticated users can see the list of texts they previously stored. An option
+to delete a text is provided, in which case the text is deleted from object
+storage, and marked as deleted in the metadata database.
 
 ### User quotas and text limitations
 
@@ -138,26 +129,44 @@ A text is a string of UTF-8 characters and can be up to 512 KB.
 
 ### Infrastructure components
 
+#### Web application server
+
 Application servers process client requests and display stored text to users.
 For redundancy and to facilitate updates we should have at least two servers. A
 load balancer could process client requests and send them to application
-servers using a round-robin mechanism. AWS EC2 instances with ELB would provide
-these features.
+servers based on server health.
 
-The metadata database is stored in a relational engine: PostgreSQL. We have two
-database servers with one serving as a synchronous replica, for data
-durability. The asynchronous replica should be stored in a different data
-center. AWS RDS with multi-AZ would provide all these features.
+#### Metadata database
 
-For text storage, an object store such as AWS S3 would be suitable. We would
-use the standard storage class to start with. It may be beneficial to use the
-Intelligent Tiering storage class, which adapts the data access tier
-automatically based on access frequency. However, objects smaller than 128 KB
-will be always charged like they are 128KB, so we would analyze the size
-distribution of actually stored objects before making a decision. To guard
-against accidental object deletion, bucket versioning should be enabled.
-Deleted objects will be retained for 7 days as a non-current object version
-before being permanently deleted, thanks to a lifecycle policy.
+We store metadata in two tables, 'users' and 'texts'. These will keep track of
+user activities, as well as what texts have been stored, by who, and when we
+should expire them. This use-case fits an online transactional processing
+(OLTP) workload.
+
+With 10^8 users, the users table would contain 10^8 records. Assuming a record
+size of 10^2 bytes, the table would store 10^10 bytes (10 GB).
+
+With 5 x 10^8 stored texts, the texts table would contain 5 x 10^8 records.
+Assuming a record size of 10^2 bytes, the table would store 5 x 10^10 bytes
+(50 GB).
+
+Users and texts tables totalize 10^10 bytes (tens of GB), a modest size for a
+database. In terms of throughput, we expect a few hundreds of requests per
+second (mostly reads).
+
+In summary, a relational database such as PostgreSQL would fulfill our
+requirements.
+
+#### Text storage
+
+We expect to store up to 50 TB of text data. This is a lot of unstructured
+data, which would not fit in a simple relational database setup. A distributed
+database such as a key-value store would be a viable option but would provide
+many more options than necessary. Our primary goal is to store lots of
+unstructured data with high durability and availability, so a distributed
+filesystem (e.g. HDFS, AWS S3) is a good option.
+
+### Caching
 
 Most of the traffic will be reads, so we could cache texts in memory for faster
 retrieval. If we cache 20% of write traffic, this would represent in the order
@@ -167,6 +176,111 @@ invalidation can use 'write around', to process writes faster and avoid
 updating the cache with a value that may not be subsequently retrieved.
 
 ## Detailed design
+
+### Web application
+
+There are many applications and libraries available to implement web
+applications. We use [Flask](https://palletsprojects.com/p/flask/) to build our
+application and
+[NGINX](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/) as
+a reverse proxy to serve client requests.
+
+The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
+instances. We choose t3.2xlarge instances with 8 vCPU and 32 GiB of memory,
+which will allow enough resources for the web application and a local in-memory
+cache (more on caching below). Our application has no significant disk
+operations, a 50GB gp3 SSD is enough.
+
+Application EC2 instances will be placed in a target group behind an
+[application load balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
+The target group is an [autoscaling](https://aws.amazon.com/autoscaling/) group
+that maintains two web application EC2 instances at all times. This increases
+the availability of application: if a server becomes unavailable, a new server
+will be provisioned and ready to serve requests in a few minutes. This also
+allows "rolling" application updates: we manually terminate a server in and the
+autoscaling group will automatically provision a new updated server.
+
+Costs are dominated by data transfers to the Internet and by EC2 instance
+costs. Total yearly prices will be around $35,000: $31,000 for outgoing data
+transfer costs and $4,000 for EC2 instance costs (reserved instances with
+full upfront payment). The application load balancer will cost $400 per year.
+Autoscaling has no additional charge.
+
+### Metadata database
+
+Our metadata database engine is PostgreSQL. For durability, we will
+synchronously replicate the database on a standby database server. This will
+allow us to quickly recover the application if the main server become
+unavailable, at the cost of longer write durations.
+
+[AWS RDS](https://aws.amazon.com/rds/) supports PostgreSQL and has a feature
+named [Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) that allows
+synchronous data replication on a secondary server in a different availability
+zone (same geographical area but different data center).
+
+To enforce quotas, we need to keep track of how many texts were stored by
+users. Authenticated users are identified by their user ID, and unauthenticated
+users are identified by their IP address because they all share the user ID
+'anonymous'. To count how many texts were created, we have two options: (1) we
+store a counter for each user that we increment for each text created, (2) we
+count how many texts were created by the user in the day that precedes the
+request. Option 1 consumes less database resources at the cost of a more
+complex application because we need to store the last time the counter was
+reset, and periodically reset the counter. Option 2 consumes more database
+resources but does not require an additional counter and timestamp, only a
+simple aggregation query. We can improve the query performance by creating
+indexes on the texts table on the columns 'user_id', 'user_ip', and 'creation'.
+
+The integrity of the users table is enforced by a primary key on user ID. If a
+primary key violation happens when a new user register with our application, we
+signal to the user that the user ID is already taken and prompt him to choose
+another user ID.
+
+The integrity of the texts table is enforced by a primary key on text ID and a
+foreign key on user ID that references the primary key of the users table. Text
+IDs are generated by our application using
+[RFC 4122](https://datatracker.ietf.org/doc/html/rfc4122.html) universally
+unique identifiers (UUID), so we can ensure their uniqueness. Given that we
+will need up to 10^8 text IDs and that there are 10^38 UUIDs available (a UUID
+is 128 bits), we will ignore the potential issue of a text ID collision.
+
+Yearly costs for our metadata database will be around $8,200 with the following
+features:
+- 1 db.t3.2xlarge (8 vCPU, 32 GiB memory) RDS PostgreSQL instance
+- 1 Multi-AZ replica with the same specifications as the primary instance
+- 100 GB of gp3 SSD storage on each instance
+- 100 GB of monthly backup storage
+- RDS Proxy (connection pool)
+- instances reserved for 1 year with full upfront payment of $6,760 then $120
+  monthly payments for storage and proxy costs
+
+### Text storage
+
+We choose [AWS S3](https://aws.amazon.com/s3/) as our text storage system.
+
+[Bucket versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html)
+is used to guard against accidental deletions. The
+[lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html) of objects will be configured to keep a single non-current object version for 7 days before it is permanently deleted.
+
+If we use the S3 Standard storage class,
+[costs](https://aws.amazon.com/s3/pricing/) will amount to around $8,600
+for the first year ($5,400 for storage and $3,300 for requests). There are no
+data transfer costs between S3 and other services in the same region. A rough
+estimation indicates that S3 Intelligent Tiering storage would not lead to
+savings, with around 20% storage cost savings (if our storage splits evenly
+between frequent and infrequent access), but an additional $5,850 of monitoring
+costs.
+
+### Total infrastructure cost
+
+Total costs for the first year are estimated at $52,000. The share of each AWS
+service in the cost is approximately:
+
+* EC2: 68%
+* S3: 16%
+* RDS: 16%
+
+## Application code
 
 do not use classes just to store configuration because config is a permanent
 state (it does not change depending on the application activity), instead use

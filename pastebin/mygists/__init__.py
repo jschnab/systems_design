@@ -56,15 +56,11 @@ def create_app(test_config=None):
             count_texts = database.count_recent_texts_by_user(
                 user_id=user_id, user_ip=user_ip,
             )
-            print(f"user IP: {user_ip}")
-            print(f"count texts: {count_texts}")
 
             if user_id == DEFAULT_USER:
                 quota = TEXTS_QUOTA_ANONYMOUS
             else:
                 quota = TEXTS_QUOTA_USER
-            print(f"user ID: {user_id}")
-            print(f"user quota: {quota}")
 
             if count_texts >= quota:
                 msg = (
