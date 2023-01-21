@@ -33,7 +33,8 @@ lost.
 We will accommodate 10^8 registered users, and we expect 10^7 daily active
 users.
 
-A paste is 10^5 bytes on average (limited to 512 KB).
+A paste is 10^5 bytes on average (limited to 512 KB or 64,000 ASCII
+characters).
 
 There are 10^6 text writes per day (10^1 text writes per second, 10^8
 text writes per year), and 10^7 text reads per day (10^2 text reads per
@@ -125,7 +126,7 @@ Unauthenticated users will be allowed to store 10 texts per day, while
 authenticated users will be allowed 100 texts per day. We could have a paid
 subscription with increased user quotas.
 
-A text is a string of UTF-8 characters and can be up to 512 KB.
+A text is a string of characters and can be up to 512 KB.
 
 ### Infrastructure components
 
@@ -189,7 +190,7 @@ The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
 instances. We choose t3.2xlarge instances with 8 vCPU and 32 GiB of memory,
 which will allow enough resources for the web application and a local in-memory
 cache (more on caching below). Our application has no significant disk
-operations, a 50GB gp3 SSD is enough.
+operations, a 50 GB gp3 SSD is enough.
 
 Application EC2 instances will be placed in a target group behind an
 [application load balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
@@ -258,9 +259,30 @@ features:
 
 We choose [AWS S3](https://aws.amazon.com/s3/) as our text storage system.
 
+When users store text, they choose a time interval after which the text expires
+and is not available for reading anymore. We need a mechanism that deletes
+expired texts from storage. This is necessary to keep text storage simple to
+monitor, and avoid incurring unnecessary storage costs. Text deletion is
+carried out by a 'cleanup' process that performs the following steps:
+
+1. Scan the texts table in the metadata database and select the path for texts
+  that are not deleted yet (column 'deletion' is NULL), and where the value of
+  'expiration' is greater than the current timestamp.
+2. Delete all S3 objects corresponding to the paths collected in step 1.
+3. Mark the text as deleted in the metadata database by setting the current
+   timestamp as a value for the column 'deletion'.
+
+It is not critical that steps 2 and 3 are atomic (succeed or fail together) so
+we can keep the cleanup process simple and simply retry it in case of failure.
+If an expired object is not found during step 2, we can simply skip this step
+and carry on with step 3. Cleanup is performed daily at a time when load on the
+system is low.
+
 [Bucket versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html)
 is used to guard against accidental deletions. The
-[lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html) of objects will be configured to keep a single non-current object version for 7 days before it is permanently deleted.
+[lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
+of objects will be configured to keep a single non-current object version for
+7 days before it is permanently deleted.
 
 If we use the S3 Standard storage class,
 [costs](https://aws.amazon.com/s3/pricing/) will amount to around $8,600
@@ -279,6 +301,12 @@ service in the cost is approximately:
 * EC2: 68%
 * S3: 16%
 * RDS: 16%
+
+Notably, costs will scale with the success of the application. The majority of
+costs are due to data transfers from our system to the Internet, to display
+texts to users, and a large proportion of costs are related to text storage and
+requests related to text storage. Therefore, costs will be proportional to the
+amount of texts stored by users and how many times stored texts are read.
 
 ## Application code
 

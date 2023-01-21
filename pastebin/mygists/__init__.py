@@ -1,5 +1,6 @@
 import os
 import secrets
+import sys
 from datetime import datetime, timedelta
 
 from flask import (
@@ -19,6 +20,7 @@ from .config import config
 
 APP_URL = f"{config['app']['host']}:{config['app']['port']}"
 DEFAULT_USER = config["app"]["default_user"]
+TEXT_MAX_SIZE = 64000 + sys.getsizeof("")
 TEXTS_QUOTA_ANONYMOUS = config["app"]["texts_quota_anonymous"]
 TEXTS_QUOTA_USER = config["app"]["texts_quota_user"]
 TTL_TO_HOURS = {
@@ -41,41 +43,44 @@ def create_app(test_config=None):
 
     @app.route("/", methods=("GET", "POST"))
     def index():
-        msg = None
+        if request.method == "GET":
+            return render_template("index.html", msg=None)
 
-        if request.method == "POST":
-            user_id = session.get("user_id", DEFAULT_USER)
-            text_body = request.form["text-body"]
-            ttl = TTL_TO_HOURS[request.form["ttl"]]
-            creation_timestamp = datetime.now()
-            expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
+        text_body = request.form["text-body"]
+        if sys.getsizeof(text_body) > TEXT_MAX_SIZE:
+            return render_template("index.html", msg="Text is too large")
 
-            user_ip = request.environ.get(
-                "HTTP_X_REAL_IP", request.remote_addr
+        user_id = session.get("user_id", DEFAULT_USER)
+        ttl = TTL_TO_HOURS[request.form["ttl"]]
+        creation_timestamp = datetime.now()
+        expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
+
+        user_ip = request.environ.get(
+            "HTTP_X_REAL_IP", request.remote_addr
+        )
+        count_texts = database.count_recent_texts_by_user(
+            user_id=user_id, user_ip=user_ip,
+        )
+
+        if user_id == DEFAULT_USER:
+            quota = TEXTS_QUOTA_ANONYMOUS
+        else:
+            quota = TEXTS_QUOTA_USER
+
+        if count_texts >= quota:
+            msg = (
+                f"User '{user_id}' stored more than {quota} texts during the "
+                "past day, come back later"
             )
-            count_texts = database.count_recent_texts_by_user(
-                user_id=user_id, user_ip=user_ip,
+        else:
+            text_id = api.store_text(
+                text_body=text_body,
+                user_id=user_id,
+                user_ip=user_ip,
+                creation_timestamp=creation_timestamp,
+                expiration_timestamp=expiration_timestamp,
             )
-
-            if user_id == DEFAULT_USER:
-                quota = TEXTS_QUOTA_ANONYMOUS
-            else:
-                quota = TEXTS_QUOTA_USER
-
-            if count_texts >= quota:
-                msg = (
-                    f"User '{user_id}' saved more than {quota} during the "
-                    "past day, come back later"
-                )
-            else:
-                text_id = api.store_text(
-                    text_body=text_body,
-                    user_id=user_id,
-                    user_ip=user_ip,
-                    creation_timestamp=creation_timestamp,
-                    expiration_timestamp=expiration_timestamp,
-                )
-                msg = f"Stored text at {APP_URL}/text/{text_id}"
+            msg = f"Stored text at {APP_URL}/text/{text_id}"
 
         return render_template("index.html", message=msg)
 
