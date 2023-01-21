@@ -37,11 +37,7 @@ def register():
             print("registering user")
             now = datetime.now()
             rcode = database.create_user(
-                user_id,
-                firstname,
-                lastname,
-                now,
-                password,
+                user_id, firstname, lastname, now, password,
             )
             if rcode is return_codes.USER_EXISTS:
                 error = f"User ID '{user_id}' is already taken"
@@ -99,4 +95,5 @@ def login_required(view):
         if g.user is None:
             return redirect(url_for("auth.login"))
         return view(**kwargs)
+
     return wrapped_view

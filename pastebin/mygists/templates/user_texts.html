@@ -2,8 +2,8 @@
 
 {% block content %}
 
+  <h2>My texts</h2>
   {% if mytexts %}
-    <h2>My texts</h2>
     {% for text in mytexts %}
       <div class="text-item">
         <ul class="text-item-details">
@@ -20,6 +20,8 @@ app_url }}{{ url_for('get_text', text_id=text['text_id']) }}</a>
         </ul>
       </div>
     {% endfor %}
+  {% else %}
+  <p>You didn't store any texts, yet! <a href="{{ url_for('index')}}">Create one now!</a></p>
   {% endif %}
 
   <script>

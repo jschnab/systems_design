@@ -20,7 +20,11 @@ def get_config():
             "host": os.getenv("MYPASTEBIN_HOST", "localhost"),
             "port": os.getenv("MYPASTEBIN_PORT", 5000),
             "default_user": os.getenv("MYPASTEBIN_DEFAULT_USER", "anonymous"),
-        }
+            "texts_quota_anonymous": os.getenv(
+                "MYPASTEBIN_TEXTS_QUOTA_ANONYMOUS", 10
+            ),
+            "texts_quota_user": os.getenv("MYPASTEBIN_TEXTS_QUOTA_USER", 100),
+        },
     }
 
 

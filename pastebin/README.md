@@ -83,8 +83,8 @@ The table 'users' has the following columns:
 * user_id (string, primary key)
 * first_name (string)
 * last_name (string)
-* joined_date (date)
-* last_connection_date (date)
+* joined_on (timestamp)
+* last_connection (timestamp)
 
 With 10^8 users, the table would contain 10^8 records. Assuming a record size
 of 10^2 bytes, the table would store 10^10 bytes (10 GB). An index on user_id
@@ -96,8 +96,9 @@ The table 'texts' has the following columns:
 * text_path (string): path to the text object in the object store
 * user_id (string): user identifier of the text creator
 * user_ip (string): IP of the text creator
-* creation_date (date): date when the text was stored
-* expiration_date (date): date after which the text should be deleted
+* creation (timestamp): timestamp when the text was stored
+* expiration (timestamp): timestamp after which the text should be deleted
+* deletion (timestamp): timestamp when the texts is deleted, after expiration
 
 We anticipate that we will enforce user quotas by querying the 'texts' table,
 and count how many texts were recently stored. This means that we will need
