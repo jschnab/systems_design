@@ -25,6 +25,12 @@ def get_config():
             ),
             "texts_quota_user": os.getenv("MYPASTEBIN_TEXTS_QUOTA_USER", 100),
         },
+        "cache": {
+            "host": os.getenv("MYPASTEBIN_CACHE_HOST", "localhost"),
+            "port": os.getenv("MYPASTEBIN_CACHE_PORT", 6379),
+            "password": os.getenv("MYPASTEBIN_CACHE_PW"),
+            "encoding": os.getenv("MYPASTEBIN_CACHE_ENCODING", "utf-8"),
+        },
     }
 
 

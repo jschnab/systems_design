@@ -170,9 +170,7 @@ filesystem (e.g. HDFS, AWS S3) is a good option.
 ### Caching
 
 Most of the traffic will be reads, so we could cache texts in memory for faster
-retrieval. If we cache 20% of write traffic, this would represent in the order
-of 10^10 bytes (10 GB) per day. This fits easily on the memory of a single
-server. Cache eviction can simply follow a least-recently used policy. Cache
+retrieval.  Cache eviction can simply follow a least-recently used policy. Cache
 invalidation can use 'write around', to process writes faster and avoid
 updating the cache with a value that may not be subsequently retrieved.
 
@@ -224,10 +222,8 @@ responses.
 #### Infrastructure and costs
 
 The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
-instances. We choose t3.2xlarge instances with 8 vCPU and 32 GiB of memory,
-which will allow enough resources for the web application and a local in-memory
-cache (more on caching below). Our application has no significant disk
-operations, a 50 GB gp3 SSD is enough.
+instances. We choose t3.xlarge instances with 8 vCPU and 16 GiB of memory. Our
+application has no significant disk operations, a 50 GB gp3 SSD is enough.
 
 Application EC2 instances will be placed in a target group behind an
 [application load balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
@@ -240,11 +236,11 @@ autoscaling group will automatically provision a new updated server.
 
 Costs are dominated by data transfers to the Internet and by EC2 instance
 costs. Total yearly prices could be up to $35,000: $31,000 for outgoing
-uncompressed data transfer and $4,000 for EC2 instances (reserved
+uncompressed data transfer and $2,000 for EC2 instances (reserved
 instances with full upfront payment). If NGINX is configured to send compressed
 response data, outgoing data volume can be divided by 3 (we send mostly text
 data, which compresses very well), leading a 3-fold reduction in data transfer
-costs, down to $10,000. Total cost would then be $14,000.
+costs, down to $10,000. Total cost would then be $12,000.
 The application load balancer will cost $400 per year. Autoscaling has no
 additional charge.
 
@@ -305,6 +301,8 @@ capacity estimations for more details).
 
 We choose [AWS S3](https://aws.amazon.com/s3/) as our text storage system.
 
+#### Storage cleanup
+
 When users store text, they choose a time interval after which the text expires
 and is not available for reading anymore. We need a mechanism that deletes
 expired texts from storage. This is necessary to keep text storage simple to
@@ -343,6 +341,54 @@ Python library, would lower data transfer time and storage volume at the
 expense of more work done by the application. Assuming a compression ratio of 3
 for text, we could lower storage costs down to $1,800 per year, for a total S3
 cost of $5,100 per year.
+
+### Caching
+
+The largest part of data sent by the web application is made of texts stored in
+object storage. We need an in-memory cache that supports high availability.
+[Redis](https://redis.io/) supports
+[replication](https://redis.io/docs/management/replication/) and has a good
+Python [client library](https://github.com/redis/redis-py), so we choose it as
+our caching engine.
+
+If we cache 20% of write traffic, this would represent in the order of 10^10
+bytes (10 GB) per day. This fits easily on the memory of a single server.
+
+Texts stored and shared usually have an initial peak of popularity which then
+fades out over time. A Least-Recently Used (LRU) eviction policy is suitable
+for this pattern of access, as it keeps the most recent (hence popular) data
+available.
+
+When a user requests a text, we try to retrieve the text from the cache. In the
+case of a cache miss, we retrieve the text from object storage and cache it.
+For cache invalidation, we simply delete a piece of data from cache when it is
+deleted by a user. Our application does not allow text updates besides
+deletion, so we do not have to cover more complex eviction mechanisms.
+
+We have the options of running the caching service locally on webservers, or on
+separate servers. A local cache makes sense because cache requests only come
+from web servers, and would offer fast caching operations because no network
+traffic would be involved (except to keep cached data consistent between
+servers). A drawback of local caching is the inability to scale web and caching
+applications independently. Maintaining a separate cache cluster would be
+more work, but also more cost-efficient because the infrastructure can match
+application needs better. We will err on the side of flexibility and deploy
+dedicated caching servers. We start with t3.xlarge EC2 instances that have
+4 vCPUs and 16 GB of memory and 50 GB gp3 SSD disks, placed in an autoscaling
+group that maintains two instances at alltimes. We configure one instance to
+be a replica of the other and can become the new primary if the other instance
+fails.
+
+The following Redis configuration parameters are used:
+
+```
+maxmemory 16gb
+maxmemory-policy allkeys-lru
+```
+
+#### Infrastructure costs
+
+EC2 resources for caching cost $2,000.
 
 ### Total infrastructure cost
 

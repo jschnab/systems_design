@@ -17,7 +17,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from . import api
 from . import auth
 from . import database
-from . import object_store
 from .config import config
 
 APP_URL = f"{config['app']['host']}:{config['app']['port']}"
@@ -74,7 +73,7 @@ def create_app(test_config=None):
                 "past day, come back later"
             )
         else:
-            text_id = api.store_text(
+            text_id = api.put_text(
                 text_body=request.form["text-body"],
                 user_id=user_id,
                 user_ip=user_ip,
@@ -87,7 +86,7 @@ def create_app(test_config=None):
 
     @app.route("/text/<text_id>")
     def get_text(text_id):
-        text_body = object_store.get_text(text_id)
+        text_body = api.get_text(text_id)
         if text_body is None:
             abort(404)
         return render_template("text.html", text_body=text_body)
