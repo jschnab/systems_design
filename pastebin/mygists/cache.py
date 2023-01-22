@@ -12,20 +12,12 @@ CACHE_CLIENT = redis.Redis(
 
 
 def put(key, value):
-    print(f"caching '{key}'")
     CACHE_CLIENT.set(key, value)
 
 
 def get(key):
-    print(f"uncaching '{key}'")
-    value = CACHE_CLIENT.get(key)
-    if value is not None:
-        print("cache hit")
-    else:
-        print("cache miss")
-    return value
+    return CACHE_CLIENT.get(key)
 
 
 def delete(key):
-    print(f"evict '{key}'")
     return CACHE_CLIENT.delete(key)

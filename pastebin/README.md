@@ -170,7 +170,7 @@ filesystem (e.g. HDFS, AWS S3) is a good option.
 ### Caching
 
 Most of the traffic will be reads, so we could cache texts in memory for faster
-retrieval.  Cache eviction can simply follow a least-recently used policy. Cache
+retrieval. Cache eviction can simply follow a least-recently used policy. Cache
 invalidation can use 'write around', to process writes faster and avoid
 updating the cache with a value that may not be subsequently retrieved.
 
@@ -222,7 +222,7 @@ responses.
 #### Infrastructure and costs
 
 The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
-instances. We choose t3.xlarge instances with 8 vCPU and 16 GiB of memory. Our
+instances. We choose t3.2xlarge instances with 8 vCPU and 32 GiB of memory. Our
 application has no significant disk operations, a 50 GB gp3 SSD is enough.
 
 Application EC2 instances will be placed in a target group behind an
@@ -236,11 +236,11 @@ autoscaling group will automatically provision a new updated server.
 
 Costs are dominated by data transfers to the Internet and by EC2 instance
 costs. Total yearly prices could be up to $35,000: $31,000 for outgoing
-uncompressed data transfer and $2,000 for EC2 instances (reserved
+uncompressed data transfer and $4,000 for EC2 instances (reserved
 instances with full upfront payment). If NGINX is configured to send compressed
 response data, outgoing data volume can be divided by 3 (we send mostly text
 data, which compresses very well), leading a 3-fold reduction in data transfer
-costs, down to $10,000. Total cost would then be $12,000.
+costs, down to $10,000. Total cost would then be $14,000.
 The application load balancer will cost $400 per year. Autoscaling has no
 additional charge.
 
@@ -372,12 +372,10 @@ traffic would be involved (except to keep cached data consistent between
 servers). A drawback of local caching is the inability to scale web and caching
 applications independently. Maintaining a separate cache cluster would be
 more work, but also more cost-efficient because the infrastructure can match
-application needs better. We will err on the side of flexibility and deploy
-dedicated caching servers. We start with t3.xlarge EC2 instances that have
-4 vCPUs and 16 GB of memory and 50 GB gp3 SSD disks, placed in an autoscaling
-group that maintains two instances at alltimes. We configure one instance to
-be a replica of the other and can become the new primary if the other instance
-fails.
+application needs better. We will err on the side of simplicity and run the
+cache service locally on web servers. The cache is not consistent across
+servers but this is not a critical issue, there will be simply more cache
+misses than if the cache was replicated.
 
 The following Redis configuration parameters are used:
 
@@ -385,10 +383,6 @@ The following Redis configuration parameters are used:
 maxmemory 16gb
 maxmemory-policy allkeys-lru
 ```
-
-#### Infrastructure costs
-
-EC2 resources for caching cost $2,000.
 
 ### Total infrastructure cost
 
