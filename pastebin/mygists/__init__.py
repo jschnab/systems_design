@@ -12,15 +12,17 @@ from flask import (
     send_from_directory,
     session,
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import api
+from . import auth
 from . import database
 from . import object_store
 from .config import config
 
 APP_URL = f"{config['app']['host']}:{config['app']['port']}"
 DEFAULT_USER = config["app"]["default_user"]
-TEXT_MAX_SIZE = 64000 + sys.getsizeof("")
+TEXT_MAX_SIZE = 512000 + sys.getsizeof("")
 TEXTS_QUOTA_ANONYMOUS = config["app"]["texts_quota_anonymous"]
 TEXTS_QUOTA_USER = config["app"]["texts_quota_user"]
 TTL_TO_HOURS = {
@@ -46,8 +48,7 @@ def create_app(test_config=None):
         if request.method == "GET":
             return render_template("index.html", msg=None)
 
-        text_body = request.form["text-body"]
-        if sys.getsizeof(text_body) > TEXT_MAX_SIZE:
+        if sys.getsizeof(request.form["text-body"]) > TEXT_MAX_SIZE:
             return render_template("index.html", msg="Text is too large")
 
         user_id = session.get("user_id", DEFAULT_USER)
@@ -74,7 +75,7 @@ def create_app(test_config=None):
             )
         else:
             text_id = api.store_text(
-                text_body=text_body,
+                text_body=request.form["text-body"],
                 user_id=user_id,
                 user_ip=user_ip,
                 creation_timestamp=creation_timestamp,
@@ -118,8 +119,10 @@ def create_app(test_config=None):
             mimetype="image/vnd.microsoft.icon",
         )
 
-    from . import auth
-
     app.register_blueprint(auth.bp)
+
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1,
+    )
 
     return app

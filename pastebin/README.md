@@ -186,6 +186,43 @@ application and
 [NGINX](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/) as
 a reverse proxy to serve client requests.
 
+#### NGINX configuration
+
+To keep data transfer volumes and costs as low as possible, NGINX should be
+configured to send
+[compressed responses](http://nginx.org/en/docs/http/ngx_http_gzip_module.html).
+We use the following NGINX configuration:
+
+```
+gzip on;
+gzip_disable "msie6";
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_buffers 32 4k;
+gzip_http_version 1.1;
+gzip_min_length 256;
+gzip_types
+  text/plain
+  text/css
+  application/json
+  application/javascript
+  text/xml
+  application/xml
+  application/xml+rss
+  text/javascript;
+```
+
+The parameter `gzip_buffers` sets the number and size of buffers used to
+compress a response. Our memory page size is 4 KB, determined by running
+`getconf PAGESIZE` in the console, and we use the recommended number 32.
+
+The parameter `gzip_min_length` sets the minimum length of a response that will
+be compressed. We set this to 256 bytes to only send very small incompressed
+responses.
+
+#### Infrastructure and costs
+
 The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
 instances. We choose t3.2xlarge instances with 8 vCPU and 32 GiB of memory,
 which will allow enough resources for the web application and a local in-memory
@@ -202,10 +239,14 @@ allows "rolling" application updates: we manually terminate a server in and the
 autoscaling group will automatically provision a new updated server.
 
 Costs are dominated by data transfers to the Internet and by EC2 instance
-costs. Total yearly prices will be around $35,000: $31,000 for outgoing data
-transfer costs and $4,000 for EC2 instance costs (reserved instances with
-full upfront payment). The application load balancer will cost $400 per year.
-Autoscaling has no additional charge.
+costs. Total yearly prices could be up to $35,000: $31,000 for outgoing
+uncompressed data transfer and $4,000 for EC2 instances (reserved
+instances with full upfront payment). If NGINX is configured to send compressed
+response data, outgoing data volume can be divided by 3 (we send mostly text
+data, which compresses very well), leading a 3-fold reduction in data transfer
+costs, down to $10,000. Total cost would then be $14,000.
+The application load balancer will cost $400 per year. Autoscaling has no
+additional charge.
 
 ### Metadata database
 
@@ -213,11 +254,6 @@ Our metadata database engine is PostgreSQL. For durability, we will
 synchronously replicate the database on a standby database server. This will
 allow us to quickly recover the application if the main server become
 unavailable, at the cost of longer write durations.
-
-[AWS RDS](https://aws.amazon.com/rds/) supports PostgreSQL and has a feature
-named [Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) that allows
-synchronous data replication on a secondary server in a different availability
-zone (same geographical area but different data center).
 
 To enforce quotas, we need to keep track of how many texts were stored by
 users. Authenticated users are identified by their user ID, and unauthenticated
@@ -245,6 +281,13 @@ unique identifiers (UUID), so we can ensure their uniqueness. Given that we
 will need up to 10^8 text IDs and that there are 10^38 UUIDs available (a UUID
 is 128 bits), we will ignore the potential issue of a text ID collision.
 
+#### Infrastructure and costs
+
+[AWS RDS](https://aws.amazon.com/rds/) supports PostgreSQL and has a feature
+named [Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) that allows
+synchronous data replication on a secondary server in a different availability
+zone (same geographical area but different data center).
+
 Yearly costs for our metadata database will be around $8,200 with the following
 features:
 - 1 db.t3.2xlarge (8 vCPU, 32 GiB memory) RDS PostgreSQL instance
@@ -256,6 +299,9 @@ features:
   monthly payments for storage and proxy costs
 
 ### Text storage
+
+We estimated our storage needs in the range of tens of terabytes per year (see
+capacity estimations for more details). 
 
 We choose [AWS S3](https://aws.amazon.com/s3/) as our text storage system.
 
@@ -284,23 +330,28 @@ is used to guard against accidental deletions. The
 of objects will be configured to keep a single non-current object version for
 7 days before it is permanently deleted.
 
-If we use the S3 Standard storage class,
-[costs](https://aws.amazon.com/s3/pricing/) will amount to around $8,600
+If we use the S3 Standard storage class to store uncompressed data,
+[costs](https://aws.amazon.com/s3/pricing/) would amount to around $8,600
 for the first year ($5,400 for storage and $3,300 for requests). There are no
 data transfer costs between S3 and other services in the same region. A rough
 estimation indicates that S3 Intelligent Tiering storage would not lead to
 savings, with around 20% storage cost savings (if our storage splits evenly
 between frequent and infrequent access), but an additional $5,850 of monitoring
-costs.
+costs. Compressing data, for example using the
+[zlib module](https://docs.python.org/3/library/zlib.html) of the standard
+Python library, would lower data transfer time and storage volume at the
+expense of more work done by the application. Assuming a compression ratio of 3
+for text, we could lower storage costs down to $1,800 per year, for a total S3
+cost of $5,100 per year.
 
 ### Total infrastructure cost
 
-Total costs for the first year are estimated at $52,000. The share of each AWS
+Total costs for the first year are estimated at $27,000. The share of each AWS
 service in the cost is approximately:
 
-* EC2: 68%
-* S3: 16%
-* RDS: 16%
+* EC2: 51%
+* S3: 19%
+* RDS: 30%
 
 Notably, costs will scale with the success of the application. The majority of
 costs are due to data transfers from our system to the Internet, to display
