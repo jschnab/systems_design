@@ -17,6 +17,7 @@ CREATE TABLE texts (
   user_ip VARCHAR(15),
   creation TIMESTAMP,
   expiration TIMESTAMP,
+  to_be_deleted BOOLEAN,
   deletion TIMESTAMP
 );
 """
@@ -45,10 +46,20 @@ INSERT INTO texts (text_id, text_path, user_id, user_ip, creation, expiration)
 VALUES (%s, %s, %s, %s, %s, %s);
 """
 
+MARK_TEXT_FOR_DELETION = """
+UPDATE texts SET to_be_deleted = true WHERE text_id = %s;
+"""
+
 MARK_TEXT_DELETED = "UPDATE texts SET deletion = %s WHERE text_id = %s;"
 
 GET_TEXTS_BY_USER = """
-SELECT * FROM texts WHERE user_id = %s AND deletion IS NULL;
+SELECT * FROM texts
+WHERE user_id = %s AND (deletion IS NULL OR NOT to_be_deleted);
+"""
+
+GET_TEXTS_FOR_DELETION = """
+SELECT text_id FROM texts
+WHERE (expiration < NOW() OR to_be_deleted) AND deletion IS NULL;
 """
 
 GET_USER = "SELECT * FROM users WHERE user_id = %s;"

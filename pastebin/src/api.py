@@ -32,8 +32,10 @@ def get_text(text_id):
 
 
 def delete_text(text_id, deletion_timestamp):
-    # Mark as deleted in metadata database before deleting from object storage
-    # to avoid errors when text is not found.
-    database.mark_text_deleted(text_id, deletion_timestamp)
+    # Mark for deletion in metadata database before deleting from object
+    # storage to avoid errors when text ID shows up in web app but then is not
+    # found.
+    database.mark_text_for_deletion(text_id)
     object_store.delete_text(text_id)
+    database.mark_text_deleted(text_id, deletion_timestamp)
     cache.delete(CACHE_TEXT_KEY.format(text_id=text_id))

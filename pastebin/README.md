@@ -222,7 +222,7 @@ responses.
 #### Infrastructure and costs
 
 The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
-instances. We choose t3.2xlarge instances with 8 vCPU and 32 GiB of memory. Our
+instances. We choose t3.large instances with 2 vCPU and 8 GiB of memory. Our
 application has no significant disk operations, a 50 GB gp3 SSD is enough.
 
 Application EC2 instances will be placed in a target group behind an
@@ -235,14 +235,12 @@ allows "rolling" application updates: we manually terminate a server in and the
 autoscaling group will automatically provision a new updated server.
 
 Costs are dominated by data transfers to the Internet and by EC2 instance
-costs. Total yearly prices could be up to $35,000: $31,000 for outgoing
-uncompressed data transfer and $4,000 for EC2 instances (reserved
-instances with full upfront payment). If NGINX is configured to send compressed
-response data, outgoing data volume can be divided by 3 (we send mostly text
-data, which compresses very well), leading a 3-fold reduction in data transfer
-costs, down to $10,000. Total cost would then be $14,000.
-The application load balancer will cost $400 per year. Autoscaling has no
-additional charge.
+costs. EC2 instances cost $1,000 (reserved instances with full upfront
+payment). NGINX is configured to send compressed response data, outgoing data
+volume are divided by 3 compared to uncompressed capacity estimations (we send
+mostly text data, which compresses very well), bringing data transfer costs to
+$10,000. Total cost would then be $11,000. The application load balancer will
+cost $400 per year. Autoscaling has no additional charge.
 
 ### Metadata database
 
@@ -347,9 +345,10 @@ cost of $5,100 per year.
 The largest part of data sent by the web application is made of texts stored in
 object storage. We need an in-memory cache that supports high availability.
 [Redis](https://redis.io/) supports
-[replication](https://redis.io/docs/management/replication/) and has a good
-Python [client library](https://github.com/redis/redis-py), so we choose it as
-our caching engine.
+[replication](https://redis.io/docs/management/replication/) and has a
+stable and well-documented Python
+[client library](https://github.com/redis/redis-py), so we choose it as our
+caching engine.
 
 If we cache 20% of write traffic, this would represent in the order of 10^10
 bytes (10 GB) per day. This fits easily on the memory of a single server.
@@ -369,13 +368,13 @@ We have the options of running the caching service locally on webservers, or on
 separate servers. A local cache makes sense because cache requests only come
 from web servers, and would offer fast caching operations because no network
 traffic would be involved (except to keep cached data consistent between
-servers). A drawback of local caching is the inability to scale web and caching
-applications independently. Maintaining a separate cache cluster would be
-more work, but also more cost-efficient because the infrastructure can match
-application needs better. We will err on the side of simplicity and run the
-cache service locally on web servers. The cache is not consistent across
-servers but this is not a critical issue, there will be simply more cache
-misses than if the cache was replicated.
+servers). Drawbacks of local caching include (1) the inability to scale web and
+caching applications independently, (2) the difficulty to invalidate cached
+data when texts are deleted by users (there may cached data that is non-local
+to the deletion action) or by storage cleanup (the cleanup process would be
+best run outside web servers, and then requests should be sent to web servers
+to invalidate cached data). To solve these issues, we deploy caching on
+dedicated web servers.
 
 The following Redis configuration parameters are used:
 
@@ -384,14 +383,21 @@ maxmemory 16gb
 maxmemory-policy allkeys-lru
 ```
 
+#### Infrastructure cost
+
+Based on capacity estimations, we deploy caching on memory-optimized instances
+with around 16 GB of memory. AWS r4, r5, or r6 large EC2 instances fit this
+requirement and cost around $1,500 per year (reserved instances with full
+upfront payment).
+
 ### Total infrastructure cost
 
-Total costs for the first year are estimated at $27,000. The share of each AWS
+Total costs for the first year are estimated at $26,000. The share of each AWS
 service in the cost is approximately:
 
-* EC2: 51%
-* S3: 19%
-* RDS: 30%
+* EC2: $12,500, 48 % of total
+* S3: $5,100, 20 % of total
+* RDS: $8,200, 32 % of total
 
 Notably, costs will scale with the success of the application. The majority of
 costs are due to data transfers from our system to the Internet, to display

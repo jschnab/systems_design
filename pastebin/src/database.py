@@ -45,6 +45,14 @@ def put_text_metadata(
             )
 
 
+def mark_text_for_deletion(text_id):
+    with psycopg2.connect(**DB_CONFIG) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                sql_queries.MARK_TEXT_FOR_DELETION, (text_id,)
+            )
+
+
 def mark_text_deleted(text_id, deletion_timestamp):
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor() as cur:
