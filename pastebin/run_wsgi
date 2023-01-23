@@ -3,4 +3,4 @@
 source config.sh
 source venv/bin/activate
 
-gunicorn -w $(grep -c processor /proc/cpuinfo) --preload "mygists:create_app()"
+gunicorn -w $(grep -c processor /proc/cpuinfo) --preload "src:create_app()"

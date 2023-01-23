@@ -311,7 +311,7 @@ carried out by a 'cleanup' process that performs the following steps:
 
 1. Scan the texts table in the metadata database and select the path for texts
   that are not deleted yet (column 'deletion' is NULL), and where the value of
-  'expiration' is greater than the current timestamp.
+  'expiration' is smaller than the current timestamp.
 2. Delete all S3 objects corresponding to the paths collected in step 1.
 3. Mark the text as deleted in the metadata database by setting the current
    timestamp as a value for the column 'deletion'.
