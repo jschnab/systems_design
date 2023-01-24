@@ -17,8 +17,7 @@ def get_config():
             "password": os.getenv("MYPASTEBIN_DB_PASSWORD"),
         },
         "app": {
-            "host": os.getenv("MYPASTEBIN_HOST", "localhost"),
-            "port": os.getenv("MYPASTEBIN_PORT", 5000),
+            "url": os.getenv("MYPASTEBIN_URL", "localhost"),
             "default_user": os.getenv("MYPASTEBIN_DEFAULT_USER", "anonymous"),
             "texts_quota_anonymous": os.getenv(
                 "MYPASTEBIN_TEXTS_QUOTA_ANONYMOUS", 10

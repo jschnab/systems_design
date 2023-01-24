@@ -19,7 +19,7 @@ from . import auth
 from . import database
 from .config import config
 
-APP_URL = f"{config['app']['host']}:{config['app']['port']}"
+APP_URL = config['app']['url']
 DEFAULT_USER = config["app"]["default_user"]
 TEXT_MAX_SIZE = 512000 + sys.getsizeof("")
 TEXTS_QUOTA_ANONYMOUS = config["app"]["texts_quota_anonymous"]
