@@ -29,4 +29,7 @@ def get_text(text_id):
 
 
 def delete_text(text_id):
+    # There is no error if the object does not exist.
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
+    # services/s3.html#S3.Client.delete_object
     S3_CLIENT.delete_object(Bucket=S3_BUCKET, Key=text_id)

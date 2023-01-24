@@ -108,3 +108,12 @@ def count_recent_texts_by_user(user_id, user_ip):
             else:
                 cur.execute(sql_queries.COUNT_TEXTS_USER, (user_id,))
             return cur.fetchone()["quota"]
+
+
+def get_texts_for_deletion():
+    with psycopg2.connect(
+            **DB_CONFIG, cursor_factory=psycopg2.extras.DictCursor
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute(sql_queries.GET_TEXTS_FOR_DELETION)
+            return cur.fetchall()

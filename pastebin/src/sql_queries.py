@@ -53,7 +53,7 @@ UPDATE texts SET to_be_deleted = true WHERE text_id = %s;
 MARK_TEXT_DELETED = "UPDATE texts SET deletion = %s WHERE text_id = %s;"
 
 GET_TEXTS_BY_USER = """
-SELECT * FROM texts
+SELECT text_id, creation, expiration FROM texts
 WHERE user_id = %s AND (deletion IS NULL OR NOT to_be_deleted);
 """
 

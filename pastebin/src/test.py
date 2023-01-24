@@ -19,6 +19,10 @@ def test_put_text_object():
     object_store.put_text("this-is-the-key", "this-is-the-text-body")
 
 
+def test_delete_object():
+    object_store.delete_text("sodfoinsodinsd")
+
+
 def test_get_text():
     print(object_store.get_text("249Y"))
 
@@ -43,7 +47,7 @@ def test_insert_user_exists():
 
 
 def main():
-    test_insert_user_exists()
+    print(test_get_text())
 
 
 if __name__ == "__main__":
