@@ -1,7 +1,7 @@
 import os
 import secrets
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import (
     abort,
@@ -24,13 +24,6 @@ DEFAULT_USER = config["app"]["default_user"]
 TEXT_MAX_SIZE = 512000 + sys.getsizeof("")
 TEXTS_QUOTA_ANONYMOUS = config["app"]["texts_quota_anonymous"]
 TEXTS_QUOTA_USER = config["app"]["texts_quota_user"]
-TTL_TO_HOURS = {
-    "1h": 1,
-    "1d": 24,
-    "1w": 24 * 7,
-    "1m": 24 * 30,
-    "1y": 24 * 365,
-}
 
 
 def create_app(test_config=None):
@@ -51,10 +44,6 @@ def create_app(test_config=None):
             return render_template("index.html", msg="Text is too large")
 
         user_id = session.get("user_id", DEFAULT_USER)
-        ttl = TTL_TO_HOURS[request.form["ttl"]]
-        creation_timestamp = datetime.now()
-        expiration_timestamp = creation_timestamp + timedelta(hours=ttl)
-
         user_ip = request.environ.get(
             "HTTP_X_REAL_IP", request.remote_addr
         )
@@ -77,8 +66,7 @@ def create_app(test_config=None):
                 text_body=request.form["text-body"],
                 user_id=user_id,
                 user_ip=user_ip,
-                creation_timestamp=creation_timestamp,
-                expiration_timestamp=expiration_timestamp,
+                ttl=request.form["ttl"],
             )
             msg = f"Stored text at {APP_URL}/text/{text_id}"
 

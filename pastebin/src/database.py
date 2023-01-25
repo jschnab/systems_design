@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import psycopg2
 import psycopg2.errors
 import psycopg2.extras
@@ -9,7 +11,7 @@ from .config import config
 DB_CONFIG = {
     "host": config["database"]["host"],
     "port": config["database"]["port"],
-    "database": config["database"]["database"],
+    "dbname": config["database"]["database"],
     "user": config["database"]["user"],
     "password": config["database"]["password"],
 }
@@ -70,13 +72,14 @@ def get_texts_by_user(user_id):
             return cur.fetchall()
 
 
-def create_user(user_id, firstname, lastname, joined, password):
+def create_user(user_id, firstname, lastname, password):
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor() as cur:
             try:
+                now = datetime.now()
                 cur.execute(
                     sql_queries.CREATE_USER,
-                    (user_id, firstname, lastname, joined, password),
+                    (user_id, firstname, lastname, now, password),
                 )
             except psycopg2.errors.UniqueViolation:
                 return return_codes.USER_EXISTS

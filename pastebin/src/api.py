@@ -1,15 +1,24 @@
 import uuid
+from datetime import datetime, timedelta
 
 from . import cache
 from . import database
 from . import object_store
 
 CACHE_TEXT_KEY = "text:{text_id}"
+TTL_TO_HOURS = {
+    "1h": 1,
+    "1d": 24,
+    "1w": 24 * 7,
+    "1m": 24 * 30,
+    "1y": 24 * 365,
+}
 
 
-def put_text(
-    text_body, user_id, user_ip, creation_timestamp, expiration_timestamp
-):
+def put_text(text_body, user_id, user_ip, ttl):
+    creation_timestamp = datetime.now()
+    ttl_hours = TTL_TO_HOURS[ttl]
+    expiration_timestamp = creation_timestamp + timedelta(hours=ttl_hours)
     text_id = str(uuid.uuid4())
     object_store.put_text(text_id=text_id, text_body=text_body)
     database.put_text_metadata(

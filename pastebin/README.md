@@ -48,9 +48,8 @@ traffic is 10^7 bytes per second on average (10^12 bytes per day).
 Texts will be stored for up to one year, so we may store up to 10^8 texts,
 totalizing 10^13 bytes (10 TB) of texts.
 
-References:
-
-* <https://techcrunch.com/2015/12/16/pastebin-the-text-sharing-website-updates-with-an-emphasis-on-code/>
+These estimations are consistent with capacities referenced on
+[TechCrunch](https://techcrunch.com/2015/12/16/pastebin-the-text-sharing-website-updates-with-an-emphasis-on-code/).
 
 ## 3. Interface
 
@@ -61,25 +60,29 @@ The following functions compose the application programming interface.
 * text_body (string): Text to store.
 * user_id (string): User identifier.
 * user_ip (string): User IP address (to identify unauthenticated users).
-* creation_timestamp (timestamp): When the text is created.
-* expiration_timestamp (timestamp): When the text expires.
+* ttl (string): Time to live, i.e. time interval between text creation and
+  expiration.
+* Returns: nothing.
 
 `get_text` retrieves a text from storage:
 * text_id (string): Text identifier.
+* Returns: nothing.
 
 `delete_text` deletes a text:
 * text_id (string): Text identifier.
+* Returns: nothing.
 
 `create_user` registers a new user with the application:
 * user_id (string): User identifier.
 * first_name (string): First name.
 * last_name (string): Last name.
 * password (string): Password.
-* creation_timestamp (timestamp): When the user registers.
+* Returns: nothing.
 
 `get_texts_by_user` retrieves the information about the texts stored by a
 specific user, to display in his profile:
 * user_id (string): User identifier.
+* Returns: list of text_id, creation_timestamp, expiration_timestamp.
 
 ## 4. Data model
 
@@ -98,8 +101,8 @@ The table `users` has the following columns:
 
 The table `texts` has the following columns:
 
-* text_id (string, primary key)
-* text_path (string): path to the text object in the filesystem.
+* text_id (string, primary key): Text identifier.
+* text_path (string): Path to the text object in the filesystem.
 * user_id (string): User identifier of the text creator.
 * user_ip (string): IP of the text creator.
 * creation (timestamp): Timestamp when the text was stored.
@@ -108,13 +111,8 @@ The table `texts` has the following columns:
 * deletion (timestamp): Timestamp when the texts is deleted, after expiration.
 
 To facilitate text deletion, we add the column `to_be_deleted` that allows
-marking the text for deletion. As discussed further, this helps identifying
-situations when the text deletion process failed and needs to be retried.
-
-We anticipate that we will enforce user quotas by querying the `texts` table,
-and count how many texts were recently stored. This means that we will need
-indexes on `user_id`, `user_ip` (for unauthenticated users), and `creation`, in
-order to have a reasonable query performance.
+marking the text for deletion. This helps identifying situations when the text
+deletion process failed and needs to be retried (discussed in a later section).
 
 ## 5. High-level design
 
@@ -169,8 +167,7 @@ Users and texts tables totalize 10^10 bytes (tens of GB), a modest size for a
 database. In terms of throughput, we expect a few hundreds of requests per
 second (mostly reads).
 
-In summary, a relational database such as PostgreSQL would fulfill our
-requirements.
+A relational database such as PostgreSQL would fulfill our requirements.
 
 #### 5.3.3. Text storage
 
@@ -179,9 +176,10 @@ unstructured data, which would not fit in a simple relational database setup.
 A distributed database such as a key-value store would be a viable option but
 would provide many more options than necessary. Our primary goal is to store
 lots of unstructured data with high durability and availability, so a
-distributed filesystem (e.g. HDFS, AWS S3) is a good option.
+distributed filesystem is a good option. We choose
+[AWS S3](https://aws.amazon.com/s3/) as our text storage system.
 
-### 5.3.4. Caching
+#### 5.3.4. Caching
 
 Most of the traffic will be reads, so we could cache texts in memory for faster
 retrieval. Cache eviction can simply follow a least-recently used policy. Cache
@@ -192,13 +190,193 @@ we simply delete a text from the cache when necessary.
 
 ### 6.1. Web application
 
+#### 6.1.1. Software tools
+
 There are many applications and libraries available to implement web
 applications. We use [Flask](https://palletsprojects.com/p/flask/) to build our
-application and
+application, [Gunicorn](https://gunicorn.org/) as a WSGI server, and
 [NGINX](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/) as
-a reverse proxy to serve client requests.
+a reverse proxy to HTTP requests.
 
-#### 6.1.1. NGINX configuration
+While Flask has a built-in WSGI server using
+[Werkzeug](https://werkzeug.palletsprojects.com/en/2.2.x/), it recommended to
+run a dedicated WSGI server in [production
+environments](https://werkzeug.palletsprojects.com/en/2.2.x/deployment/) (in
+this case Werkzeug is used as a WSGI application).
+
+#### 6.1.2. Frontend
+
+##### 6.1.2.1. Store a text
+
+To store a text, users are given a
+[form](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) where
+they can paste text and choose an expiration. The following code is a snippet
+from `src/templates/html.index`:
+
+```html
+<form method="post">
+  <label for="text-body">Write or paste up to 64,000 characters</label>
+  <textarea
+    name="text-body"
+    id="text-body"
+    row="30"
+    cols="100"
+    maxlength=64000
+    placeholder="Write text here"
+    required
+  ></textarea>
+  <label for="ttl">Expired after</label>
+  <select name="ttl" id="ttl">
+    <option value="1d">1 day</option>
+    <option value="1w">1 week</option>
+    <option value="1m">1 month</option>
+    <option value="1y">1 year</option>
+  </select>
+  <input type="submit" value="Store text">
+</form>
+```
+
+We then process form data in Flask (snippet adapted from `src/__init__.py`):
+
+```python
+import flask import (
+    Flask,
+    render_template,
+    session,
+)
+
+from . import api
+
+
+def create_app(test_config=None):
+    app = Flask(__name__)
+
+    @app.route("/", methods=("GET", "POST"))
+    def index():
+        if request.method == "POST":
+            user_id = session.get("user_id", "anonymous")
+            user_ip = request.environ.get(
+                "HTTP_X_REAL_IP", request.remote_addr
+            )
+            text_id = api.put_text(
+                text_body=request.form["text-body"],
+                user_id=user_id,
+                user_ip=user_ip,
+                ttl=request.form["ttl"],
+            )
+            msg = f"Stored text at /text/{text_id}"
+
+            return render_template("index.html", message=msg)
+
+    return app
+```
+
+Because Flask is running under NGINX, we get the user IP address with
+`HTTP_X_REAL_IP`, as explained
+[here](https://stackoverflow.com/questions/3759981/get-ip-address-of-visitors-using-flask-for-python).
+
+The function `put_text` is abstracts the details about text storage and
+metadata (snippet from `src/api.py`):
+
+```python
+import uuid
+from datetime import datetime, timedelta
+
+from . import database
+from . import object_store
+
+def put_text(text_body, user_id, user_ip, ttl):
+    creation_timestamp = datetime.now()
+    ttl_hours = {
+        "1h": 1,
+        "1d": 24,
+        "1w": 24 * 7,
+        "1m": 24 * 30,
+        "1y": 24 * 365,
+    }[ttl]
+    expiration_timestamp = creation_timestamp + timedelta(hours=ttl_hours)
+    text_id = str(uuid.uuid4())
+    object_store.put_text(text_id, text_body)
+    database.put_text_metadata(
+        text_id,
+        user_id,
+        user_ip,
+        creation_timestamp,
+        expiration_timestamp,
+    )
+    return text_id
+```
+
+Text IDs are generated using
+[RFC 4122](https://datatracker.ietf.org/doc/html/rfc4122.html) universally
+unique identifiers (UUID), so we can ensure their uniqueness.
+
+We store the text body using the function `put_text` from the module
+`object_store`, then save text metadata using the function `put_text_metadata`
+from the `database` module. The `object_store` and `database` modules will be
+covered in a later section.
+
+##### 6.1.2.2. Read a text
+
+Texts are simply displayed in an HTML [code
+tag](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/code) (snippet
+of `src/templates/text.html`):
+
+```html
+<body>
+  <pre>
+    <code>{{ text_body }}</code>
+  </pre>
+</body>
+```
+
+The Flask function to build the text page is simple (snippet adapted from
+`src/__init__.py`):
+
+```python
+import flask import (
+    Flask,
+    render_template,
+    session,
+)
+
+from . import api
+
+
+def create_app(test_config=None):
+    app = Flask(__name__)
+
+    @app.route("/text/<text_id>")
+    def get_text(text_id):
+        text_body = api.get_text(text_id)
+        if text_body is None:
+            abort(404)
+        return render_template("text.html", text_body=text_body)
+
+    return app
+```
+
+The function `api.get_text` deals with retrieving texts (snippet from
+`src/api.py`):
+
+```python
+from . import cache
+from . import object_store
+
+
+def get_text(text_id):
+    text_body = cache.get(CACHE_TEXT_KEY.format(text_id=text_id))
+    if text_body is not None:
+        return text_body
+    text_body = object_store.get_text(text_id)
+    cache.put(CACHE_TEXT_KEY.format(text_id=text_id), text_body)
+    return text_body
+```
+
+First, we try to obtain a text from cache. In case of a cache miss, we get the
+text from the object store and cache results before returning them to the user.
+
+#### 6.1.3. NGINX configuration
 
 To keep data transfer volumes and costs as low as possible, NGINX should be
 configured to send
@@ -233,7 +411,7 @@ The parameter `gzip_min_length` sets the minimum length of a response that will
 be compressed. We set this to 256 bytes to only send very small uncompressed
 responses.
 
-#### 6.1.2. Infrastructure and costs
+#### 6.1.4. Infrastructure and costs
 
 The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
 instances. We choose t3.large instances with 2 vCPU and 8 GiB of memory. Our
@@ -262,6 +440,64 @@ Our metadata database engine is PostgreSQL. For durability, we will
 synchronously replicate the database to a standby database server. This will
 allow us to quickly recover the application if the main server becomes
 unavailable, at the cost of slower writes.
+
+#### 6.2.1. Database interface code
+
+All functions of the `database` module are alike, they run a SQL query that
+performs a specific step of the application workflow. For example, the function
+`put_text_metadata` saves text information when a user stores a text:
+
+```python
+from . import sql_queries
+from .config import config
+
+import psycopg2
+
+DB_CONFIG = {
+    "host": config["database"]["host"],
+    "port": config["database"]["port"],
+    "dbname": config["database"]["database"],
+    "user": config["database"]["user"],
+    "password": config["database"]["password"],
+}
+
+
+def put_text_metadata(
+    text_id, user_id, user_ip, creation_timestamp, expiration_timestamp,
+):
+    with psycopg2.connect(**DB_CONFIG) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                sql_queries.INSERT_TEXT,
+                (
+                    text_id,
+                    f"{config['text_storage']['s3_bucket']}/{text_id}",
+                    user_id,
+                    user_ip,
+                    creation_timestamp,
+                    expiration_timestamp,
+                ),
+            )
+```
+
+When connecting to postgres, use one connection per SQL statement or group of
+related SQL statements to simplify transaction logic. For example, several
+cursors could share the same transaction, depending on the isolation level,
+so it may not be immediately clear when reading the code if a SQL statement
+(or a group of SQL statements) are running in their own transaction.
+
+We store SQL queries in a separate module to preserve code readability, as SQL
+queries have a tendency to spread over many lines and break the reader flow.
+The query `sql_queries.INSERT_TEXT` is written as:
+
+```
+INSERT INTO texts (text_id, text_path, user_id, user_ip, creation, expiration)
+VALUES (%s, %s, %s, %s, %s, %s);
+```
+
+We use the string placeholders `%s` to safely pass query parameters to the
+`execute()` method. This is especially import when query parameters are
+provided by application users, to avoid SQL injection.
 
 #### 6.2.1. Text storage quotas
 
@@ -292,11 +528,9 @@ choose another user ID.
 
 The integrity of the texts table is enforced by a primary key on `text_id` and
 a foreign key on user ID that references the primary key of the users table.
-Text IDs are generated by our application using
-[RFC 4122](https://datatracker.ietf.org/doc/html/rfc4122.html) universally
-unique identifiers (UUID), so we can ensure their uniqueness. Given that we
-will need up to 10^8 text IDs and that there are 10^38 UUIDs available (a UUID
-is 128 bits), we will ignore the very unlikely event of text ID collision.
+Given that we will need up to 10^8 text IDs and that there are 10^38 UUIDs
+available (a UUID is 128 bits), we will ignore the very unlikely event of text
+ID collision.
 
 #### 6.2.2. Infrastructure and costs
 
@@ -320,15 +554,47 @@ features:
 We estimated our storage needs in the range of tens of terabytes per year (see
 capacity estimations for more details). 
 
-We choose [AWS S3](https://aws.amazon.com/s3/) as our text storage system.
-
 [Bucket versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html)
 is used to guard against accidental deletions. The
 [lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
 of objects will be configured to keep a single non-current object version for
 7 days before it is permanently deleted.
 
-#### 6.3.1. Storage cleanup
+#### 6.3.1. Object store interface code
+
+Code that interacts with AWS S3 is in the module `object_storage`. The function
+`put_text` stores a text in S3:
+
+```python
+import zlib
+
+import boto3
+
+from .config import config
+
+S3_CLIENT = boto3.client("s3")
+S3_BUCKET = config["text_storage"]["s3_bucket"]
+TEXT_ENCODING = config["text_storage"]["encoding"]
+
+
+def put_text(text_id, text_body):
+    S3_CLIENT.put_object(
+        Body=zlib.compress(
+            text_body.encode()
+        ),
+        Bucket=S3_BUCKET,
+        Key=text_id,
+    )
+```
+
+We use the
+[boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
+library to make AWS S3 requests. The
+[zlib module](https://docs.python.org/3/library/zlib.html) from the Python
+standard library is used to compress data before it is stored, which saves
+transfer time, bandwith, and storage costs.
+
+#### 6.3.2. Storage cleanup
 
 When users store text, they choose a time interval after which the text expires
 and is not available for reading anymore. We need a mechanism that deletes
@@ -349,8 +615,6 @@ If an expired object is not found during step 2, we can simply skip this step
 and carry on with step 3. Cleanup is performed daily at a time when load on the
 system is low.
 
-####
-
 #### 6.3.2. Infrastructure costs
 
 If we use the S3 Standard storage class to store uncompressed data,
@@ -362,14 +626,12 @@ savings, with around 20% storage cost savings (if our storage splits evenly
 between frequent and infrequent access), but an additional $5,850 of monitoring
 costs. Compressing data, for example using the
 [zlib module](https://docs.python.org/3/library/zlib.html) of the standard
-Python library, would lower data transfer time and storage volume at the
-expense of more work done by the application. Assuming a compression ratio of 3
-for text, we could lower storage costs down to $1,800 per year, for a total S3
-cost of $5,100 per year.
+Python library, lowers data transfer time and storage volume at the expense of
+more work done by the application. Assuming a compression ratio of 3 for text,
+we could lower storage costs down to $1,800 per year, for a total S3 cost of
+$5,100 per year.
 
 ### 6.4. Caching
-
-#### 6.4.1. Engine and configuration
 
 The largest part of data sent by the web application is made of texts stored in
 object storage. We need an in-memory cache that supports high availability.
@@ -434,34 +696,17 @@ texts to users. Another large proportion of costs are related to text storage
 and requests related to text storage. Therefore, costs will be proportional to
 the amount of texts stored by users and how many times stored texts are read.
 
-## Application code
+### 6.6. General code design
 
-do not use classes just to store configuration because config is a permanent
-state (it does not change depending on the application activity), instead use
-modules to encapsulate functions and load configuration to the global scope so
-that all functions in a module can read config
+Our application does not need to store much state that frequently changes in
+memory. To store user and session information, we use the relevant Flask
+objects. All other state is store in the metadata database. For this reason,
+our application does not implement its own classes. Classes are useful when an
+application needs to represent objects that have a state (attributes) and
+functions that modify the state (methods). Custom classes are not justified
+to store permanent information such as application configuration, or
+encapsulate a group of related functions.
 
-when connecting to postgres, use one connection per SQL statement to simplify
-transaction logic. for example, several cursors could share the same
-transaction, depending on the isolation level, so it may not be immediately
-clear when reading the code if a SQL statement (or a group of SQL statements)
-are running in their own transaction
-
-do not let SQL commands or other database details leak into the frontend code,
-but instead wrap them in functions that are called by the frontend code
-
-error management: to avoid repeated and complicated exceptions management code,
-we manage errors at the lowest possible level (e.g. in the s3.py module for AWS
-S3 operations). we initially thought that low-level functions could return an
-error message to signal an issue to higher-level code, and None to signal
-success, but some functions have to return data (e.g. retrieving a text from
-S3), so we have to distinguish a return value that is an error from a return
-value that is data. one way to do this is to return a tuple (code, data)
-where code indicates success or failure, and which kind of failure happened,
-while data contains the expected data (possibly None in case of failure).
-while this looks elegant in a simple application, there are three potential
-issues in a complex application, (1) we need a system to organize the numerous
-error codes, (2) at a high level we may replicate the complexity of low-level
-error management, simply with different error labels, (3) it becomes difficult
-to call error-managed functions in other error-managed functions, because the
-return value or the higher-level function would become a tuple (code, data).
+Our application code encapsulates functions in modules, offering the same
+syntax for import and calls as a custom class. Configuration is available to
+all functions by storing it in global variables.

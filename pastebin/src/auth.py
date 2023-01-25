@@ -34,9 +34,8 @@ def register():
             error = "Password is required"
 
         if error is None:
-            now = datetime.now()
             rcode = database.create_user(
-                user_id, firstname, lastname, now, password,
+                user_id, firstname, lastname, password,
             )
             if rcode is return_codes.USER_EXISTS:
                 error = f"User ID '{user_id}' is already taken"
