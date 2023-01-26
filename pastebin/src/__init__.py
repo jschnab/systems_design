@@ -81,9 +81,12 @@ def create_app(test_config=None):
 
     @app.route("/delete-text", methods=("POST",))
     def delete_text():
-        if request.method == "POST":
-            text_id = request.form["text-id"]
-            api.delete_text(text_id=text_id, deletion_timestamp=datetime.now())
+        text_id = request.form["text-id"]
+        user_id, user_ip = database.get_user_by_text(text_id)
+        logged_user = session.get("user_id")
+        if logged_user is None or user_id != logged_user:
+            abort(403)
+        api.delete_text(text_id=text_id, deletion_timestamp=datetime.now())
         return "OK"
 
     @app.route("/mytexts")

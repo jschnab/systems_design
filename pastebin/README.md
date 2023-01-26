@@ -66,7 +66,7 @@ The following functions compose the application programming interface.
 
 `get_text` retrieves a text from storage:
 * text_id (string): Text identifier.
-* Returns: nothing.
+* Returns: text (string).
 
 `delete_text` deletes a text:
 * text_id (string): Text identifier.
@@ -275,8 +275,8 @@ Because Flask is running under NGINX, we get the user IP address with
 `HTTP_X_REAL_IP`, as explained
 [here](https://stackoverflow.com/questions/3759981/get-ip-address-of-visitors-using-flask-for-python).
 
-The function `put_text` is abstracts the details about text storage and
-metadata (snippet from `src/api.py`):
+The function `put_text` abstracts the details about text storage and metadata
+(snippet from `src/api.py`):
 
 ```python
 import uuid
@@ -356,8 +356,10 @@ def create_app(test_config=None):
     return app
 ```
 
-The function `api.get_text` deals with retrieving texts (snippet from
-`src/api.py`):
+
+The function `api.get_text` deals with retrieving texts. If it returns `None`,
+this means the text ID does not exist and we return a 404 error (not found).
+Otherwise we return the text. The following snippet is from `src/api.py`:
 
 ```python
 from . import cache
@@ -375,6 +377,82 @@ def get_text(text_id):
 
 First, we try to obtain a text from cache. In case of a cache miss, we get the
 text from the object store and cache results before returning them to the user.
+
+#### 6.1.2.3 Delete a text
+
+Users can delete a text they previously stored by sending a post request and
+including the text ID in the request body. The following snippet is adapted
+from `src/__init__.py`:
+
+```python
+from datetime import datetime
+
+import flask import (
+    Flask,
+    render_template,
+    session,
+)
+
+from . import api
+
+
+def create_app(test_config=None):
+    app = Flask(__name__)
+
+    @app.route("/delete-text", methods=("POST",))
+    def delete_text():
+        text_id = request.form["text-id"]
+        user_id, user_ip = database.get_user_by_text(text_id)
+        logged_user = session.get("user_id")
+        if logged_user is None or user_id != logged_user:
+            abort(403)
+        api.delete_text(text_id=text_id, deletion_timestamp=datetime.now())
+        return "OK"
+
+    return app
+```
+
+If the request comes from an anonymous user, we abort the request with a 403
+HTTP status code (not authorized). If the user is logged in but the user ID
+does not match the text creator, we abort with a 403 code as well. Otherwise,
+we delete the text from object storage, metadata database, and cache. The
+function `api.delete_text` is implemented as:
+
+```python
+from . import cache
+from . import database
+from . import object_store
+
+
+def delete_text(text_id, deletion_timestamp):
+    database.mark_text_for_deletion(text_id)
+    object_store.delete_text(text_id)
+    database.mark_text_deleted(text_id, deletion_timestamp)
+    cache.delete(f"text:{text_id}")
+```
+
+We first mark the text for deletion with the SQL query:
+
+```sql
+UPDATE texts set to_be_delete = true WHERE text_id = %s;
+```
+
+This saves the delete action from the user in the database in case there is any
+error during actual deletion, and the text will eventually be deleted from text
+storage during the cleanup process (see the section about text storage). Once
+the text is deleted from object storage, we record the deletion in the metadata
+database using a timestamp. Finally we delete the text from cache.
+
+```python
+def delete_text(text_id, deletion_timestamp):
+    # Mark for deletion in metadata database before deleting from object
+    # storage to avoid errors when text ID shows up in web app but then is not
+    # found.
+    database.mark_text_for_deletion(text_id)
+    object_store.delete_text(text_id)
+    database.mark_text_deleted(text_id, deletion_timestamp)
+    cache.delete(CACHE_TEXT_KEY.format(text_id=text_id))
+```
 
 #### 6.1.3. NGINX configuration
 
@@ -480,13 +558,7 @@ def put_text_metadata(
             )
 ```
 
-When connecting to postgres, use one connection per SQL statement or group of
-related SQL statements to simplify transaction logic. For example, several
-cursors could share the same transaction, depending on the isolation level,
-so it may not be immediately clear when reading the code if a SQL statement
-(or a group of SQL statements) are running in their own transaction.
-
-We store SQL queries in a separate module to preserve code readability, as SQL
+We store SQL queries in a separate module to help with code readability, as SQL
 queries have a tendency to spread over many lines and break the reader flow.
 The query `sql_queries.INSERT_TEXT` is written as:
 
@@ -496,7 +568,7 @@ VALUES (%s, %s, %s, %s, %s, %s);
 ```
 
 We use the string placeholders `%s` to safely pass query parameters to the
-`execute()` method. This is especially import when query parameters are
+`execute()` method. This is especially important when query parameters are
 provided by application users, to avoid SQL injection.
 
 #### 6.2.1. Text storage quotas
