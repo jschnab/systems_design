@@ -165,7 +165,7 @@ libraries that support REST API services, web servers, many database clients,
 etc. so we will be able to build our whole system using this language.
 
 The following sections contain only code highlights for brevity. The full code
-is available in the directory named 'mytinyurl'.
+is available in the directory named 'src'.
 
 ### URL alias service
 
