@@ -402,7 +402,7 @@ def create_app(test_config=None):
     @app.route("/delete-text", methods=("POST",))
     def delete_text():
         text_id = request.form["text-id"]
-        user_id, user_ip = database.get_user_by_text(text_id)
+        user_id = database.get_user_by_text(text_id)["user_id"]
         logged_user = session.get("user_id")
         if logged_user is None or user_id != logged_user:
             abort(403)
@@ -442,17 +442,6 @@ error during actual deletion, and the text will eventually be deleted from text
 storage during the cleanup process (see the section about text storage). Once
 the text is deleted from object storage, we record the deletion in the metadata
 database using a timestamp. Finally we delete the text from cache.
-
-```python
-def delete_text(text_id, deletion_timestamp):
-    # Mark for deletion in metadata database before deleting from object
-    # storage to avoid errors when text ID shows up in web app but then is not
-    # found.
-    database.mark_text_for_deletion(text_id)
-    object_store.delete_text(text_id)
-    database.mark_text_deleted(text_id, deletion_timestamp)
-    cache.delete(CACHE_TEXT_KEY.format(text_id=text_id))
-```
 
 #### 6.1.3. NGINX configuration
 
@@ -782,3 +771,41 @@ encapsulate a group of related functions.
 Our application code encapsulates functions in modules, offering the same
 syntax for import and calls as a custom class. Configuration is available to
 all functions by storing it in global variables.
+
+## 7. How to run
+
+Install the following components:
+
+* [Python](https://www.python.org/) (we used Python 3.8)
+* [NGINX](https://www.nginx.com/) (we used NGINX 1.14)
+* [PostgreSQL](https://www.postgresql.org/) (we used PostgreSQL 12)
+* [Redis](https://redis.io/) (we used Redis 7)
+
+Signup for an [AWS](https://aws.amazon.com/) account, create an S3 bucket, and
+setup AWS
+[credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html).
+
+Create a file named `config.sh` that has the following contents and place it in
+the `pastebin` folder of this repository:
+
+```
+export MYPASTEBIN_S3_BUCKET=
+export MYPASTEBIN_TEXT_ENCODING=
+
+export MYPASTEBIN_DB_HOST=
+export MYPASTEBIN_DB_PORT=
+export MYPASTEBIN_DB_DATABASE=
+export MYPASTEBIN_DB_USER=
+export MYPASTEBIN_DB_PASSWORD=
+
+export MYPASTEBIN_CACHE_HOST=
+export MYPASTEBIN_CACHE_PORT=
+export MYPASTEBIN_CACHE_PW=
+export MYPASTEBIN_CACHE_ENCODING=
+
+export MYPASTEBIN_URL=
+
+export FLASK_APP=src
+```
+
+Go to the `pastebin` folder of this repository and execute the file `run_wsgi`.
