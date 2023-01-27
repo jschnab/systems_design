@@ -186,6 +186,10 @@ retrieval. Cache eviction can simply follow a least-recently used policy. Cache
 invalidation is simple because our requirements do not include text updates, so
 we simply delete a text from the cache when necessary.
 
+### 5.4 System diagram
+
+![system diagram](system_diagram.png "system diagram")
+
 ## 6. Detailed design
 
 ### 6.1. Web application
@@ -780,6 +784,8 @@ Install the following components:
 * [NGINX](https://www.nginx.com/) (we used NGINX 1.14)
 * [PostgreSQL](https://www.postgresql.org/) (we used PostgreSQL 12)
 * [Redis](https://redis.io/) (we used Redis 7)
+
+Install third-party Python libraries listed in `requirements.txt`.
 
 Signup for an [AWS](https://aws.amazon.com/) account, create an S3 bucket, and
 setup AWS
