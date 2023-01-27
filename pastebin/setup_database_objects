@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python -c "import src.database; src.database.setup_database_objects();"

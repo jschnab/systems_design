@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+  <h2>My texts</h2>
+  {% if mytexts %}
+    {% for text in mytexts %}
+      <div class="text-item">
+        <ul class="text-item-details">
+          <li class="text-url">
+            <a href="{{ url_for('get_text', text_id=text['text_id']) }}">{{
+app_url }}{{ url_for('get_text', text_id=text['text_id']) }}</a>
+            </li>
+          <li class="text-creation">Created on: {{ text['creation'] }}</li>
+          <li class="text-expiration">Expires on: {{ text['expiration'] }}</li>
+          <form class="delete-text-form">
+            <input id="text-id" class="text-id-hidden" hidden readonly value="{{ text['text_id'] }}">
+            <input type="submit" class="delete-text" value="Delete text">
+          </form>
+        </ul>
+      </div>
+    {% endfor %}
+  {% else %}
+  <p>You didn't store any texts, yet! <a href="{{ url_for('index')}}">Create one now!</a></p>
+  {% endif %}
+
+  <script>
+  function deleteText(form) {
+    if (confirm("Do you really want to delete this text?") == true) {
+      var data = new FormData();
+      data.append("text-id", form.querySelector("#text-id").value);
+      const delete_url = {{ url_for("delete_text")|tojson }};
+      fetch(delete_url, {"method": "POST", "body": data}).then(
+        (resp) => { window.location.reload() }
+      );
+    }
+  }
+
+  const forms = document.getElementsByClassName("delete-text-form")
+  for (var i = 0; i < forms.length; i++) {
+      forms[i].addEventListener("submit", function(e) {
+          e.preventDefault();
+          deleteText(e.target); 
+      });
+  }
+  </script>
+
+{% endblock %}

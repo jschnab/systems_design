@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% if message %}
+        <div class="flash">{{ message }}</div>
+    {% endif %}
+
+    <form method="post">
+        <label for="text-body">Write or paste up to 64,000 characters</label>
+        <textarea
+            name="text-body"
+            id="text-body"
+            rows="30"
+            cols="100"
+            maxlength=64000
+            placeholder="Write text here"
+            required
+        ></textarea>
+        <label for="ttl">Expire after</label>
+        <select name="ttl" id="ttl">
+            <option value="1d">1 day</option>
+            <option value="1w">1 week</option>
+            <option value="1m">1 month</option>
+            <option value="1y">1 year</option>
+        </select>
+        <input type="submit" value="Store text">
+    </form>
+{% endblock %}

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+source config.sh
+source venv/bin/activate
+
+python -m src.test
