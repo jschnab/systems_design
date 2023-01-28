@@ -394,10 +394,10 @@ delete the text. The following snippet is from `src/template/user_texts.html`:
 <div class="text-item">
   <ul class="text-item-details">
     <li class="text-url">
-      <a href="{{ url_for('get_text', text_id=text['text_id']) }}">{{ app_url }}{{ url_for('get_text', text_id="text['text_id']) }}</a>
+      <a href="{{ url_for('get_text', text_id=text['text_id']) }}">{{ app_url }}{{ url_for('get_text', text_id=text['text_id']) }}</a>
     </li>
     <li class="text-creation">Created on: {{ text['creation'] }}</li>
-    <li class="text-expiration>Expires on: {{text['expiration'] }}</li>
+    <li class="text-expiration>Expires on: {{ text['expiration'] }}</li>
     <form class="delete-text-form">
       <input id="text-id" class="text-id-hidden" hidden readonly value="{{ text['text_id'] }}">
       <input type="submit" class="delete-text" value="Delete text">
