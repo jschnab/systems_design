@@ -36,7 +36,7 @@ app_url }}{{ url_for('get_text', text_id=text['text_id']) }}</a>
     }
   }
 
-  const forms = document.getElementsByClassName("delete-text-form")
+  const forms = document.getElementsByClassName("delete-text-form");
   for (var i = 0; i < forms.length; i++) {
       forms[i].addEventListener("submit", function(e) {
           e.preventDefault();
