@@ -1,6 +1,3 @@
-import functools
-from datetime import datetime
-
 from flask import (
     Blueprint,
     flash,
@@ -52,17 +49,32 @@ def login():
     if request.method == "POST":
         user_id = request.form["user_id"]
         password = request.form["password"]
-        error = None
 
         user_info = database.get_user(user_id)
         if user_info is None:
-            error = "Incorrect user"
-        elif not check_password_hash(user_info["password"], password):
+            flash("Incorrect user")
+            return render_template("auth/login.html")
+
+        if database.user_is_locked(user_id):
+            flash("User account is locked for 15 minutes")
+            return render_template("auth/login.html")
+
+        error = None
+        success = True
+        if not check_password_hash(user_info["password"], password):
             error = "Incorrect password"
+            success = False
+
+        user_ip = request.environ.get(
+            "HTTP_X_REAL_IP", request.remote_addr
+        )
+        database.record_user_connect(
+            user_id=user_id,
+            user_ip=user_ip,
+            success=success,
+        )
 
         if error is None:
-            now = datetime.now()
-            database.update_user_last_connection(user_id, now)
             session.clear()
             session["user_id"] = user_id
             return redirect(url_for("index"))
@@ -85,13 +97,3 @@ def load_logged_in_user():
 def logout():
     session.clear()
     return redirect(url_for("index"))
-
-
-def login_required(view):
-    @functools.wraps(view)
-    def wrapped_view(**kwargs):
-        if g.user is None:
-            return redirect(url_for("auth.login"))
-        return view(**kwargs)
-
-    return wrapped_view

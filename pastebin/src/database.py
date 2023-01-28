@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import psycopg2
 import psycopg2.errors
@@ -16,17 +16,21 @@ DB_CONFIG = {
     "password": config["database"]["password"],
 }
 DEFAULT_USER = config["app"]["default_user"]
+MAX_CONNECT_FAIL = 3
+USER_LOCK_TIMEOUT = 15  # minutes
 
 
 def setup_database_objects():
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor() as cur:
             cur.execute(sql_queries.CREATE_TABLE_USERS)
+            cur.execute(sql_queries.INSERT_ANONYMOUS_USER, (DEFAULT_USER,))
+            cur.execute(sql_queries.CREATE_TABLE_USER_CONNECTIONS)
+            cur.execute(sql_queries.CREATE_INDEX_USER_CONNECT_TS)
             cur.execute(sql_queries.CREATE_TABLE_TEXTS)
             cur.execute(sql_queries.CREATE_INDEX_TEXTS_USERID)
             cur.execute(sql_queries.CREATE_INDEX_TEXTS_USERIP)
             cur.execute(sql_queries.CREATE_INDEX_TEXTS_CREATION)
-            cur.execute(sql_queries.INSERT_ANONYMOUS_USER, (DEFAULT_USER,))
 
 
 def put_text_metadata(
@@ -93,14 +97,6 @@ def get_user(user_id):
             return cur.fetchone()
 
 
-def update_user_last_connection(user_id, timestamp):
-    with psycopg2.connect(**DB_CONFIG) as con:
-        with con.cursor() as cur:
-            cur.execute(
-                sql_queries.UPDATE_USER_LAST_CONNECTION, (timestamp, user_id)
-            )
-
-
 def count_recent_texts_by_user(user_id, user_ip):
     with psycopg2.connect(
         **DB_CONFIG, cursor_factory=psycopg2.extras.DictCursor,
@@ -129,3 +125,33 @@ def get_user_by_text(text_id):
         with con.cursor() as cur:
             cur.execute(sql_queries.GET_USER_BY_TEXT, (text_id,))
             return cur.fetchone()
+
+
+def user_is_locked(user_id):
+    with psycopg2.connect(
+        **DB_CONFIG, cursor_factory=psycopg2.extras.DictCursor
+    ) as con:
+        with con.cursor() as cur:
+            cur.execute(sql_queries.GET_RECENT_USER_CONNECTIONS, (user_id,))
+            recent_connects = cur.fetchall()
+
+    fails = 0
+    for rc in recent_connects:
+        if rc["success"]:
+            break
+        fails += 1
+
+    lock_cutoff = datetime.now() - timedelta(minutes=USER_LOCK_TIMEOUT)
+    if fails >= MAX_CONNECT_FAIL and recent_connects[0]["ts"] > lock_cutoff:
+        return True
+
+    return False
+
+
+def record_user_connect(user_id, user_ip, success):
+    with psycopg2.connect(**DB_CONFIG) as con:
+        with con.cursor() as cur:
+            cur.execute(
+                sql_queries.RECORD_USER_CONNECT,
+                (user_id, user_ip, success)
+            )

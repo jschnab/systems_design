@@ -1,5 +1,6 @@
-html { font-family: sans-serif; background: #eee; padding: 1rem; }
-body { max-width: 960px; margin: 0 auto; background: white; }
+html { height: 100%; font-family: sans-serif; padding: 1rem; }
+body { max-width: 960px; height: 100%; margin: 0 auto; background: white; }
+section { height: 100%; }
 h1 { font-family: serif; color: #377ba8; margin: 1rem 0; }
 a { color: #377ba8; }
 hr { border: none; border-top: 1px solid lightgray; }
@@ -25,3 +26,10 @@ code {
 .text-url { font-weight: bold; }
 .text-created { font-style: italic; }
 .text-expires { font-style: italic; }
+.editable {
+    height: 70%;
+    padding: 1em;
+    overflow-y: auto;
+    border: 1px solid #aaa;
+}
+#editable-placeholder { color: #aaa; }
