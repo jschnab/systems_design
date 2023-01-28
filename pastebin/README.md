@@ -384,9 +384,63 @@ text from the object store and cache results before returning them to the user.
 
 #### 6.1.2.3 Delete a text
 
-Users can delete a text they previously stored by sending a post request and
-including the text ID in the request body. The following snippet is adapted
-from `src/__init__.py`:
+Users can see a list of texts they previously stored on the "My Texts" section
+of the application. For each text, we display a button that allows users to
+delete the text. The following snippet is from `src/template/user_texts.html`:
+
+```html
+{% for text in mytexts %}
+
+<div class="text-item">
+  <ul class="text-item-details">
+    <li class="text-url">
+      <a href="{{ url_for('get_text', text_id=text['text_id']) }}">{{ app_url }}{{ url_for('get_text', text_id="text['text_id']) }}</a>
+    </li>
+    <li class="text-creation">Created on: {{ text['creation'] }}</li>
+    <li class="text-expiration>Expires on: {{text['expiration'] }}</li>
+    <form class="delete-text-form">
+      <input id="text-id" class="text-id-hidden" hidden readonly value="{{ text['text_id'] }}">
+      <input type="submit" class="delete-text" value="Delete text">
+    </form>
+  </ul>
+</div>
+
+<script>
+function deleteText(form) {
+  if (confirm("Do you really want to delete this text?") == true) {
+    var data = new FormData();
+    data.append("text-id", form.querySelector("#text-id").value);
+    const delete_url = {{ url_for("delete_text")|tojson }};
+    fetch(delete_url, {"method": "POST", "body": data}).then(
+      (resp) => { window.location.reload() }
+    );
+  }
+}
+
+const forms = document.getElementsByClassName("delete-text-form");
+for (var i = 0; i < forms.length; i++) {
+  forms[i].addEventListener("submit", function(e) {
+    e.preventDefault();
+    deleteText(e.target);
+  });
+}
+</script>
+
+{% endfor %}
+```
+
+We add an event listener on each form "submit" action, which triggers the
+function `deleteText()`. To prevent users from deleting text by mistake, we use
+the [confirm()](https://developer.mozilla.org/en-US/docs/Web/API/Window/confirm)
+function to control text deletion. Once confirmed, the text ID is obtained from
+the hidden input field identified by `text-id` and sent via a POST request to
+the URL for text deletion with the function
+[fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch).
+We wait for the request to complete with the `then()` method and finally reload
+the page to display the updated list of texts.
+
+The following snippet shows how the request for text deletion is processed,
+and is adapted from `src/__init__.py`:
 
 ```python
 from datetime import datetime
