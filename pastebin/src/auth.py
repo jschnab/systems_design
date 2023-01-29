@@ -1,3 +1,5 @@
+import string
+
 from flask import (
     Blueprint,
     flash,
@@ -15,6 +17,30 @@ from . import return_codes
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
+MIN_PASSWORD_LEN = 10
+
+
+def check_password_complexity(pw):
+    """
+    Expect a minimum length of 10 characters and at least one of each:
+
+    * lowercase ASCII letter
+    * uppercase ASCII letter
+    * digit
+    * punctuation character
+
+    If complexity requirements are met, return ``True`` else ``False``.
+    """
+    if len(pw) < MIN_PASSWORD_LEN:
+        return False
+    has_lower = has_upper = has_digit = has_punct = False
+    for char in pw:
+        has_lower |= char.islower()
+        has_upper |= char.isupper()
+        has_digit |= char.isnumeric()
+        has_punct |= char in string.punctuation
+    return all([has_lower, has_upper, has_digit, has_punct])
+
 
 @bp.route("/register", methods=("GET", "POST"))
 def register():
@@ -22,17 +48,20 @@ def register():
         user_id = request.form["user_id"]
         firstname = request.form["firstname"]
         lastname = request.form["lastname"]
-        password = generate_password_hash(request.form["password"])
+        password = request.form["password"]
 
         error = None
         if user_id is None:
             error = "User ID is required"
         elif password is None:
             error = "Password is required"
+        elif check_password_complexity(password) is False:
+            error = "Password does not meet complexity requirements"
 
         if error is None:
+            pw_hash = generate_password_hash(password)
             rcode = database.create_user(
-                user_id, firstname, lastname, password,
+                user_id, firstname, lastname, pw_hash,
             )
             if rcode is return_codes.USER_EXISTS:
                 error = f"User ID '{user_id}' is already taken"

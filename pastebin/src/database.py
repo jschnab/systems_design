@@ -24,7 +24,7 @@ def setup_database_objects():
     with psycopg2.connect(**DB_CONFIG) as con:
         with con.cursor() as cur:
             cur.execute(sql_queries.CREATE_TABLE_USERS)
-            cur.execute(sql_queries.INSERT_ANONYMOUS_USER, (DEFAULT_USER,))
+            cur.execute(sql_queries.CREATE_ANONYMOUS_USER, (DEFAULT_USER,))
             cur.execute(sql_queries.CREATE_TABLE_USER_CONNECTIONS)
             cur.execute(sql_queries.CREATE_INDEX_USER_CONNECT_TS)
             cur.execute(sql_queries.CREATE_TABLE_TEXTS)

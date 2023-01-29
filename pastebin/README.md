@@ -830,7 +830,7 @@ Our application code encapsulates functions in modules, offering the same
 syntax for import and calls as a custom class. Configuration is available to
 all functions by storing it in global variables.
 
-## 7. How to run
+## 7. How to run locally
 
 Install the following components:
 
@@ -839,7 +839,10 @@ Install the following components:
 * [PostgreSQL](https://www.postgresql.org/) (we used PostgreSQL 12)
 * [Redis](https://redis.io/) (we used Redis 7)
 
-Install third-party Python libraries listed in `requirements.txt`.
+Create a Python [virtual
+environment](https://docs.python.org/3/library/venv.html#creating-virtual-environments)
+named `venv`, then activate it, and then install third-party Python libraries
+listed in `requirements.txt`.
 
 Signup for an [AWS](https://aws.amazon.com/) account, create an S3 bucket, and
 setup AWS

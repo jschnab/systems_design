@@ -1,5 +1,7 @@
 import os
 
+IGNORE_NONE = ("cache.password",)
+
 
 def get_config():
     # Should be a dictionary where keys are strings and values are dictionaries
@@ -44,8 +46,9 @@ def check_config(cnf):
                     (v, f"{parent + '.' if parent is not None else ''}{k}")
                 )
             else:
-                if v is None:
-                    null_values.append(f"{parent}.{k}")
+                full_key = f"{parent}.{k}"
+                if v is None and full_key not in IGNORE_NONE:
+                    null_values.append(full_key)
     if null_values != []:
         raise ValueError(
             f"The following values should not be None: "

@@ -1,5 +1,7 @@
+import unittest
 from datetime import datetime, timedelta
 
+from . import auth
 from . import database
 from . import object_store
 
@@ -44,6 +46,26 @@ def test_insert_user_exists():
             "anonymous", "john", "doe", datetime.now(), "blah"
         )
     )
+
+
+class TestPasswordComplexity(unittest.TestCase):
+    def test_password_too_short(self):
+        self.assertFalse(auth.check_password_complexity("aXcZe164?"))
+
+    def test_password_no_lowercase(self):
+        self.assertFalse(auth.check_password_complexity("ANEIDPZ73$"))
+
+    def test_password_no_uppercase(self):
+        self.assertFalse(auth.check_password_complexity("aneidpz73$"))
+
+    def test_password_no_digit(self):
+        self.assertFalse(auth.check_password_complexity("aneIdpzup$"))
+
+    def test_password_no_punctuation(self):
+        self.assertFalse(auth.check_password_complexity("aneiDpzup1"))
+
+    def test_password_ok(self):
+        self.assertTrue(auth.check_password_complexity("o1sDhfi8&U"))
 
 
 def main():
