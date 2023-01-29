@@ -48,18 +48,21 @@ def register():
         user_id = request.form["user_id"]
         firstname = request.form["firstname"]
         lastname = request.form["lastname"]
-        password = request.form["password"]
+        password_1 = request.form["password_1"]
+        password_2 = request.form["password_2"]
 
         error = None
         if user_id is None:
             error = "User ID is required"
-        elif password is None:
+        elif password_1 is None:
             error = "Password is required"
-        elif check_password_complexity(password) is False:
+        elif check_password_complexity(password_1) is False:
             error = "Password does not meet complexity requirements"
+        elif password_1 != password_2:
+            error = "Passwords do not match"
 
         if error is None:
-            pw_hash = generate_password_hash(password)
+            pw_hash = generate_password_hash(password_1)
             rcode = database.create_user(
                 user_id, firstname, lastname, pw_hash,
             )
