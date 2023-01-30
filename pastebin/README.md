@@ -36,7 +36,7 @@ tens instead of exact numbers. We will put references when possible.
 We will accommodate 10^8 registered users, and we expect 10^7 daily active
 users
 
-A text is 10^5 bytes on average (limited to 512 KB or 64,000 ASCII
+A text is 10^5 bytes on average (limited to 512 KB or 512,000 ASCII
 characters).
 
 There are 10^6 text writes per day (10^1 text writes per second, 10^8 text
@@ -225,7 +225,7 @@ from `src/templates/html.index`:
     id="text-body"
     row="30"
     cols="100"
-    maxlength=64000
+    maxlength=512000
     placeholder="Write text here"
     required
   ></textarea>

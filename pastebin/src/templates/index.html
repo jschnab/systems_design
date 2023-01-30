@@ -6,7 +6,7 @@
     {% endif %}
 
     <div id="editable" class="editable" contenteditable="true">
-        <span id="editable-placeholder">Paste contents here (up to 64,000 characters)</span>
+        <span id="editable-placeholder">Paste contents here (up to 512,000 characters)</span>
     </div>
     <form method="post" action="{{ url_for('index') }}" onsubmit="return getContent()">
         <textarea name="text-body" id="text-body" style="display:none"></textarea>
@@ -21,12 +21,14 @@
     </form>
 
     <script>
-        document.getElementById("editable").addEventListener(
-            "click",
+        document.addEventListener(
+            "DOMContentLoaded",
             function(e) {
-                e.preventDefault();
-                e.target.innerHTML = "";
-                e.target.onclick = null;
+                var editable = document.getElementById("editable");
+                editable.onclick = function() {
+                    editable.innerHTML = "";
+                    editable.onclick = null;
+                }
             }
         )
         function getContent() {
