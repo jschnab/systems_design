@@ -36,7 +36,7 @@ tens instead of exact numbers. We will put references when possible.
 We will accommodate 10^8 registered users, and we expect 10^7 daily active
 users
 
-A text is 10^5 bytes on average (limited to 512 KB or 64,000 ASCII
+A text is 10^5 bytes on average (limited to 512 KB or 512,000 ASCII
 characters).
 
 There are 10^6 text writes per day (10^1 text writes per second, 10^8 text
@@ -225,7 +225,7 @@ from `src/templates/html.index`:
     id="text-body"
     row="30"
     cols="100"
-    maxlength=64000
+    maxlength=512000
     placeholder="Write text here"
     required
   ></textarea>
@@ -830,7 +830,7 @@ Our application code encapsulates functions in modules, offering the same
 syntax for import and calls as a custom class. Configuration is available to
 all functions by storing it in global variables.
 
-## 7. How to run
+## 7. How to run locally
 
 Install the following components:
 
@@ -839,7 +839,10 @@ Install the following components:
 * [PostgreSQL](https://www.postgresql.org/) (we used PostgreSQL 12)
 * [Redis](https://redis.io/) (we used Redis 7)
 
-Install third-party Python libraries listed in `requirements.txt`.
+Create a Python [virtual
+environment](https://docs.python.org/3/library/venv.html#creating-virtual-environments)
+named `venv`, then activate it, and then install third-party Python libraries
+listed in `requirements.txt`.
 
 Signup for an [AWS](https://aws.amazon.com/) account, create an S3 bucket, and
 setup AWS

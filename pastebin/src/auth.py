@@ -1,5 +1,4 @@
-import functools
-from datetime import datetime
+import string
 
 from flask import (
     Blueprint,
@@ -18,6 +17,30 @@ from . import return_codes
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
+MIN_PASSWORD_LEN = 10
+
+
+def check_password_complexity(pw):
+    """
+    Expect a minimum length of 10 characters and at least one of each:
+
+    * lowercase ASCII letter
+    * uppercase ASCII letter
+    * digit
+    * punctuation character
+
+    If complexity requirements are met, return ``True`` else ``False``.
+    """
+    if len(pw) < MIN_PASSWORD_LEN:
+        return False
+    has_lower = has_upper = has_digit = has_punct = False
+    for char in pw:
+        has_lower |= char.islower()
+        has_upper |= char.isupper()
+        has_digit |= char.isnumeric()
+        has_punct |= char in string.punctuation
+    return all([has_lower, has_upper, has_digit, has_punct])
+
 
 @bp.route("/register", methods=("GET", "POST"))
 def register():
@@ -25,17 +48,23 @@ def register():
         user_id = request.form["user_id"]
         firstname = request.form["firstname"]
         lastname = request.form["lastname"]
-        password = generate_password_hash(request.form["password"])
+        password_1 = request.form["password_1"]
+        password_2 = request.form["password_2"]
 
         error = None
         if user_id is None:
             error = "User ID is required"
-        elif password is None:
+        elif password_1 is None:
             error = "Password is required"
+        elif check_password_complexity(password_1) is False:
+            error = "Password does not meet complexity requirements"
+        elif password_1 != password_2:
+            error = "Passwords do not match"
 
         if error is None:
+            pw_hash = generate_password_hash(password_1)
             rcode = database.create_user(
-                user_id, firstname, lastname, password,
+                user_id, firstname, lastname, pw_hash,
             )
             if rcode is return_codes.USER_EXISTS:
                 error = f"User ID '{user_id}' is already taken"
@@ -52,17 +81,32 @@ def login():
     if request.method == "POST":
         user_id = request.form["user_id"]
         password = request.form["password"]
-        error = None
 
         user_info = database.get_user(user_id)
         if user_info is None:
-            error = "Incorrect user"
-        elif not check_password_hash(user_info["password"], password):
+            flash("Incorrect user")
+            return render_template("auth/login.html")
+
+        if database.user_is_locked(user_id):
+            flash("User account is locked for 15 minutes")
+            return render_template("auth/login.html")
+
+        error = None
+        success = True
+        if not check_password_hash(user_info["password"], password):
             error = "Incorrect password"
+            success = False
+
+        user_ip = request.environ.get(
+            "HTTP_X_REAL_IP", request.remote_addr
+        )
+        database.record_user_connect(
+            user_id=user_id,
+            user_ip=user_ip,
+            success=success,
+        )
 
         if error is None:
-            now = datetime.now()
-            database.update_user_last_connection(user_id, now)
             session.clear()
             session["user_id"] = user_id
             return redirect(url_for("index"))
@@ -85,13 +129,3 @@ def load_logged_in_user():
 def logout():
     session.clear()
     return redirect(url_for("index"))
-
-
-def login_required(view):
-    @functools.wraps(view)
-    def wrapped_view(**kwargs):
-        if g.user is None:
-            return redirect(url_for("auth.login"))
-        return view(**kwargs)
-
-    return wrapped_view
