@@ -1,1 +1,5 @@
-pillow=9.4.*
+boto3~=1.26
+botocore~=1.29
+cassandra-driver~=3.25
+lz4~=4.3
+pillow~=9.4

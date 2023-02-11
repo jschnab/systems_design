@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# Before running this script, create a keyspace that matches the application
+# configuration. A command to create a keyspace can be found in
+# src/cql_queries.py.
+
+here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+source "$here"/venv/bin/activate
+
+python3 -c "import os; os.chdir('$here'); import src.database; src.database.create_database_objects()"
