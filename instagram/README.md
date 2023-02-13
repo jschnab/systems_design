@@ -52,204 +52,278 @@ bytes (1GB) per second.
 Pictures will be compressed before storage, to a ratio of approximately 10:1.
 Compressed picture storage will amount to 10^15 bytes (1PB) after a year.
 
-## 3. Application programmatic interface
+## 3. Data model and queries
 
-A user publishes a picture using the function `publish_image`:
+Capacity estimations suggest that image information represents a very high
+volume of data. With an average of 10^9 images uploaded every day, and assuming
+an average record size of 10^2 bytes in a table that would store image
+information, this table alone would represent around 10^13 bytes (10TB) after
+one year. On top of this, we estimage the database should support 10^4 (tens of
+thousands) of queries per second. These requirements pushe the limits of what a
+relational database can handle. We need a distributed database that supports
+sharding and a high query throughput. Apache Cassandra is a reasonable choice.
 
-* Parameters
-    * `image_data` (bytes): Data that make up the image.
-    * `image_title` (string): Image title.
-    * `user_id` (string): Identifier of the user who publishes the image.
-    * `tags` (list(string)): List of tags the user added to the image.
-    * `album_id` (integer): Identifier of the album the images belongs to.
-    * `filter_id` (integer): Identifier of the filter applied to the image.
-* Returns: Image identifier (string).
+It is difficult to design a data model to store in a database such as Cassandra
+without first determining the most important query patterns. We first build a
+conceptual data model, then define application queries. Then, we build the
+logical (table structure) and physical (data types) data model. Finally, we
+build the database schema.
 
-An image can be retrieved using the function `get_image`:
+### Conceptual data model
 
-* Parameters
-    * `image_id` (string): Image identifier.
-* Returns:
-    * Image data (bytes).
-    * User identifier (who published the image, string).
-    * Tags (list(string)).
+#### Objects
 
-An image is deleted using the function `delete_image`:
+In this section we describe the most important objects our application
+represents, their attributes, and their relationships.
 
-* Parameters
-   * `image_id` (string): Image identifier.
-* Returns: Nothing.
+A **user** has the following attributes:
 
-An album can be created using the function `create_album`:
+* user identifier
+* first name
+* last name
+* password
+* registration timestamp
 
-* Parameters:
-    * `album_name` (string): Name of the album.
-    * `user_id` (string): Identifier of the user who creates and owns the
-      album.
-    * `private` (boolean): Whether the album is private and visible only by
-      users invited by the owner.
-* Returns: Nothing.
+Users establish **connections** to the application, which have the attributes:
 
-An album owner can invite users to see a private album with the function
-`invite_to_album`:
+* user identifier
+* user IP address
+* timestamp
+* success or failure
 
-* Parameters:
-   * `album_name` (string): Name of the album.
-   * `owner_id` (string): Identifier of the user who owns the album.
-   * `invitee_id` (string): Identifier of the user who is invited.
-* Returns: Nothing.
+Users publish **images**:
 
-An image can be moved to an album with the function `move_img`:
+* image identifier
+* image owner identifier
+* image description
+* image path to where data is stored
+* publication timestamp
+* deletion timestamp (eventually)
 
-* Parameters
-    * `image_id` (string): Image identifier.
-    * `album_name` (string): Name of the album.
-    * `owner_id` (string): Identifier of the user who owns the album.
-* Returns: Nothing.
+Images have **tags**:
 
-A filter can be applied on an image using the function `apply_img_filter`:
+* tag name
+* image identifier
 
-* Parameters:
-    * `image_data` (bytes): Image data.
-    * `filter_name` (string): Name of the filter.
-* Returns:
-    * Filtered image data (bytes).
+Images have **comments**:
 
-A user can comment on a picture with the function `comment_img`:
+* image identifier
+* comment text
+* user identifier
+* comment creation timestamp
+* comment deletion timestamp (eventually)
 
-* Parameters:
-    * `image_id` (string): Image identifier.
-    * `commenter_id` (string): Identifier of the user who comments.
-    * `comment_body` (string): Comment text.
-* Returns: Nothing.
+Images have **likes**:
 
-A user can 'like' an picture through the function `like_img`:
+* image identifier
+* user identifier
+* like creation timestamp
+* like deletion timestamp (eventually)
 
-* Parameters:
-    * `image_id` (string): Image identifier.
-    * `liker_id` (string): Identifier of the user who likes the image.
-* Returns: Nothing.
+Users create **albums** to store images:
 
-A user can follow another user and be notified of their activities with the
-function `follow_user`:
+* album name
+* user identifier
+* album creation timestamp
+* album deletion timestamp (eventually)
 
-* Parameters:
-    * `follower_id` (string): Identifier of the user who follows.
-    * `followee_id` (string): Identifier of the user who is followed.
-* Returns: Nothing.
+#### Relationships
 
-## 4. Data model
+User <-1-n-> Connection
 
-The data model aims at supporting the fundamental operations of the
-application, it is not optimized for analytics.
+User <-1-n-> Image
 
-There are several many-to-many relationships we need to represent. We slightly
-denormalize the schema and store some attributes in arrays to facilitate
-representing these relationships.
+User <-1-n-> Album
 
-Table `users`:
+Image <-n-m-> Tag
 
-* `user_id` (string key): User identifier.
-* `first_name` (string): First name.
-* `last_name` (string): Last name.
-* `password` (string): Hashed password.
-* `creation_timestamp` (datetime): Date and time the user registered.
-* `deletion_timestamp` (datetime): Date and time the user left.
-* `albums_own` (set(integer)): Identifiers for albums owned by the user.
-* `albums_access` (set(integer)): Album identifiers from other users a user
-  has access to.
+Image <-1-n-> Comment
 
-With 10^8 users and assuming an average record size of 10^2 bytes, the table
-size is 10^10 bytes (10 GB).
+User <-1-n-> Comment
 
-Table `user_connections`:
+Image <-1-n-> Like
 
-* `user_id` (string): User identifier.
-* `user_ip` (string): IP address of the user.
-* `connection_timestamp` (datetime): Date and time of the connection attempt.
-* `success` (boolean): Whether the connection was successful.
+User <-1-n-> Like
 
-With 10^8 users connecting every day, assuming an average record size of 10^1
-bytes, the table size is 10^11 (100GB) after a year.
+Album <-1-n-> Image
 
-Table `followers`:
+User <-n-m-> User
 
-* `follower_id` (string): User who follows.
-* `followee_id` (string): User who is followed.
-* `follow_timestamp` (datetime): When the interaction started.
-* `unfollow_timestamp` (datetime): When the interaction eventually ended.
+### Queries
 
-With 10^8 users each having 10^1 contacts, assuming an average record size of
-10^1 bytes, the table size is 10^10 bytes (10GB).
+#### Write queries
+
+The application supports the following write queries from users:
+
+* Query 1: Publish an image.
+
+* Query 2: Tag an image.
+
+* Query 3: Create an album.
+
+* Query 4: Add an image into an album.
+
+* Query 5: Comment an image.
+
+* Query 6: Like an image.
+
+* Query 7: Follow a user.
+
+#### Read queries
+
+When a user logs in, he is presented with a recent activity of other users.
+Recent activity from followed users is presented first. We need to support the
+following queries:
+
+* Query 1: What are the images published by users I follow?
+
+After queries 1, a user may choose to see the details of an image:
+
+* Query 2: What are the details of an image (publication date, tags, etc.)?
+* Query 3: What are the comments of an image?
+* Query 4: What are the likes of an image?
+
+A user could also be interested in the activities of a specific user:
+
+* Query 5: What information is available about this user?
+* Query 6: What images were published by this user?
+* Query 7: What are the albums created by this user?
+* Query 8: What images are displayed in this album?
+* Query 9: Who is following me?
+
+#### Application workflow
+
+The queries can be displayed in the context of the application workflow. Read
+queries are represented by 'RQ' and write queries by 'WQ'.
+
+RQ1 -> View user images -> RQ3,RQ4 -> View image details -> WQ2,WQ4,WQ5,WQ6,RQ5
+
+RQ5 -> View user details -> RQ6 -> View user images
+                         -> RQ7 -> View user albums -> WQ4,RQ8 -> View user images
+                         -> WQ7
+                         -> RQ9,RQ10
+
+WQ1 -> View user images
+
+WQ3 -> View user albums
+
+### Logical and physical data model
+
+In this section we determine what database tables we will use to support the
+application queries, as well as how data is partitioned and clustered within a
+partition. There are two important considerations to keep in mind: a query
+should necessitate a small number of partitions (ideally one), and each row
+should have a unique key (possibly by using a combination of partition and
+clustering keys).
+
+In each table, we present column names, keys, and data types. We store all
+tables under a single keyspace.
+
+For each table we will estimate the partition size defined as:
+
+```math
+N_v = N_r ( N_c - N_{pk} - N_s ) + N_s
+```
+
+With `Nv` the number of values in the partition, `Ns` the number of static
+columns, `Nr` the number of rows, `Nc` the number of columns and `Npk` the
+number of primary key columns. Because our capacity estimations use powers of
+ten and that all tables have less than 10 columns, we consider that `Nv` is
+equivalent to `Nr`.
+
+Read queries 1 is satisfied by the tables `user_follows` and `images_by_user`.
+
+Table `user_follows`:
+
+* `follower_id` (partition key): text
+* `followed_id`: text
+* `creation_timestamp`: timestamp
+
+The partition size of `user_follows` depends on how many people a user follows.
+
+Table `images_by_user`:
+
+* `owner_id` (partition key): text
+* `publication_timestamp` (clustering key): timestamp
+* `image_id`: uuid
+* `image_path`: text
+
+The partition size is proportional to the number of images owned by users, on
+average. After a year, an average user has uploaded 10^2 images, so the average
+partition size is 10^2.
+
+Read query 2 is satisfied by the table `images.
 
 Table `images`:
 
-* `image_id` (uuid, primary key): Image identifier.
-* `image_title` (string): Image title.
-* `image_path` (string): Path of the image in the storage system.
-* `owner_id` (string, references users.user_id): User identifier of the image
-  owner.
-* `album_id` (integer): Identifier of the album the image belongs to.
-* `publication_timestamp` (datetime): Date and time the image was published.
-* `deletion_timestamp` (datetime): Date and time the image was deleted.
-* `to_be_deleted` (boolean): Whether the image was marked for deletion.
-* `filter` (string): Name of the filter applied on the image.
-* `tags` (set(text)): Tags of the image.
+* `image_id` (partition key): UUID
+* `image_path`: TEXT
+* `publication_timestamp`: TIMESTAMP
+* `description`: text
+* `album_name`: text
+* `tags`: set(text)
 
-With an average of 10^9 images uploaded every day, assuming an average record
-size of 10^2 bytes, the table size is 10^13 bytes (10TB) after a year.
+The value of `image_id` is unique, so the partition size for this table is one.
 
-The attribute `image_id` has the highest cardinality because each value is
-unique, so we could shard the table by image identifier. This would spread the
-images of a specific user over several storage nodes, impairing the performance
-of queries that collect the images of a single user. Sharding by owner
-identifier could mitigate this issue, but would create another issue: nodes
-that store data for images owned by popular users would process a
-disproportionately high amount of queries. Another solution would be to have a
-hybrid sharding strategy: data for popular users is sharded by image identifier
-and stored on table A, while data for normal users is sharded by user identifier
-and stored on table B. We will use the simpler solution of sharding by image
-identifier, which avoids cluster load skews due to heterogeneous user
-popularity.
-
-Table `albums`:
-
-* `album_name` (string, primary key): Album name.
-* `owner_id` (string, primary key): User who owns the album.
-* `creation_timestamp` (datetime): Date and time the album was created.
-* `deletion_timestamp` (datetime): Date and time the album was deleted.
-* `private` (boolean): Whether the album is private or not.
-* `users` (set(text)): Users who can access an album.
-
-With 10^2 albums per user on average, assuming a record size of 10^2 bytes, the
-table size is 10^12 bytes (1TB).
+Read queries 3 and 4 are satisfied by two tables: `image_comments` and
+`image_likes`. Each table is partitioned by image identifier because this query
+is interested in a specific image. To ensure primary key uniqueness, we add a
+timestamp and user identifiers as clustering keys.
 
 Table `image_comments`:
 
-* `image_id` (uuid): Image identifier.
-* `user_id` (string): Identifier of user who
-  commented.
-* `comment` (string): Text of the comment.
-* `creation_timestamp` (datetime): When the comment was made.
-* `deletion_timestamp` (datetime): When the comment was eventually deleted.
-
-Assuming an average of 1 comment per image, and a record size of 10^2 bytes,
-after a year the table size is 10^11 bytes (100GB).
+* `image_id` (partition key): uuid
+* `creation_timestamp` (clustering key): timestamp
+* `user_id` (clustering key): text
+* `comment_text`: text
 
 Table `image_likes`:
 
-* `image_id` (uuid): Image identifier.
-* `user_id` (string): Identifier of user who
-  liked the image.
-* `like_timestamp` (datetime): When the 'like' was made.
-* `dislike_timestamp` (datetime): When the 'like' was eventually removed.
+* `image_id` (partition key): uuid
+* `user_id` (clustering key): text
+* `creation_timestamp`: timestamp
 
-Assuming an average of 1 'like' per image, and a record size of 10^1 bytes,
-after a year the table size is 10^10 bytes (10GB).
+Assuming an average of 10^1 comments and likes per image, the partition size
+for both `image_comments` and `image_likes` tables is 10^1 on average.
 
-The total size required to store the database is dominated by the table
-`images`, which weighs tens of terabytes. Sharding will be required to spread
-data storage on a cluster.
+Read queries 5, 6, and 7 are satisfied by the `users` table, partitioned by
+user identifier (we are interested in a single user, and they are unique).
+
+Table `users`:
+
+* `user_id` (partition key): text
+* `registration_timestamp`: timestamp
+* `first_name`: text
+* `last_name`: text
+* `password`: text
+* `album_names`: set<text>
+
+Each user identifier is unique, so the partition size for `users` is 1.
+
+Read query 8 is satisfied by the table `albums_per_user`, partitioned by album
+name and album owner identifier (an album name is not unique by itself).
+
+Table `albums_by_user`:
+
+* `album_name` (primary key): text
+* `owner_id` (primary key): text
+* `creation_timestamp`: timestamp
+* `image_ids`: set<uuid>
+
+Read query 9 is satisfied by the table `user_is_followed`, which is an inverted
+version of the table `user_follows` we saw previously:
+
+Table `user_is_followed`:
+
+* `followed_id` (partition key): text
+* `follower_id`: text
+* `creation_timestamp`: timestamp
+
+The partition size of `user_is_followed` depends on how many people follow this
+user. Popular users could have millions of followers, leading to very
+imbalanced partition sizes.
+
+### What about a graph model?
 
 The data model is complicated because it has to model several
 many-to-many relationships. A graph model can easily represent such
@@ -348,3 +422,5 @@ least-recently used cache expiration policy is a reasonable choice.
 
 The application does not support image updates, so we do not need to specify a
 cache invalidation policy.
+
+## 6. Detailed design
