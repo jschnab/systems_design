@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS users (
   first_name TEXT,
   last_name TEXT,
   password TEXT,
-  albums_names SET<TEXT>,
+  album_names SET<TEXT>,
 )
 ;"""
 
@@ -74,8 +74,8 @@ CREATE TABLE IF NOT EXISTS user_followed (
 )
 ;"""
 
-CREATE_TABLE_ALBUMS_BY_USER = """
-CREATE TABLE IF NOT EXISTS albums_by_user (
+CREATE_TABLE_ALBUMS = """
+CREATE TABLE IF NOT EXISTS albums (
   album_name TEXT,
   owner_id TEXT,
   creation_timestamp TIMESTAMP,
@@ -145,7 +145,7 @@ UPDATE images SET tags = tags + %s WHERE image_id = %s
 ;"""
 
 CREATE_ALBUM = """
-INSERT INTO albums_by_user (
+INSERT INTO albums (
     album_name,
     owner_id,
     creation_timestamp
@@ -154,10 +154,14 @@ VALUES (%s, %s, %s)
 IF NOT EXISTS
 ;"""
 
+ADD_ALBUM_TO_USER = """
+UPDATE users SET album_names = album_names + {%s} WHERE user_id = %s
+;"""
+
 SET_ALBUM_FOR_IMAGE = "UPDATE images SET album_name = %s WHERE image_id = %s;"
 
 ADD_IMAGE_TO_ALBUM = """
-UPDATE albums_by_user
+UPDATE albums
 SET image_ids = image_ids + {%s}
 WHERE album_name = %s AND owner_id = %s
 ;"""
@@ -191,7 +195,27 @@ SELECT followed_id FROM user_follows WHERE follower_id = %s
 ALLOW FILTERING
 ;"""
 
+GET_FOLLOWER_USERS = """
+SELECT follower_id FROM user_followed WHERE followed_id = %s
+;"""
+
 GET_IMAGES_BY_USER = """
 SELECT image_id, image_path, publication_timestamp FROM images_by_user
 WHERE owner_id = %s
+;"""
+
+GET_IMAGE_COMMENTS = "SELECT * FROM image_comments WHERE image_id = %s;"
+
+GET_IMAGE_LIKES = "SELECT * FROM image_likes WHERE image_id = %s;"
+
+GET_USER_INFO = """
+SELECT * FROM users WHERE user_id = %s
+;"""
+
+GET_ALBUMS_BY_USER = """
+SELECT album_names FROM users WHERE user_id = %s
+;"""
+
+GET_IMAGES_IN_ALBUM = """
+SELECT image_ids FROM albums WHERE album_name = %s AND owner_id = %s
 ;"""

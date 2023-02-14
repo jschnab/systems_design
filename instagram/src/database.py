@@ -36,6 +36,10 @@ def execute_query(query, params=None, session=None):
     return session.execute(query, params).all()
 
 
+def rows_to_dicts(rows):
+    return tuple(row._asdict() for row in rows)
+
+
 def create_table_users():
     execute_query(cql_queries.CREATE_TABLE_USERS)
 
@@ -56,8 +60,8 @@ def create_table_images():
     execute_query(cql_queries.CREATE_TABLE_IMAGES)
 
 
-def create_table_albums_by_user():
-    execute_query(cql_queries.CREATE_TABLE_ALBUMS_BY_USER)
+def create_table_albums():
+    execute_query(cql_queries.CREATE_TABLE_ALBUMS)
 
 
 def create_table_image_comments():
@@ -74,7 +78,7 @@ def create_database_objects():
     create_table_user_is_followed()
     create_table_images()
     create_table_images_by_user()
-    create_table_albums_by_user()
+    create_table_albums()
     create_table_image_comments()
     create_table_image_likes()
 
@@ -127,7 +131,11 @@ def put_image_metadata(
 
 
 def get_image_info(image_id):
-    return execute_query(cql_queries.GET_IMAGE_INFO, params=(image_id,))[0]
+    response = execute_query(
+        cql_queries.GET_IMAGE_INFO, params=(image_id,)
+    )
+    if len(response) > 0:
+        return rows_to_dicts(response)[0]
 
 
 def tag_image(image_id, tags):
@@ -135,6 +143,9 @@ def tag_image(image_id, tags):
 
 
 def create_album(album_name, user_id):
+    execute_query(
+        cql_queries.ADD_ALBUM_TO_USER, params=(album_name, user_id)
+    )
     response = execute_query(
         cql_queries.CREATE_ALBUM, params=(album_name, user_id, datetime.now())
     )
@@ -187,10 +198,16 @@ def like_image(image_id, user_id):
 
 def get_followed_users(user_id):
     response = execute_query(
-        cql_queries.GET_FOLLOWED_USERS,
-        params=(user_id,)
+        cql_queries.GET_FOLLOWED_USERS, params=(user_id,)
     )
     return tuple(row.followed_id for row in response)
+
+
+def get_follower_users(user_id):
+    response = execute_query(
+        cql_queries.GET_FOLLOWER_USERS, params=(user_id,)
+    )
+    return rows_to_dicts(response)
 
 
 def get_images_by_user(user_id):
@@ -198,11 +215,36 @@ def get_images_by_user(user_id):
         cql_queries.GET_IMAGES_BY_USER,
         params=(user_id,),
     )
-    return [
-        {
-            "image_id": row.image_id,
-            "image_path": row.image_path,
-            "publication_timestamp": row.publication_timestamp,
-        }
-        for row in response
-    ]
+    return rows_to_dicts(response)
+
+
+def get_image_comments(image_id):
+    response = execute_query(
+        cql_queries.GET_IMAGE_COMMENTS, params=(image_id,)
+    )
+    return rows_to_dicts(response)
+
+
+def get_image_likes(image_id):
+    response = execute_query(cql_queries.GET_IMAGE_LIKES, params=(image_id,))
+    return rows_to_dicts(response)
+
+
+def get_user_info(user_id):
+    response = execute_query(cql_queries.GET_USER_INFO, params=(user_id,))
+    if len(response) > 0:
+        return rows_to_dicts(response)[0]
+
+
+def get_albums_by_user(user_id):
+    response = execute_query(cql_queries.GET_ALBUMS_BY_USER, params=(user_id,))
+    if len(response) > 0:
+        return response[0].album_names
+
+
+def get_images_in_album(album_name, owner_id):
+    response = execute_query(
+        cql_queries.GET_IMAGES_IN_ALBUM, params=(album_name, owner_id)
+    )
+    if len(response) > 0:
+        return response[0].image_ids

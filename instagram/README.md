@@ -239,7 +239,8 @@ Table `user_follows`:
 * `followed_id`: text
 * `creation_timestamp`: timestamp
 
-The partition size of `user_follows` depends on how many people a user follows.
+The partition size of `user_follows` depends on how many people a user follows,
+and is estimated to be 10^2 on average.
 
 Table `images_by_user`:
 
@@ -249,7 +250,7 @@ Table `images_by_user`:
 * `image_path`: text
 
 The partition size is proportional to the number of images owned by users, on
-average. After a year, an average user has uploaded 10^2 images, so the average
+average. After a year, a user has uploaded 10^2 images, so the average
 partition size is 10^2.
 
 Read query 2 is satisfied by the table `images.
@@ -300,13 +301,13 @@ Table `users`:
 
 Each user identifier is unique, so the partition size for `users` is 1.
 
-Read query 8 is satisfied by the table `albums_per_user`, partitioned by album
-name and album owner identifier (an album name is not unique by itself).
+Read query 8 is satisfied by the table `albums`, partitioned by album name
+and album owner identifier (an album name is not unique by itself).
 
-Table `albums_by_user`:
+Table `albums`:
 
-* `album_name` (primary key): text
-* `owner_id` (primary key): text
+* `album_name` (partition key): text
+* `owner_id` (clustering key): text
 * `creation_timestamp`: timestamp
 * `image_ids`: set<uuid>
 
