@@ -231,13 +231,21 @@ number of primary key columns. Because our capacity estimations use powers of
 ten and that all tables have less than 10 columns, we consider that `Nv` is
 equivalent to `Nr`.
 
-The size on disk of partitions is calculated with the following formulat:
+The size on disk of partitions is calculated with the following formula:
 
 ```math
 S_t = \sum_{i}sizeOf(c_{k_i}) + \sum_{j}sizeOf(c_{s_j}) + N_r \times
-\big(\sum_{k}sizeOf(c_{r_k}) + \sum_{l}sizeOf(c_{c_l})]\big) + N_v \times
+\big(\sum_{k}sizeOf(c_{r_k}) + \sum_{l}sizeOf(c_{c_l})\big) + N_v \times
 sizeOf(t_{avg})
 ```
+
+With `ck` represent key columns, `cs` static columns, `cr` regular columns, and
+`cc` clustering columns. `sizeOf` is the number of bytes for the data type of
+the referenced column. `tavg` is the average number of bytes of metadata stored
+per cell, typically estimated at 8 bytes.
+
+The number of bytes of each data type is taken from this StackOverflow
+[post](https://stackoverflow.com/questions/40087926/what-is-the-byte-size-of-common-cassandra-data-types-to-be-used-when-calculati).
 
 Read queries 1 is satisfied by the tables `user_follows` and `images_by_user`.
 
@@ -248,7 +256,8 @@ Table `user_follows`:
 * `creation_timestamp`: timestamp
 
 The partition size of `user_follows` depends on how many people a user follows,
-and is estimated to be 10^2 on average.
+and is estimated to be 10^2 on average. We estimate the physical partition size
+to be 10^4 bytes (10KB) on average, and at most 10^5 bytes (100KB).
 
 Table `images_by_user`:
 
@@ -257,9 +266,9 @@ Table `images_by_user`:
 * `image_id`: uuid
 * `image_path`: text
 
-The partition size is proportional to the number of images owned by users, on
-average. After a year, a user has uploaded 10^2 images, so the average
-partition size is 10^2.
+The partition size is proportional to the number of images owned by users. At
+most, the partition size should be 10^4 (10,000 images uploaded by a user),
+corresponding to a physical size of 10^6 bytes (1MB).
 
 Read query 2 is satisfied by the table `images.
 
@@ -293,7 +302,11 @@ Table `image_likes`:
 * `creation_timestamp`: timestamp
 
 Assuming an average of 10^1 comments and likes per image, the partition size
-for both `image_comments` and `image_likes` tables is 10^1 on average.
+for both `image_comments` and `image_likes` tables is 10^1 on average. The size
+of partitions depend on image popularity and will vary across a wide range.
+Assuming the most popular images gather 10^4 comments and 10^5 likes, this
+represents maximum partition sizes of 10^6 bytes (1MB) for comments and 10^7
+bytes (10MB) for likes.
 
 Read queries 5, 6, and 7 are satisfied by the `users` table, partitioned by
 user identifier (we are interested in a single user, and they are unique).
@@ -319,18 +332,19 @@ Table `albums`:
 * `creation_timestamp`: timestamp
 * `image_ids`: set<uuid>
 
-Read query 9 is satisfied by the table `user_is_followed`, which is an inverted
+Read query 9 is satisfied by the table `user_followed`, which is an inverted
 version of the table `user_follows` we saw previously:
 
-Table `user_is_followed`:
+Table `user_followed`:
 
 * `followed_id` (partition key): text
 * `follower_id`: text
 * `creation_timestamp`: timestamp
 
-The partition size of `user_is_followed` depends on how many people follow this
+The partition size of `user_followed` depends on how many people follow this
 user. Popular users could have millions of followers, leading to very
-imbalanced partition sizes.
+imbalanced partition sizes. The largest partition, storing the most popular
+user with 10^6 followers, is estimated to be 10^8 bytes (100MB).
 
 ### What about a graph model?
 
