@@ -231,6 +231,14 @@ number of primary key columns. Because our capacity estimations use powers of
 ten and that all tables have less than 10 columns, we consider that `Nv` is
 equivalent to `Nr`.
 
+The size on disk of partitions is calculated with the following formulat:
+
+```math
+S_t = \sum_{i}sizeOf(c_k_i) + \sum_{j}sizeOf(c_s_j) + N_r \times
+\big(\sum_{k}sizeOf(c_r_k) + \sum_{l}sizeOf(c_c_l)]\big) + N_v \times
+sizeOf(t_{avg})
+```
+
 Read queries 1 is satisfied by the tables `user_follows` and `images_by_user`.
 
 Table `user_follows`:
