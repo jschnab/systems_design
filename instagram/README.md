@@ -234,8 +234,8 @@ equivalent to `Nr`.
 The size on disk of partitions is calculated with the following formulat:
 
 ```math
-S_t = \sum_{i}sizeOf(c_k_i) + \sum_{j}sizeOf(c_s_j) + N_r \times
-\big(\sum_{k}sizeOf(c_r_k) + \sum_{l}sizeOf(c_c_l)]\big) + N_v \times
+S_t = \sum_{i}sizeOf(c_{k_i}) + \sum_{j}sizeOf(c_{s_j}) + N_r \times
+\big(\sum_{k}sizeOf(c_{r_k}) + \sum_{l}sizeOf(c_{c_l})]\big) + N_v \times
 sizeOf(t_{avg})
 ```
 
