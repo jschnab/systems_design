@@ -6,6 +6,7 @@ from cassandra.cluster import (
     EXEC_PROFILE_DEFAULT,
 )
 from cassandra.query import named_tuple_factory
+from cassandra.util import SortedSet
 
 from . import cql_queries
 from . import return_codes
@@ -99,7 +100,7 @@ def create_user(user_id, first_name, last_name, password):
     return return_codes.OK
 
 
-def put_image_metadata(
+def add_image(
     image_id,
     image_description,
     owner_id,
@@ -124,10 +125,11 @@ def put_image_metadata(
             owner_id,
             now,
             image_description,
-            album_name,
             tags,
         ),
     )
+    if album_name is not None:
+        add_image_to_album(image_id, album_name, owner_id)
 
 
 def get_image_info(image_id):
@@ -232,19 +234,30 @@ def get_image_likes(image_id):
 
 def get_user_info(user_id):
     response = execute_query(cql_queries.GET_USER_INFO, params=(user_id,))
-    if len(response) > 0:
-        return rows_to_dicts(response)[0]
+    if len(response) == 0:
+        return {}
+    return rows_to_dicts(response)[0]
 
 
 def get_albums_by_user(user_id):
     response = execute_query(cql_queries.GET_ALBUMS_BY_USER, params=(user_id,))
-    if len(response) > 0:
-        return response[0].album_names
+    if len(response) == 0:
+        return SortedSet()
+    return response[0].album_names
 
 
 def get_images_in_album(album_name, owner_id):
     response = execute_query(
         cql_queries.GET_IMAGES_IN_ALBUM, params=(album_name, owner_id)
     )
-    if len(response) > 0:
-        return response[0].image_ids
+    if len(response) == 0:
+        return SortedSet()
+    return response[0].image_ids
+
+
+def user_is_locked(user_id):
+    return False
+
+
+def record_user_connect(user_id, user_ip, success):
+    pass

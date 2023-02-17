@@ -134,10 +134,9 @@ INSERT INTO images (
   owner_id,
   publication_timestamp,
   description,
-  album_name,
   tags
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s)
 ;"""
 
 TAG_IMAGE = """

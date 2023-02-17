@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="image">
+  <img src="data:;base64,{{ image_data }}"/>
+  <span class="image-description">{{ image_description }}</span>
+  <span class="image-publication-timestamp">Published on: {{ publication_timestamp }}</span>
+  <span class="image-tags">Tags: {{ tags }}</span>
+</div>
+
+{% endblock %}

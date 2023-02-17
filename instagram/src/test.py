@@ -18,8 +18,8 @@ def image_process_upload():
     object_store.put_image("test.thumb", thumb)
 
 
-def database_put_image():
-    database.put_image_metadata(
+def database_add_image():
+    database.add_image(
         image_id=uuid.uuid4(),
         image_description="sunset on the ocean",
         owner_id="jonathan",
@@ -28,11 +28,11 @@ def database_put_image():
     )
 
 
-def api_publish_image():
+def api_put_image():
     img = Image.open("/home/jonathans/Downloads/IMG-0198.jpg")
     data = io.BytesIO()
     img.save(data, "JPEG")
-    api.publish_image(
+    api.put_image(
         image_data=data.getvalue(),
         image_description="big house in upstate",
         user_id="jaynee",

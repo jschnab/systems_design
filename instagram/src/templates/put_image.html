@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% if message %}
+  <div class="flash">{{ message }}</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+  <label for="image">Upload an image (JPEG, PNG, or BMP)</label>
+  <input type="file" name="image" id="image" accept="image/*">
+  <label for="description">Description</label>
+  <input name="image-description" id="image-description">
+  <label for="tags">Tags</label>
+  <input name="tags" id="tags" placeholder="Words separated by space">
+  <input type="submit" value="Publish Image">
+</form>
+
+{% endblock %}

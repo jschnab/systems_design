@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% for image in images %}
+
+  <div class="image-item">
+    <ul class="image-item-details">
+      <li class="image-thumbnail">
+        <a href="{{ url_for('get_image', image_id=image['image_id']) }}">
+        <img src="data:;base64,{{ image['thumbnail'] }}"/>
+        </a>
+      </li>
+      <li class="image-publication-timestamp">Published on: {{ image['publication_timestamp'] }}</li>
+    </ul>
+  </div>
+
+{% endfor %}
+
+{% endblock %}
