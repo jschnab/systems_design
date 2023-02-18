@@ -102,7 +102,7 @@ def login():
             session["user_id"] = user_id
             return redirect(url_for("index"))
 
-        flash (error)
+        flash(error)
 
     return render_template("auth/login.html")
 

@@ -1,12 +1,8 @@
 import os
 import secrets
-import sys
-from base64 import b64encode
-from datetime import datetime
 
 from flask import (
     abort,
-    flash,
     Flask,
     render_template,
     request,
@@ -18,10 +14,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from . import api
 from . import auth
 from . import database
-from . import object_store
 from . import return_codes
 from .auth import login_required
-from .config import CONFIG
 
 
 def create_app(test_config=None):
@@ -78,7 +72,6 @@ def create_app(test_config=None):
 
         return render_template("put_album.html", msg=message)
 
-
     @app.route("/images/<image_id>")
     def get_image(image_id):
         image_info = api.get_image(image_id)
@@ -127,7 +120,8 @@ def create_app(test_config=None):
 
     @app.route("/static-image/<image_id>")
     def get_static_image(image_id):
-        dirname, filename = os.path.split(api.get_static_image(image_id))
+        print("__init__.get_static_images() getting static image:", image_id)
+        dirname, filename = os.path.split(api.cache_image(image_id))
         return send_from_directory(
             dirname, filename, mimetype="image/*",
         )
