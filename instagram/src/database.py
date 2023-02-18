@@ -93,6 +93,7 @@ def create_user(user_id, first_name, last_name, password):
             last_name,
             password,
             datetime.now(),
+            {CONFIG["general"]["default_album_name"]},
         ),
     )
     if not response[0].applied:
@@ -112,6 +113,7 @@ def add_image(
         cql_queries.INSERT_IMAGE_BY_USER,
         params=(
             owner_id,
+            album_name,
             now,
             image_id,
             f"{CONFIG['image_store']['s3_bucket']}/{image_id}",
@@ -253,6 +255,15 @@ def get_album_info(album_name, owner_id):
     if len(response) == 0:
         return {}
     return rows_to_dicts(response)[0]
+
+
+def get_album_images(album_name, owner_id):
+    response = execute_query(
+        cql_queries.GET_ALBUM_IMAGES, params=(owner_id, album_name)
+    )
+    if len(response) == 0:
+        return []
+    return rows_to_dicts(response)
 
 
 def user_is_locked(user_id):

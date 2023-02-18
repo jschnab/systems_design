@@ -13,6 +13,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from . import api
 from . import database
 from . import return_codes
 
@@ -54,7 +55,7 @@ def register():
 
         if error is None:
             pw_hash = generate_password_hash(password_1)
-            rcode = database.create_user(
+            rcode = api.create_user(
                 user_id, first_name, last_name, pw_hash,
             )
             if rcode is return_codes.USER_EXISTS:

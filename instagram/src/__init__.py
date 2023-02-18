@@ -1,5 +1,6 @@
 import os
 import secrets
+import uuid
 
 from flask import (
     abort,
@@ -40,17 +41,18 @@ def create_app(test_config=None):
 
         if request.method == "POST":
             tags = request.form["tags"].strip().split()
-            image_id = api.put_image(
+            album_name = request.form["album-name"]
+            api.put_image(
                 image_data=request.files["image"].read(),
                 image_description=request.form["image-description"],
                 user_id=user_id,
                 tags=tags,
-                album_name=request.form["album-name"],
+                album_name=album_name,
             )
-            message = f"Image saved to {image_id}"
+            message = f"Image saved in album '{album_name}'"
 
         return render_template(
-            "put_image.html", msg=message, user_albums=user_albums
+            "put_image.html", message=message, user_albums=user_albums
         )
 
     @app.route("/put-album", methods=("GET", "POST"))
@@ -70,11 +72,12 @@ def create_app(test_config=None):
             else:
                 abort(500)
 
-        return render_template("put_album.html", msg=message)
+        return render_template("put_album.html", message=message)
 
     @app.route("/images/<image_id>")
+    @login_required
     def get_image(image_id):
-        image_info = api.get_image(image_id)
+        image_info = database.get_image_info(uuid.UUID(image_id))
         if image_info is None:
             abort(404)
         return render_template(
@@ -86,11 +89,13 @@ def create_app(test_config=None):
         )
 
     @app.route("/user-images/<user_id>")
+    @login_required
     def user_images(user_id):
-        images = api.get_user_images(user_id)
+        images = database.get_images_by_user(user_id)
         return render_template("user_images.html", images=images)
 
     @app.route("/user-albums/<user_id>")
+    @login_required
     def user_albums(user_id):
         albums = database.get_albums_by_user(user_id)
         return render_template(
@@ -98,9 +103,15 @@ def create_app(test_config=None):
         )
 
     @app.route("/albums/<user_id>/<album_name>")
+    @login_required
     def album_info(album_name, user_id):
-        album_info = api.get_album_info(album_name, user_id)
-        return render_template("album.html", album_info=album_info)
+        album_info = database.get_album_info(album_name, user_id)
+        images = database.get_album_images(album_name, user_id)
+        return render_template(
+            "album.html",
+            album_info=album_info,
+            images=images,
+        )
 
     @app.route("/favicon.ico")
     def favicon():
@@ -119,6 +130,7 @@ def create_app(test_config=None):
         )
 
     @app.route("/static-image/<image_id>")
+    @login_required
     def get_static_image(image_id):
         dirname, filename = os.path.split(api.cache_image(image_id))
         return send_from_directory(

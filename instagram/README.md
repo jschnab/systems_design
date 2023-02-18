@@ -262,9 +262,15 @@ to be 10^4 bytes (10KB) on average, and at most 10^5 bytes (100KB).
 Table `images_by_user`:
 
 * `owner_id` (partition key): text
+* `album_name` (clustering key): text
 * `publication_timestamp` (clustering key): timestamp
 * `image_id`: uuid
 * `image_path`: text
+
+Adding the clustering column `album_name` will help us take care of query 8
+with the same table. Only low-level clustering columns can be queried with
+range operators, so we set `album_name` as the high-level clustering column and
+`publication_timestamp` as the low-level clustering column.
 
 The partition size is proportional to the number of images owned by users. At
 most, the partition size should be 10^4 (10,000 images uploaded by a user),
@@ -308,8 +314,8 @@ Assuming the most popular images gather 10^4 comments and 10^5 likes, this
 represents maximum partition sizes of 10^6 bytes (1MB) for comments and 10^7
 bytes (10MB) for likes.
 
-Read queries 5, 6, and 7 are satisfied by the `users` table, partitioned by
-user identifier (we are interested in a single user, and they are unique).
+Read queries 5 and 6 are satisfied by the `users` table, partitioned by user
+identifier (we are interested in a single user, and they are unique).
 
 Table `users`:
 
@@ -322,7 +328,7 @@ Table `users`:
 
 Each user identifier is unique, so the partition size for `users` is 1.
 
-Read query 8 is satisfied by the table `albums`, partitioned by album name
+Read query 7 is satisfied by the table `albums`, partitioned by album name
 and album owner identifier (an album name is not unique by itself).
 
 Table `albums`:

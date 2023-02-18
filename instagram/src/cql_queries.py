@@ -7,10 +7,11 @@ WITH REPLICATION = {'class': 'SimpleStrategy'}
 CREATE_TABLE_IMAGES_BY_USER = """
 CREATE TABLE IF NOT EXISTS images_by_user (
   owner_id TEXT,
+  album_name TEXT,
   publication_timestamp TIMESTAMP,
   image_id UUID,
   image_path TEXT,
-  PRIMARY KEY (owner_id, publication_timestamp)
+  PRIMARY KEY (owner_id, album_name, publication_timestamp)
 )
 ;"""
 
@@ -91,9 +92,10 @@ INSERT INTO users (
   first_name,
   last_name,
   password,
-  registration_timestamp
+  registration_timestamp,
+  album_names
 )
-VALUES (%s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s)
 IF NOT EXISTS
 ;"""
 
@@ -120,11 +122,12 @@ IF NOT EXISTS
 INSERT_IMAGE_BY_USER = """
 INSERT INTO images_by_user (
   owner_id,
+  album_name,
   publication_timestamp,
   image_id,
   image_path
 )
-VALUES (%s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s)
 ;"""
 
 INSERT_IMAGE = """
@@ -203,6 +206,11 @@ SELECT image_id, image_path, publication_timestamp FROM images_by_user
 WHERE owner_id = %s
 ;"""
 
+GET_IMAGES_BY_ALBUM = """
+SELECT image_id, publication_timestamp FROM images_by_user
+WHERE owner_id = %s AND album_name = %s
+;"""
+
 GET_IMAGE_COMMENTS = "SELECT * FROM image_comments WHERE image_id = %s;"
 
 GET_IMAGE_LIKES = "SELECT * FROM image_likes WHERE image_id = %s;"
@@ -217,4 +225,9 @@ SELECT album_names FROM users WHERE user_id = %s
 
 GET_ALBUM_INFO = """
 SELECT * FROM albums WHERE album_name = %s AND owner_id = %s
+;"""
+
+GET_ALBUM_IMAGES = """
+SELECT image_id, publication_timestamp FROM images_by_user
+WHERE owner_id = %s AND album_name = %s
 ;"""

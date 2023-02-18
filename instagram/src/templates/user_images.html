@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block header %}
+<h2>My images</h2>
+{% endblock %}
+
 {% block content %}
 
 {% for image in images %}
@@ -8,12 +12,16 @@
   <ul class="image-item-details">
     <li class="image-thumbnail">
       <a href="{{ url_for('get_image', image_id=image['image_id']) }}">
-      <img src="{{ url_for('get_static_image', image_id=image['thumbnail']) }}"/>
+      <img src="{{ url_for('get_static_image', image_id=image['image_id']~'.thumbnail') }}"/>
       </a>
     </li>
     <li class="image-publication-timestamp">Published on {{ image['publication_timestamp'] }}</li>
   </ul>
 </div>
+
+{% else %}
+
+<div class="no-image">You have no images, yet. <a href="{{ url_for('put_image') }}">Publish an image</a></div>
 
 {% endfor %}
 
