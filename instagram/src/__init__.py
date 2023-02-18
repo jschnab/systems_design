@@ -120,7 +120,6 @@ def create_app(test_config=None):
 
     @app.route("/static-image/<image_id>")
     def get_static_image(image_id):
-        print("__init__.get_static_images() getting static image:", image_id)
         dirname, filename = os.path.split(api.cache_image(image_id))
         return send_from_directory(
             dirname, filename, mimetype="image/*",

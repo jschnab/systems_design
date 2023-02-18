@@ -90,32 +90,26 @@ class DiskCache:
         self.execute_query(UPDATE_TIMESTAMP, (int(time.time()), key))
 
     def set(self, key, value):
-        print("calling disk_cache.set()")
         file_path = os.path.join(self.cache_dir, key)
         with open(self.file_descriptor(file_path), "wb") as f:
             f.write(value)
         if not self.key_exists(key):
-            print("disk_cache.set() setting key:", key)
             self.execute_query(SET_KEY, (key, int(time.time())))
             self.current_size += self.size_on_disk(key)
             while self.current_size > self.max_cache_size:
                 self.evict()
         else:
-            print("disk_cache.set() refreshing key:", key)
             self.refresh_timestamp(key)
         return file_path
 
     def get_value(self, key):
-        print("calling disk_cache.get_value()")
         if self.key_exists(key):
             self.refresh_timestamp(key)
             with open(os.path.join(self.cache_dir, key), "rb") as f:
                 return f.read()
 
     def get_path(self, key):
-        print("calling disk_cache.get_path()")
         if self.key_exists(key):
-            print("disk_cache.get_path() key exists:", key)
             self.refresh_timestamp(key)
             return os.path.join(self.cache_dir, key)
 
