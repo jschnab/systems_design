@@ -215,6 +215,6 @@ GET_ALBUMS_BY_USER = """
 SELECT album_names FROM users WHERE user_id = %s
 ;"""
 
-GET_IMAGES_IN_ALBUM = """
-SELECT image_ids FROM albums WHERE album_name = %s AND owner_id = %s
+GET_ALBUM_INFO = """
+SELECT * FROM albums WHERE album_name = %s AND owner_id = %s
 ;"""

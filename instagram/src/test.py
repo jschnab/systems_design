@@ -113,15 +113,16 @@ def database_get_user_info():
 
 
 def database_get_albums_by_user():
+    print(database.get_albums_by_user("jonathan"))
     print(database.get_albums_by_user("dude"))
 
 
-def database_get_images_in_album():
-    print(database.get_images_in_album("visiting upstate", "jonathan"))
+def database_get_album_info():
+    print(database.get_album_info("visiting upstate", "jonathan"))
 
 
 def main():
-    database_get_images_in_album()
+    database_get_albums_by_user()
 
 
 if __name__ == "__main__":

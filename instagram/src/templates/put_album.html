@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<h1>Create an album</h1>
+{% endblock %}
+
+{% block content %}
+
+{% if message %}
+  <div class="flash">{{ message }}</div>
+{% endif %}
+
+<form method="post">
+  <label for="album-name">Album name</label>
+  <input name="album-name" id="album-name" required>
+  <input type="submit" value="Create Album">
+</form>
+
+{% endblock %}

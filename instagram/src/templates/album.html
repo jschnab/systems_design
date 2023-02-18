@@ -2,7 +2,12 @@
 
 {% block content %}
 
-{% for image in images %}
+<ul class="album-info">
+  <li class="album-name"><h2>{{ album_info['album_name'] }}</h2></li>
+  <li class="album-creation-timestamp">Album created on {{ album_info['creation_timestamp']}}</li>
+</ul>
+
+{% for image in album_info['images'] %}
 
 <div class="image-item">
   <ul class="image-item-details">

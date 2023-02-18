@@ -2,11 +2,11 @@
 
 {% block content %}
 
-<div class="image">
-  <img src="data:;base64,{{ image_data }}"/>
-  <span class="image-description">{{ image_description }}</span>
-  <span class="image-publication-timestamp">Published on: {{ publication_timestamp }}</span>
-  <span class="image-tags">Tags: {{ tags }}</span>
-</div>
+<ul class="image">
+  <li><img src="{{ url_for('get_static_image', image_id=image_id) }}"/></li>
+  <li class="image-description">{{ image_description }}</li>
+  <li class="image-publication-timestamp">Published on {{ publication_timestamp }}</li>
+  <li class="image-tags">Tags: {{ tags }}</li>
+</ul>
 
 {% endblock %}

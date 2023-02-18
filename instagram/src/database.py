@@ -243,16 +243,16 @@ def get_albums_by_user(user_id):
     response = execute_query(cql_queries.GET_ALBUMS_BY_USER, params=(user_id,))
     if len(response) == 0:
         return SortedSet()
-    return response[0].album_names
+    return response[0].album_names or SortedSet()
 
 
-def get_images_in_album(album_name, owner_id):
+def get_album_info(album_name, owner_id):
     response = execute_query(
-        cql_queries.GET_IMAGES_IN_ALBUM, params=(album_name, owner_id)
+        cql_queries.GET_ALBUM_INFO, params=(album_name, owner_id)
     )
     if len(response) == 0:
-        return SortedSet()
-    return response[0].image_ids
+        return {}
+    return rows_to_dicts(response)[0]
 
 
 def user_is_locked(user_id):

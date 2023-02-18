@@ -19,6 +19,7 @@ from . import api
 from . import auth
 from . import database
 from . import object_store
+from . import return_codes
 from .auth import login_required
 from .config import CONFIG
 
@@ -40,19 +41,43 @@ def create_app(test_config=None):
     @login_required
     def put_image():
         message = None
+        user_id = session.get("user_id")
+        user_albums = database.get_albums_by_user(user_id)
+
         if request.method == "POST":
-            user_id = session.get("user_id")
             tags = request.form["tags"].strip().split()
             image_id = api.put_image(
                 image_data=request.files["image"].read(),
                 image_description=request.form["image-description"],
                 user_id=user_id,
                 tags=tags,
-                album_name=None,
+                album_name=request.form["album-name"],
             )
             message = f"Image saved to {image_id}"
 
-        return render_template("put_image.html", msg=message)
+        return render_template(
+            "put_image.html", msg=message, user_albums=user_albums
+        )
+
+    @app.route("/put-album", methods=("GET", "POST"))
+    @login_required
+    def put_album():
+        message = None
+        if request.method == "POST":
+            user_id = session.get("user_id")
+            album_name = request.form["album-name"]
+            rcode = database.create_album(
+                album_name=album_name, user_id=user_id
+            )
+            if rcode == return_codes.ALBUM_EXISTS:
+                message = "Album already exists"
+            elif rcode == return_codes.OK:
+                message = f"Album '{album_name}' successfully created"
+            else:
+                abort(500)
+
+        return render_template("put_album.html", msg=message)
+
 
     @app.route("/images/<image_id>")
     def get_image(image_id):
@@ -65,7 +90,6 @@ def create_app(test_config=None):
             image_description=image_info["description"],
             publication_timestamp=image_info["publication_timestamp"],
             tags=", ".join(image_info["tags"]),
-            image_data=image_info["data"],
         )
 
     @app.route("/user-images/<user_id>")
@@ -73,12 +97,39 @@ def create_app(test_config=None):
         images = api.get_user_images(user_id)
         return render_template("user_images.html", images=images)
 
+    @app.route("/user-albums/<user_id>")
+    def user_albums(user_id):
+        albums = database.get_albums_by_user(user_id)
+        return render_template(
+            "user_albums.html", albums=albums, user_id=user_id
+        )
+
+    @app.route("/albums/<user_id>/<album_name>")
+    def album_info(album_name, user_id):
+        album_info = api.get_album_info(album_name, user_id)
+        return render_template("album.html", album_info=album_info)
+
     @app.route("/favicon.ico")
     def favicon():
         return send_from_directory(
             os.path.join(app.root_path, "static"),
             "favicon.ico",
             mimetype="image/vnd.microsoft.icon",
+        )
+
+    @app.route("/folder.png")
+    def album_icon():
+        return send_from_directory(
+            os.path.join(app.root_path, "static"),
+            "folder.png",
+            mimetype="image/png",
+        )
+
+    @app.route("/static-image/<image_id>")
+    def get_static_image(image_id):
+        dirname, filename = os.path.split(api.get_static_image(image_id))
+        return send_from_directory(
+            dirname, filename, mimetype="image/*",
         )
 
     app.register_blueprint(auth.bp)

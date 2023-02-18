@@ -1,9 +1,11 @@
 import uuid
-from base64 import b64encode
 
 from . import database
+from . import disk_cache
 from . import image
 from . import object_store
+
+DISK_CACHE = disk_cache.DiskCache()
 
 
 def put_image(
@@ -28,17 +30,45 @@ def put_image(
 
 
 def get_image(image_id):
-    image_info = database.get_image_info(uuid.UUID(image_id))
-    image_info["data"] = b64encode(
-        object_store.get_image(str(image_info["image_id"]))
-    ).decode()
-    return image_info
+    info = database.get_image_info(uuid.UUID(image_id))
+    if DISK_CACHE.get_path(image_id) is None:
+        data = object_store.get_image(image_id)
+        DISK_CACHE.set(image_id, data)
+    return info
+
+
+def get_static_image(image_id):
+    path = DISK_CACHE.get_path(image_id)
+    if path is None:
+        data = object_store.get_image(image_id)
+        path = DISK_CACHE.set(image_id, data)
+    return path
 
 
 def get_user_images(user_id):
     images = database.get_images_by_user(user_id)
     for img in images:
-        img["thumbnail"] = b64encode(
-            object_store.get_image(f"{img['image_id']}.thumbnail")
-        ).decode()
+        thumbnail = f"{img['image_id']}.thumbnail"
+        if DISK_CACHE.get_path(thumbnail) is None:
+            data = object_store.get_image(thumbnail)
+            DISK_CACHE.set(thumbnail, data)
+        img["thumbnail"] = thumbnail
     return images
+
+
+def get_album_info(album_name, user_id):
+    # TODO: Create a table that allows querying full image info by album name.
+    # Adding album_name to the clustering key of table images_by_user may do
+    # the job.
+    album_info = database.get_album_info(album_name, user_id)
+    album_info["images"] = []
+    if album_info["image_ids"] is not None:
+        for img_id in album_info["image_ids"]:
+            img_info = database.get_image_info(img_id)
+            thumbnail = f"{img_id}.thumbnail"
+            if DISK_CACHE.get_path(thumbnail) is None:
+                data = object_store.get_image(thumbnail)
+                DISK_CACHE.set(thumbnail, data)
+            img_info["thumbnail"] = thumbnail
+            album_info["images"].append(img_info)
+    return album_info
