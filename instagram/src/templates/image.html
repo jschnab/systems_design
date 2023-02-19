@@ -2,11 +2,27 @@
 
 {% block content %}
 
-<ul class="image">
-  <li><img src="{{ url_for('get_static_image', image_id=image_id) }}"/></li>
-  <li class="image-description">{{ image_description }}</li>
-  <li class="image-publication-timestamp">Published on {{ publication_timestamp }}</li>
-  <li class="image-tags">Tags: {{ tags }}</li>
-</ul>
+<div class="image">
+  <p><img src="{{ url_for('get_static_image', image_id=image_id) }}"/></p>
+  <p class="image-description">{{ image_description }}</p>
+  <p class="image-publication-timestamp">Published on {{ publication_timestamp }}</p>
+  <p class="image-tags">Tags: {{ tags }}</p>
+</div>
+
+<div class="image-comments">
+{% for comment in comments %}
+  <div class="comment-item">
+    <p class="comment-info">{{ comment['user_id'] }} {{ comment['creation_timestamp'] }}</p>
+    <p class="comment-text">{{ comment['comment'] }}</p>
+  </div>
+{% endfor %}
+</div>
+
+<div class="new-comment">
+  <form method="post">
+    <textarea id="comment" name="comment" rows="4" cols="50" placeholder="Write a message"></textarea>
+    <input type="submit" value="Submit">
+  </form>
+</div>
 
 {% endblock %}

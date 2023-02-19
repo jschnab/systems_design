@@ -9,14 +9,12 @@
 {% for album in albums %}
 
 <div class="album-item">
-  <ul class="album-item-info">
-    <li class="album-icon">
-      <a href="{{ url_for('album_info', album_name=album, user_id=user_id) }}">
-      <img src="{{ url_for('album_icon') }}" height="128" width="128"/>
-      </a>
-    </li>
-    <li class="album-name">{{ album }}</li>
-  </ul>
+  <p class="album-icon">
+    <a href="{{ url_for('album_info', album_name=album, user_id=user_id) }}">
+    <img src="{{ url_for('album_icon') }}" height="128" width="128"/>
+    </a>
+  </p>
+  <p class="album-name">{{ album }}</p>
 </div>
 
 {% endfor %}

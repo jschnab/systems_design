@@ -74,18 +74,29 @@ def create_app(test_config=None):
 
         return render_template("put_album.html", message=message)
 
-    @app.route("/images/<image_id>")
+    @app.route("/images/<image_id>", methods=("GET", "POST"))
     @login_required
     def get_image(image_id):
-        image_info = database.get_image_info(uuid.UUID(image_id))
+        image_id = uuid.UUID(image_id)
+        image_info = database.get_image_info(image_id)
         if image_info is None:
             abort(404)
+
+        if request.method == "POST":
+            database.comment_image(
+                image_id,
+                session["user_id"],
+                request.form["comment"],
+            )
+
+        comments = database.get_image_comments(image_id)
         return render_template(
             "image.html",
-            image_id=image_id,
+            image_id=str(image_id),
             image_description=image_info["description"],
             publication_timestamp=image_info["publication_timestamp"],
             tags=", ".join(image_info["tags"]),
+            comments=comments,
         )
 
     @app.route("/user-images/<user_id>")
