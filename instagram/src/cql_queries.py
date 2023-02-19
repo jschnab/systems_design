@@ -181,8 +181,8 @@ VALUES (%s, %s, %s, %s)
 LIKE_IMAGE = """
 INSERT INTO image_likes (
    image_id,
-   creation_timestamp,
-   user_id
+   user_id,
+   creation_timestamp
 )
 VALUES (%s, %s, %s)
 ;"""
@@ -214,6 +214,10 @@ WHERE owner_id = %s AND album_name = %s
 GET_IMAGE_COMMENTS = "SELECT * FROM image_comments WHERE image_id = %s;"
 
 GET_IMAGE_LIKES = "SELECT * FROM image_likes WHERE image_id = %s;"
+
+GET_IMAGE_LIKE_BY_USER = """
+SELECT * FROM image_likes WHERE image_id = %s AND user_id = %s
+;"""
 
 GET_USER_INFO = """
 SELECT * FROM users WHERE user_id = %s

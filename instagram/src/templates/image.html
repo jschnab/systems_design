@@ -9,6 +9,17 @@
   <p class="image-tags">Tags: {{ tags }}</p>
 </div>
 
+<div class="image-like">
+  <form method="post">
+    {% if user_liked_image %}
+    <input type="image" title="You liked this image" src="{{ url_for('like_on_icon') }}">
+    {% else %}
+    <input type="image" title="Click to like this image" src="{{ url_for('like_off_icon') }}">
+    <input id="like-type" name="type" value="like" readonly hidden>
+    {% endif %}
+  </form>
+</div>
+
 <div class="image-comments">
 {% for comment in comments %}
   <div class="comment-item">
@@ -21,6 +32,7 @@
 <div class="new-comment">
   <form method="post">
     <textarea id="comment" name="comment" rows="4" cols="50" placeholder="Write a message"></textarea>
+    <input id="comment-type" name="type" value="comment" readonly hidden>
     <input type="submit" value="Submit">
   </form>
 </div>

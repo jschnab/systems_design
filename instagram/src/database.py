@@ -196,7 +196,7 @@ def comment_image(image_id, user_id, comment_text):
 def like_image(image_id, user_id):
     execute_query(
         cql_queries.LIKE_IMAGE,
-        params=(image_id, datetime.now(), user_id),
+        params=(image_id, user_id, datetime.now()),
     )
 
 
@@ -232,6 +232,15 @@ def get_image_comments(image_id):
 def get_image_likes(image_id):
     response = execute_query(cql_queries.GET_IMAGE_LIKES, params=(image_id,))
     return rows_to_dicts(response)
+
+
+def get_image_like_by_user(image_id, user_id):
+    response = execute_query(
+        cql_queries.GET_IMAGE_LIKE_BY_USER,
+        params=(image_id, user_id)
+    )
+    if len(response) > 0:
+        return rows_to_dicts(response)[0]
 
 
 def get_user_info(user_id):

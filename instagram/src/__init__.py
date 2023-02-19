@@ -78,17 +78,26 @@ def create_app(test_config=None):
     @login_required
     def get_image(image_id):
         image_id = uuid.UUID(image_id)
+        user_id = session["user_id"]
         image_info = database.get_image_info(image_id)
+
         if image_info is None:
             abort(404)
 
         if request.method == "POST":
-            database.comment_image(
-                image_id,
-                session["user_id"],
-                request.form["comment"],
-            )
+            if request.form["type"] == "like":
+                database.like_image(image_id, user_id)
+            elif request.form["type"] == "comment":
+                database.comment_image(
+                    image_id,
+                    session["user_id"],
+                    request.form["comment"],
+                )
 
+        if database.get_image_like_by_user(image_id, user_id) is not None:
+            user_liked_image = True
+        else:
+            user_liked_image = False
         comments = database.get_image_comments(image_id)
         return render_template(
             "image.html",
@@ -96,6 +105,7 @@ def create_app(test_config=None):
             image_description=image_info["description"],
             publication_timestamp=image_info["publication_timestamp"],
             tags=", ".join(image_info["tags"]),
+            user_liked_image=user_liked_image,
             comments=comments,
         )
 
@@ -146,6 +156,22 @@ def create_app(test_config=None):
         dirname, filename = os.path.split(api.cache_image(image_id))
         return send_from_directory(
             dirname, filename, mimetype="image/*",
+        )
+
+    @app.route("/like_on.png")
+    def like_on_icon():
+        return send_from_directory(
+            os.path.join(app.root_path, "static"),
+            "like_on.png",
+            mimetype="image/png",
+        )
+
+    @app.route("/like_off.png")
+    def like_off_icon():
+        return send_from_directory(
+            os.path.join(app.root_path, "static"),
+            "like_off.png",
+            mimetype="image/png",
         )
 
     app.register_blueprint(auth.bp)

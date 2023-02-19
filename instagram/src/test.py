@@ -104,8 +104,13 @@ def database_get_image_comments():
 
 
 def database_get_image_likes():
-    image_id = uuid.UUID("5bf0a783-7c9b-4f84-9de6-472b464e6a6f")
+    image_id = uuid.UUID("0a275ea3-7293-4a86-97b5-03c1f3443a09")
     print(database.get_image_likes(image_id))
+
+
+def database_get_image_like_by_user():
+    image_id = uuid.UUID("0a275ea3-7293-4a86-97b5-03c1f3443a09")
+    print(database.get_image_like_by_user(image_id, 'jonathan'))
 
 
 def database_get_user_info():
@@ -122,7 +127,7 @@ def database_get_album_info():
 
 
 def main():
-    database_get_albums_by_user()
+    database_get_image_like_by_user()
 
 
 if __name__ == "__main__":
