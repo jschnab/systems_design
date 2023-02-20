@@ -10,14 +10,13 @@
 </div>
 
 <div class="image-like">
-  <form method="post">
     {% if user_liked_image %}
-    <input type="image" title="You liked this image" src="{{ url_for('like_on_icon') }}">
+    <img id="image-like" src="{{ url_for('like_on_icon') }}">
+    <button id="button-like" onclick="likeImage" disabled>Like</button>
     {% else %}
-    <input type="image" title="Click to like this image" src="{{ url_for('like_off_icon') }}">
-    <input id="like-type" name="type" value="like" readonly hidden>
+    <img id="image-like" src="{{ url_for('like_off_icon') }}">
+    <button id="button-like" onclick="likeImage()">Like</button>
     {% endif %}
-  </form>
 </div>
 
 <div class="image-comments">
@@ -32,9 +31,24 @@
 <div class="new-comment">
   <form method="post">
     <textarea id="comment" name="comment" rows="4" cols="50" placeholder="Write a message"></textarea>
-    <input id="comment-type" name="type" value="comment" readonly hidden>
     <input type="submit" value="Submit">
   </form>
 </div>
+
+<script>
+function likeImage(form) {
+  const like_url = {{ url_for("like_image")|tojson }};
+  var data = new FormData();
+  data.append("image_id", "{{ image_id }}");
+  fetch(like_url, {"method": "POST", "body": data}).then(
+    (resp) => {
+      const like_button = document.getElementById("button-like");
+      like_button.setAttribute("disabled", "");
+      const like_image = document.getElementById("image-like");
+      like_image.setAttribute("src", "{{ url_for('like_on_icon') }}");
+    }
+  );
+}
+</script>
 
 {% endblock %}

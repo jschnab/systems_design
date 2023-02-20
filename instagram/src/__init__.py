@@ -85,14 +85,11 @@ def create_app(test_config=None):
             abort(404)
 
         if request.method == "POST":
-            if request.form["type"] == "like":
-                database.like_image(image_id, user_id)
-            elif request.form["type"] == "comment":
-                database.comment_image(
-                    image_id,
-                    session["user_id"],
-                    request.form["comment"],
-                )
+            database.comment_image(
+                image_id,
+                session["user_id"],
+                request.form["comment"],
+            )
 
         if database.get_image_like_by_user(image_id, user_id) is not None:
             user_liked_image = True
@@ -108,6 +105,14 @@ def create_app(test_config=None):
             user_liked_image=user_liked_image,
             comments=comments,
         )
+
+    @app.route("/like-image", methods=("POST",))
+    @login_required
+    def like_image():
+        user_id = session["user_id"]
+        image_id = request.form["image_id"]
+        database.like_image(uuid.UUID(image_id), user_id)
+        return "OK"
 
     @app.route("/user-images/<user_id>")
     @login_required
