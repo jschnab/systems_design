@@ -3,35 +3,40 @@
 {% block content %}
 
 <div class="image">
+  <div class="image-info">
+    <p class="image-description">{{ image_description }}</p>
+    <p class="image-owner-timestamp">{{ owner_id }}, {{ publication_timestamp|fmt_ts }}</p>
+  </div>
   <p><img src="{{ url_for('get_static_image', image_id=image_id) }}"/></p>
-  <p class="image-description">{{ image_description }}</p>
-  <p class="image-publication-timestamp">Published on {{ publication_timestamp }}</p>
+  {% if tags %}
   <p class="image-tags">Tags: {{ tags }}</p>
+  {% endif %}
 </div>
 
 <div class="image-like">
     {% if user_liked_image %}
     <img id="image-like" src="{{ url_for('like_on_icon') }}">
-    <button id="button-like" onclick="likeImage" disabled>Like</button>
+    <button id="button-like" onclick="likeImage" disabled>You liked this picture</button>
     {% else %}
     <img id="image-like" src="{{ url_for('like_off_icon') }}">
     <button id="button-like" onclick="likeImage()">Like</button>
     {% endif %}
 </div>
 
-<div class="image-comments">
+<div id="image-comments" class="image-comments">
+<h2>Comments</h2>
 {% for comment in comments %}
   <div class="comment-item">
-    <p class="comment-info">{{ comment['user_id'] }} {{ comment['creation_timestamp'] }}</p>
+    <p class="comment-info">{{ comment['user_id'] }}, {{ comment['creation_timestamp']|fmt_ts }}</p>
     <p class="comment-text">{{ comment['comment'] }}</p>
   </div>
 {% endfor %}
 </div>
 
 <div class="new-comment">
-  <form method="post">
-    <textarea id="comment" name="comment" rows="4" cols="50" placeholder="Write a message"></textarea>
-    <input type="submit" value="Submit">
+  <form id="comment-form" method="post">
+    <textarea id="comment" name="comment" rows="4" cols="50" placeholder="Write a message..."></textarea>
+    <input id="submit-comment" type="submit" value="Submit">
   </form>
 </div>
 
@@ -44,11 +49,38 @@ function likeImage(form) {
     (resp) => {
       const like_button = document.getElementById("button-like");
       like_button.setAttribute("disabled", "");
+      like_button.innerHTML = "You liked this picture";
       const like_image = document.getElementById("image-like");
       like_image.setAttribute("src", "{{ url_for('like_on_icon') }}");
     }
   );
 }
+
+function commentImage(form) {
+  const comment_url = {{ url_for("comment_image")|tojson }};
+  var data = new FormData(form);
+  data.append("image_id", "{{ image_id }}");
+  fetch(comment_url, {"method": "POST", "body": data});
+  var new_comment = document.createElement("div");
+  new_comment.className = "comment-item";
+  var comment_info = document.createElement("p");
+  comment_info.className = "comment-info";
+  const now = new Date().toISOString();
+  comment_info.innerHTML = "{{ g.user['user_id'] }}" + " " + now;
+  new_comment.appendChild(comment_info);
+  var comment_text = document.createElement("p");
+  comment_text.className = "comment-text"
+  comment_text.innerHTML = data.get("comment");
+  new_comment.appendChild(comment_text);
+  var comments = document.getElementById("image-comments");
+  comments.appendChild(new_comment);
+}
+
+const comment_form = document.getElementById("comment-form");
+comment_form.addEventListener("submit", function(e) {
+  e.preventDefault();
+  commentImage(e.target);
+});
 </script>
 
 {% endblock %}

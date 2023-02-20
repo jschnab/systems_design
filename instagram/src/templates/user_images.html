@@ -6,18 +6,16 @@
 
 {% block content %}
 
+<div class="image-collection">
 {% for image in images %}
-
 <div class="image-item">
-  <p class="image-thumbnail">
-    <a href="{{ url_for('get_image', image_id=image['image_id']) }}">
+    <a class="image-thumbnail" href="{{ url_for('get_image', image_id=image['image_id']) }}">
     <img src="{{ url_for('get_static_image', image_id=image['image_id']~'.thumbnail') }}"/>
     </a>
-  </p>
-  <p class="image-publication-timestamp">Published on {{ image['publication_timestamp'] }}</p>
+  <p class="image-publication-timestamp">{{ image['publication_timestamp']|fmt_ts }}</p>
 </div>
-
 {% else %}
+</div>
 
 <div class="no-image">You have no images, yet. <a href="{{ url_for('put_image') }}">Publish an image</a></div>
 

@@ -14,7 +14,7 @@
   <label for="image">Upload an image (JPEG, PNG, or BMP)</label>
   <input type="file" name="image" id="image" accept="image/*">
   <label for="description">Description</label>
-  <input name="image-description" id="image-description">
+  <textarea name="image-description" id="image-description" placeholder="Write an image description..."></textarea>
   <label for="album-name">Album name</label>
   <select name="album-name" id="album-name">
   {% for name in user_albums %}
@@ -22,7 +22,7 @@
   {% endfor %}
   </select>
   <label for="tags">Tags</label>
-  <input name="tags" id="tags" placeholder="Words separated by space">
+  <input type="text" name="tags" id="tags" placeholder="Words separated by space">
   <input type="submit" value="Publish Image">
 </form>
 

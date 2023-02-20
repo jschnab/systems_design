@@ -2,27 +2,25 @@
 
 {% block content %}
 
-<ul class="album-info">
-  <li class="album-name"><h2>{{ album_info['album_name'] }}</h2></li>
-  <li class="album-creation-timestamp">Album created on {{ album_info['creation_timestamp']}}</li>
-</ul>
+<div class="album-info">
+  <h2>{{ album_info['album_name'] }}</h2>
+  <p class="album-creation-timestamp">Album created on {{ album_info['creation_timestamp']|fmt_ts }}</p>
+</div>
 
+<div class="image-collection">
 {% for image in images %}
 
 <div class="image-item">
-  <ul class="image-item-details">
-    <li class="image-thumbnail">
-      <a href="{{ url_for('get_image', image_id=image['image_id']) }}">
-      <img src="{{ url_for('get_static_image', image_id=image['image_id']~'.thumbnail') }}"/>
-      </a>
-    </li>
-    <li class="image-publication-timestamp">Published on {{ image['publication_timestamp'] }}</li>
-  </ul>
+  <a class="image-thumbnail" href="{{ url_for('get_image', image_id=image['image_id']) }}">
+  <img src="{{ url_for('get_static_image', image_id=image['image_id']~'.thumbnail') }}"/>
+  </a>
+  <p class="image-publication-timestamp">{{ image['publication_timestamp']|fmt_ts }}</p>
 </div>
 
 {% else %}
 <div class="no-image">There are no images in this album. <a href="{{ url_for('put_image') }}">Publish an image</a></div>
 
 {% endfor %}
+</div>
 
 {% endblock %}

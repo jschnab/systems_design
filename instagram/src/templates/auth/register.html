@@ -7,22 +7,23 @@
 {% block content %}
   <form method="post">
     <label for="user_id">User ID</label>
-    <input name="user_id" id="user_id" maxlength=40 required>
+    <input type="text" name="user_id" id="user_id" maxlength=40 required>
     <label for="first_name">First Name</label>
-    <input name="first_name"  id="first_name" maxlength=40 required>
+    <input type="text" name="first_name"  id="first_name" maxlength=40 required>
     <label for="last_name">Last Name</label>
-    <input name="last_name" id="last_name" maxlength=40 required>
-    <label for="password">Password</label>
+    <input type="text" name="last_name" id="last_name" maxlength=40 required>
+    <label for="password">Password
+(at least 10 characters, including lowercase, uppercase, digit, and punctuation)</label>
     <input
       type="password"
       name="password_1"
-      placeholder="At least 10 characters, including lowercase, uppercase, digit, and punctuation characters."
+      placeholder="Type password"
       required
     >
     <input
       type="password"
       name="password_2"
-      placeholder="Re-type password."
+      placeholder="Re-type password"
       required
     >
     <input type="submit" value="Register">

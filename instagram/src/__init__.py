@@ -18,6 +18,12 @@ from . import database
 from . import return_codes
 from .auth import login_required
 
+OK = "OK"
+
+
+def format_timestamp(ts):
+    return ts.strftime("%a %b %d %Y %H:%M:%S")
+
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -74,33 +80,30 @@ def create_app(test_config=None):
 
         return render_template("put_album.html", message=message)
 
-    @app.route("/images/<image_id>", methods=("GET", "POST"))
+    @app.route("/images/<image_id>")
     @login_required
     def get_image(image_id):
         image_id = uuid.UUID(image_id)
         user_id = session["user_id"]
         image_info = database.get_image_info(image_id)
+
         if image_info["tags"] is None:
             image_info["tags"] = set()
 
         if image_info is None:
             abort(404)
 
-        if request.method == "POST":
-            database.comment_image(
-                image_id,
-                session["user_id"],
-                request.form["comment"],
-            )
-
         if database.get_image_like_by_user(image_id, user_id) is not None:
             user_liked_image = True
         else:
             user_liked_image = False
+
         comments = database.get_image_comments(image_id)
+
         return render_template(
             "image.html",
             image_id=str(image_id),
+            owner_id=image_info["owner_id"],
             image_description=image_info["description"],
             publication_timestamp=image_info["publication_timestamp"],
             tags=", ".join(image_info["tags"]),
@@ -114,7 +117,17 @@ def create_app(test_config=None):
         user_id = session["user_id"]
         image_id = request.form["image_id"]
         database.like_image(uuid.UUID(image_id), user_id)
-        return "OK"
+        return OK
+
+    @app.route("/comment-image", methods=("POST",))
+    @login_required
+    def comment_image():
+        database.comment_image(
+            uuid.UUID(request.form["image_id"]),
+            session["user_id"],
+            request.form["comment"],
+        )
+        return OK
 
     @app.route("/user-images/<user_id>")
     @login_required
@@ -186,5 +199,7 @@ def create_app(test_config=None):
     app.wsgi_app = ProxyFix(
         app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1,
     )
+
+    app.jinja_env.filters.update(fmt_ts=format_timestamp)
 
     return app

@@ -1,0 +1,92 @@
+html { font-family: sans-serif; background: #000; color: #fff; }
+
+body { margin: 1em; }
+
+a { text-decoration: none; color: #fff; }
+
+a:focus, a:hover { background-color: #444; }
+
+a:active { background-color: #777; }
+
+button, input[type=submit] {
+  color: #000;
+  background-color: #aaa;
+  border-radius: 0.25em;
+  align-self: start;
+}
+
+button:hover, input[type=submit]:hover { background-color: #ccc; }
+
+button:disabled { color: #000; background-color: #aaa; border: none; }
+
+form { display: flex; flex-flow: column wrap; }
+
+label { margin-top: 0.5em; }
+
+input[type=text], input[type=password], select, textarea {
+  background-color: #444;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 0.5em;
+  padding: 0.5em;
+  margin-bottom: 1em;
+  align-self: start;
+}
+
+input[type=text], input[type=password], select { min-width: 10em; }
+
+textarea { min-width: 25em; min-height: 10em; }
+
+nav { padding-bottom: 1em; border-bottom: 1px solid #444; }
+
+nav ul {
+  display: flex;
+  flex-flow: row wrap-reverse;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  justify-content: flex-start;
+}
+
+nav h1 a { margin: 0.5em; padding: 0.5em; border-radius: 0.25em; }
+
+nav ul li { padding: 1em; }
+
+nav ul li a { padding: 1em; border-radius: 0.5em; }
+
+nav ul li#menu-userid { margin-left: auto; }
+
+.image-info { padding: 1em; margin: 1em 0; }
+
+.image-owner-timestamp { margin: 0; font-size: 80%; font-style: italic; }
+
+.image-publication-timestamp { font-size: 80%; font-style: italic; }
+
+.image-comments { margin-bottom: 1em; }
+
+.comment-item {
+  border: 1px solid #444;
+  border-radius: 0.2em;
+  background-color: #222;
+  padding: 1em;
+  margin-bottom: 1em;
+}
+
+.comment-info { margin: 0; font-size: 80%; font-style: italic; }
+
+.image-collection, .album-collection {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-end;
+}
+
+.image-item, .album-item {
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  margin: 1em;
+}
+
+.image-thumbnail, .album-icon { padding: 1em; border-radius: 0.5em; }
+
+.album-name { margin: 0; }

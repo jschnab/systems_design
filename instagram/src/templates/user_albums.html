@@ -6,17 +6,17 @@
 
 {% block content %}
 
+<div class="album-collection">
 {% for album in albums %}
 
 <div class="album-item">
-  <p class="album-icon">
-    <a href="{{ url_for('album_info', album_name=album, user_id=user_id) }}">
-    <img src="{{ url_for('album_icon') }}" height="128" width="128"/>
-    </a>
-  </p>
+  <a class="album-icon" href="{{ url_for('album_info', album_name=album, user_id=user_id) }}">
+  <img src="{{ url_for('album_icon') }}" height="128" width="128"/>
+  </a>
   <p class="album-name">{{ album }}</p>
 </div>
 
 {% endfor %}
+</div>
 
 {% endblock %}
