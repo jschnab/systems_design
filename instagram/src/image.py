@@ -1,6 +1,6 @@
 import io
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 ALLOWED_FORMATS = {"BMP", "GIF", "JPEG", "PNG"}
 IMG_MAX_SIZE = 1080
@@ -45,6 +45,9 @@ def make_thumbnail(img):
 
 def process_image(data):
     img = Image.open(io.BytesIO(data))
+    fmt = img.format
+    img = ImageOps.exif_transpose(img)
+    img.format = fmt
     check_format(img)
     img = resize(img)
     return to_bytes(img), to_bytes(make_thumbnail(img))

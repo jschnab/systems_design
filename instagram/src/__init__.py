@@ -80,6 +80,8 @@ def create_app(test_config=None):
         image_id = uuid.UUID(image_id)
         user_id = session["user_id"]
         image_info = database.get_image_info(image_id)
+        if image_info["tags"] is None:
+            image_info["tags"] = set()
 
         if image_info is None:
             abort(404)
