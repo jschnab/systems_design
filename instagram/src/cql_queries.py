@@ -85,6 +85,17 @@ CREATE TABLE IF NOT EXISTS albums (
 )
 ;"""
 
+CREATE_TABLE_USER_CONNECTIONS = """
+CREATE TABLE IF NOT EXISTS user_connections (
+  user_id TEXT,
+  connection_timestamp TIMESTAMP,
+  user_ip INET,
+  success BOOLEAN,
+  PRIMARY KEY (user_id, connection_timestamp)
+)
+WITH CLUSTERING ORDER BY (connection_timestamp DESC)
+;"""
+
 # DML
 CREATE_USER = """
 INSERT INTO users (
@@ -187,6 +198,16 @@ INSERT INTO image_likes (
 VALUES (%s, %s, %s)
 ;"""
 
+RECORD_USER_CONNECTION = """
+INSERT INTO user_connections (
+    user_id,
+    connection_timestamp,
+    user_ip,
+    success
+)
+VALUES (%s, %s, %s, %s)
+;"""
+
 # DQL
 GET_IMAGE_INFO = """
 SELECT * FROM images WHERE image_id = %s
@@ -234,4 +255,11 @@ SELECT * FROM albums WHERE album_name = %s AND owner_id = %s
 GET_ALBUM_IMAGES = """
 SELECT image_id, publication_timestamp FROM images_by_user
 WHERE owner_id = %s AND album_name = %s
+;"""
+
+GET_RECENT_USER_CONNECTIONS = """
+SELECT connection_timestamp, success
+FROM user_connections
+WHERE user_id = %s AND connection_timestamp >= %s
+ORDER BY connection_timestamp DESC
 ;"""

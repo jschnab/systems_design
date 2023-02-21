@@ -74,6 +74,7 @@ function commentImage(form) {
   new_comment.appendChild(comment_text);
   var comments = document.getElementById("image-comments");
   comments.appendChild(new_comment);
+  document.getElementById("comment").value = "";
 }
 
 const comment_form = document.getElementById("comment-form");

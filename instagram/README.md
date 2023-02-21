@@ -191,6 +191,11 @@ A user could also be interested in the activities of a specific user:
 * Query 8: What images are displayed in this album?
 * Query 9: Who is following me?
 
+To prevent login attacks, we can query recent login attempts:
+
+* Query 10: What connection attempts were made by a specific user in the past
+  15 minutes?
+
 #### Application workflow
 
 The queries can be displayed in the context of the application workflow. Read
@@ -339,7 +344,7 @@ Table `albums`:
 * `image_ids`: set<uuid>
 
 Read query 9 is satisfied by the table `user_followed`, which is an inverted
-version of the table `user_follows` we saw previously:
+version of the table `user_follows` we saw previously.
 
 Table `user_followed`:
 
@@ -351,6 +356,13 @@ The partition size of `user_followed` depends on how many people follow this
 user. Popular users could have millions of followers, leading to very
 imbalanced partition sizes. The largest partition, storing the most popular
 user with 10^6 followers, is estimated to be 10^8 bytes (100MB).
+
+Read query 10 is satisfied by the table `user_connections`:
+
+* `user_id` (partition key): text
+* `connection_timestamp` (clustering key): timestamp
+* `user_ip`: text
+* `success`: boolean
 
 ### What about a graph model?
 

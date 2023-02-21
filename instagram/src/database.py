@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from cassandra.cluster import (
     Cluster,
@@ -11,6 +11,9 @@ from cassandra.util import SortedSet
 from . import cql_queries
 from . import return_codes
 from .config import CONFIG
+
+MAX_CONNECT_FAIL = 3
+USER_LOCK_TIMEOUT = 15
 
 
 def configure_session():
@@ -73,6 +76,10 @@ def create_table_image_likes():
     execute_query(cql_queries.CREATE_TABLE_IMAGE_LIKES)
 
 
+def create_table_user_connections():
+    execute_query(cql_queries.CREATE_TABLE_USER_CONNECTIONS)
+
+
 def create_database_objects():
     create_table_users()
     create_table_user_follows()
@@ -82,6 +89,7 @@ def create_database_objects():
     create_table_albums()
     create_table_image_comments()
     create_table_image_likes()
+    create_table_user_connections()
 
 
 def create_user(user_id, first_name, last_name, password):
@@ -276,8 +284,34 @@ def get_album_images(album_name, owner_id):
 
 
 def user_is_locked(user_id):
+    timestamp = datetime.now() - timedelta(minutes=15)
+    result = execute_query(
+        cql_queries.GET_RECENT_USER_CONNECTIONS,
+        params=(user_id, timestamp)
+    )
+    connections = rows_to_dicts(result)
+    print(connections)
+    if len(connections) < MAX_CONNECT_FAIL:
+        return False
+    failures = 0
+    for con in connections:
+        if con["success"]:
+            break
+        failures += 1
+    last_connection_time = connections[0]["connection_timestamp"]
+    lock_cutoff = datetime.now() - timedelta(minutes=USER_LOCK_TIMEOUT)
+    if failures >= MAX_CONNECT_FAIL and last_connection_time > lock_cutoff:
+        return True
     return False
 
 
 def record_user_connect(user_id, user_ip, success):
-    pass
+    execute_query(
+        cql_queries.RECORD_USER_CONNECTION,
+        params=(
+            user_id,
+            datetime.now(),
+            user_ip,
+            success,
+        )
+    )
