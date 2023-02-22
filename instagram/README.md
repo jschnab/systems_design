@@ -438,7 +438,7 @@ A CDN would take care of caching image data for application users.
 
 ### 5.4. System diagram
 
-![system diagram]("architecture.png" "system diagram")
+![system diagram](architecture.png "system diagram")
 
 ## 6. Detailed design
 
