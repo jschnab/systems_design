@@ -73,81 +73,13 @@ build the database schema.
 
 #### Objects
 
-In this section we describe the most important objects our application
+The following diagram describes the most important objects our application
 represents, their attributes, and their relationships.
 
-A **user** has the following attributes:
+By lack of space, we cannot represent the many-to-many relationship that links
+users who follow other users.
 
-* user identifier
-* first name
-* last name
-* password
-* registration timestamp
-
-Users establish **connections** to the application, which have the attributes:
-
-* user identifier
-* user IP address
-* timestamp
-* success or failure
-
-Users publish **images**:
-
-* image identifier
-* image owner identifier
-* image description
-* image path to where data is stored
-* publication timestamp
-* deletion timestamp (eventually)
-
-Images have **tags**:
-
-* tag name
-* image identifier
-
-Images have **comments**:
-
-* image identifier
-* comment text
-* user identifier
-* comment creation timestamp
-* comment deletion timestamp (eventually)
-
-Images have **likes**:
-
-* image identifier
-* user identifier
-* like creation timestamp
-* like deletion timestamp (eventually)
-
-Users create **albums** to store images:
-
-* album name
-* user identifier
-* album creation timestamp
-* album deletion timestamp (eventually)
-
-#### Relationships
-
-User <-1-n-> Connection
-
-User <-1-n-> Image
-
-User <-1-n-> Album
-
-Image <-n-m-> Tag
-
-Image <-1-n-> Comment
-
-User <-1-n-> Comment
-
-Image <-1-n-> Like
-
-User <-1-n-> Like
-
-Album <-1-n-> Image
-
-User <-n-m-> User
+![entity-relationship-diagram](erd.png "entity-relationship diagram")
 
 ### Queries
 
