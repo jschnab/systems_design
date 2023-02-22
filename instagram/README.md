@@ -364,40 +364,9 @@ Read query 10 is satisfied by the table `user_connections`:
 * `user_ip`: text
 * `success`: boolean
 
-### What about a graph model?
-
-The data model is complicated because it has to model several
-many-to-many relationships. A graph model can easily represent such
-relationship, which not only simplifies the schema but the queries as well.
-
-The graph model contains nodes for the following objects (for the list of
-attributes, see the relational model):
-
-* users
-* user connections
-* images
-* albums
-
-Image filters and tags are attributes of image nodes.
-
-The graph contains the following edges (relationships):
-
-* connects (from users to connections)
-* creates image (from users to images)
-* creates album (from users to albums)
-* can see album (from users to albums)
-* follows (from users to users)
-* comments (from users to images)
-* likes (from users to images)
-
-An issue with the graph model is how inflexible it is with sharding. To
-avoid joining data across shards and maintain good query performance, each
-shard should contain a partition of the full graph that is independent of other
-partitions. There is no straighforward way to achieve this in our data model.
-
 ## 5. High-level design
 
-### System components
+### 5.1. System components
 
 Web application servers runs the user-facing server and processes users
 requests: image upload, organization into albums, browsing images of other
@@ -414,23 +383,20 @@ engine needs to fulfill the following requirements:
 
 * Run on a cluster of machines and support sharding and replication, because
   the application needs to store tens of terabytes of (non-image) data.
-* Support secondary indexes to facilitate some queries (e.g. get all images
-  owned by a given user).
-* Have good performance to quickly return results to the web application.
+* Support a high query throughput to support the high number of application
+  users.
 * Availability of a Python client, to fit in our web application.
 
 A database application such as MongoDB, DynamoDB, or Apache Cassandra would be
 a good fit.
 
-The application will be read heavy, so caching a cache layer to store image
-data would improve application performance.
+The application will be read heavy and most of the data is static (images), so
+a cache layer to store image data would improve application performance. A
+content-delivery network (CDN) is a good fit for this requirement. In addition
+to taking care of most of data traffic, a CDN also brings data closer to users,
+reducing application latency.
 
-### Image upload
-
-Users upload images through a web application. Images can have an arbitrary
-title (up to a 50 characters) and tags (up to 10 tags, 20 characters each).
-
-### Image storage
+### 5.2. Image upload, storage, and serving
 
 Because images are unstructured data and each have a size of at least hundreds
 of kilobytes, it would not be wise to store them in a traditional database:
@@ -451,7 +417,11 @@ exceed this width. Images are compressed to save storage costs and network
 bandwidth. Also, an image thumbnail is generated and stored on the distributed
 filesystem as well, to dress application icons.
 
-### Caching
+An object store is a good fit for this. Some object store even allow you to
+serve static data directly from storage, and readily interact with other
+services such as CDN.
+
+### 5.3. Caching
 
 If we cache 20% of daily image traffic, it represents around 10^13 bytes (10T
 ) of data. Storing this amount of information would require at least a few tens
@@ -464,4 +434,11 @@ least-recently used cache expiration policy is a reasonable choice.
 The application does not support image updates, so we do not need to specify a
 cache invalidation policy.
 
+A CDN would take care of caching image data for application users.
+
+### 5.4. System diagram
+
+![system diagram]("architecture.png" "system diagram")
+
 ## 6. Detailed design
+

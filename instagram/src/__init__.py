@@ -15,6 +15,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from . import api
 from . import auth
 from . import database
+from . import object_store
 from . import return_codes
 from .auth import login_required
 
@@ -170,14 +171,6 @@ def create_app(test_config=None):
             mimetype="image/png",
         )
 
-    @app.route("/static-image/<image_id>")
-    @login_required
-    def get_static_image(image_id):
-        dirname, filename = os.path.split(api.cache_image(image_id))
-        return send_from_directory(
-            dirname, filename, mimetype="image/*",
-        )
-
     @app.route("/like_on.png")
     def like_on_icon():
         return send_from_directory(
@@ -200,6 +193,9 @@ def create_app(test_config=None):
         app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1,
     )
 
-    app.jinja_env.filters.update(fmt_ts=format_timestamp)
+    app.jinja_env.filters.update(
+        fmt_ts=format_timestamp,
+        image_url=object_store.get_image_url,
+    )
 
     return app

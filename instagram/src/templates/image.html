@@ -7,7 +7,7 @@
     <p class="image-description">{{ image_description }}</p>
     <p class="image-owner-timestamp">{{ owner_id }}, {{ publication_timestamp|fmt_ts }}</p>
   </div>
-  <p><img src="{{ url_for('get_static_image', image_id=image_id) }}"/></p>
+  <p><img src="{{ image_id|image_url }}"/></p>
   {% if tags %}
   <p class="image-tags">Tags: {{ tags }}</p>
   {% endif %}
@@ -15,7 +15,7 @@
 
 <div class="image-like">
     {% if user_liked_image %}
-    <img id="image-like" src="{{ url_for('like_on_icon') }}">
+    <img id="image-like" class="image-like-icon" src="{{ url_for('like_on_icon') }}">
     <button id="button-like" onclick="likeImage" disabled>You liked this picture</button>
     {% else %}
     <img id="image-like" src="{{ url_for('like_off_icon') }}">

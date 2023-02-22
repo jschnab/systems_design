@@ -1,21 +1,10 @@
 import uuid
 
 from . import database
-from . import disk_cache
 from . import image
 from . import object_store
 from . import return_codes
 from .config import CONFIG
-
-DISK_CACHE = disk_cache.DiskCache()
-
-
-def cache_image(image_id):
-    path = DISK_CACHE.get_path(image_id)
-    if path is None:
-        data = object_store.get_image(image_id)
-        path = DISK_CACHE.set(image_id, data)
-    return path
 
 
 def create_user(user_id, first_name, last_name, password):

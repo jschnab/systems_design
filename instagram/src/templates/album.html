@@ -12,7 +12,7 @@
 
 <div class="image-item">
   <a class="image-thumbnail" href="{{ url_for('get_image', image_id=image['image_id']) }}">
-  <img src="{{ url_for('get_static_image', image_id=image['image_id']~'.thumbnail') }}"/>
+  <img src="{{ (image['image_id']~'.thumbnail')|image_url }}"/>
   </a>
   <p class="image-publication-timestamp">{{ image['publication_timestamp']|fmt_ts }}</p>
 </div>

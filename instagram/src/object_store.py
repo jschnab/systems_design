@@ -27,3 +27,7 @@ def get_image(image_id):
 
 def delete_image(image_id):
     S3_CLIENT.delete_object(Bucket=S3_BUCKET, Key=image_id)
+
+
+def get_image_url(image_id):
+    return f"https://{CONFIG['image_store']['cdn_url']}/{image_id}"

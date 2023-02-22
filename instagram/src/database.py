@@ -290,7 +290,6 @@ def user_is_locked(user_id):
         params=(user_id, timestamp)
     )
     connections = rows_to_dicts(result)
-    print(connections)
     if len(connections) < MAX_CONNECT_FAIL:
         return False
     failures = 0
