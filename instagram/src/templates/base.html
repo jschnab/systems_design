@@ -9,6 +9,7 @@
       <li><a href="{{ url_for('put_album') }}">Create Album</a></li>
       <li><a href="{{ url_for('user_images', user_id=g.user['user_id']) }}">My Images</a></li>
       <li><a href="{{ url_for('user_albums', user_id=g.user['user_id']) }}">My Albums</a></li>
+      <li><a href="{{ url_for('follow_user') }}">Follow user</a></li>
       <li id="menu-userid"><span>Welcome, {{ g.user['user_id'] }}!</span></li>
       <li><a href="{{ url_for('auth.logout') }}">Log Out</a></li>
     {% else %}

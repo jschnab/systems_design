@@ -29,7 +29,11 @@ def configure_session():
         port=CONFIG["database"]["port"],
         execution_profiles={EXEC_PROFILE_DEFAULT: profile},
     )
-    return cluster.connect(CONFIG["database"]["keyspace_name"])
+    session = cluster.connect(CONFIG["database"]["keyspace_name"])
+    # By default a tuple is converted to a list, leading to errors when some
+    # queries are parsed.
+    session.encoder.mapping[tuple] = session.encoder.cql_encode_tuple
+    return session
 
 
 SESSION = configure_session()
@@ -80,6 +84,14 @@ def create_table_user_connections():
     execute_query(cql_queries.CREATE_TABLE_USER_CONNECTIONS)
 
 
+def create_table_image_popularity():
+    execute_query(cql_queries.CREATE_TABLE_IMAGE_POPULARITY)
+
+
+def create_table_user_feeds():
+    execute_query(cql_queries.CREATE_TABLE_USER_FEEDS)
+
+
 def create_database_objects():
     create_table_users()
     create_table_user_follows()
@@ -90,6 +102,8 @@ def create_database_objects():
     create_table_image_comments()
     create_table_image_likes()
     create_table_user_connections()
+    create_table_image_popularity()
+    create_table_user_feeds()
 
 
 def create_user(user_id, first_name, last_name, password):
@@ -314,3 +328,18 @@ def record_user_connect(user_id, user_ip, success):
             success,
         )
     )
+
+
+def count_user_images_by_album_timestamp(user_id, album_names, timestamp):
+    return execute_query(
+        cql_queries.COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP,
+        params=(user_id, album_names, timestamp)
+    )[0].count
+
+
+def increment_image_popularity(image_id):
+    execute_query(cql_queries.INCREMENT_IMAGE_POPULARITY, params=(image_id,))
+
+
+def user_exists(user_id):
+    return execute_query(cql_queries.USER_EXISTS, params=(user_id,)) != []

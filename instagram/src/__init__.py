@@ -1,6 +1,7 @@
 import os
 import secrets
 import uuid
+from datetime import datetime, timedelta
 
 from flask import (
     abort,
@@ -18,7 +19,9 @@ from . import database
 from . import object_store
 from . import return_codes
 from .auth import login_required
+from .config import CONFIG
 
+# 'Return success' code for Flask views.
 OK = "OK"
 
 
@@ -47,16 +50,26 @@ def create_app(test_config=None):
         user_albums = database.get_albums_by_user(user_id)
 
         if request.method == "POST":
-            tags = request.form["tags"].strip().split()
-            album_name = request.form["album-name"]
-            api.put_image(
-                image_data=request.files["image"].read(),
-                image_description=request.form["image-description"],
-                user_id=user_id,
-                tags=tags,
-                album_name=album_name,
+            count_images = database.count_user_images_by_album_timestamp(
+                user_id, tuple(user_albums), datetime.now() - timedelta(days=1)
             )
-            message = f"Image saved in album '{album_name}'"
+            quota = CONFIG["general"].getint("user_image_quota")
+            if count_images > quota:
+                message = (
+                    f"You reached your image upload quota ({quota} per day)"
+                )
+
+            else:
+                tags = request.form["tags"].strip().split()
+                album_name = request.form["album-name"]
+                api.put_image(
+                    image_data=request.files["image"].read(),
+                    image_description=request.form["image-description"],
+                    user_id=user_id,
+                    tags=tags,
+                    album_name=album_name,
+                )
+                message = f"Image saved in album '{album_name}'"
 
         return render_template(
             "put_image.html", message=message, user_albums=user_albums
@@ -116,18 +129,21 @@ def create_app(test_config=None):
     @login_required
     def like_image():
         user_id = session["user_id"]
-        image_id = request.form["image_id"]
-        database.like_image(uuid.UUID(image_id), user_id)
+        image_id = uuid.UUID(request.form["image_id"])
+        database.like_image(image_id, user_id)
+        database.increment_image_popularity(image_id)
         return OK
 
     @app.route("/comment-image", methods=("POST",))
     @login_required
     def comment_image():
+        image_id = uuid.UUID(request.form["image_id"])
         database.comment_image(
-            uuid.UUID(request.form["image_id"]),
+            image_id,
             session["user_id"],
             request.form["comment"],
         )
+        database.increment_image_popularity(image_id)
         return OK
 
     @app.route("/user-images/<user_id>")
@@ -154,6 +170,24 @@ def create_app(test_config=None):
             album_info=album_info,
             images=images,
         )
+
+    @app.route("/follow-user", methods=("GET", "POST"))
+    @login_required
+    def follow_user():
+        msg = None
+        if request.method == "POST":
+            followed_user_id = request.form["followed-user-id"]
+            if not database.user_exists(followed_user_id):
+                msg = f"User '{followed_user_id}' does not exist"
+            elif followed_user_id == session["user_id"]:
+                msg = "You cannot follow yourself"
+            else:
+                database.follow_user(
+                    session["user_id"],
+                    followed_user_id,
+                )
+                msg = f"You now follow user '{followed_user_id}'"
+        return render_template("follow_user.html", message=msg)
 
     @app.route("/favicon.ico")
     def favicon():

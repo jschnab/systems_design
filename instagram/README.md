@@ -251,6 +251,14 @@ Assuming the most popular images gather 10^4 comments and 10^5 likes, this
 represents maximum partition sizes of 10^6 bytes (1MB) for comments and 10^7
 bytes (10MB) for likes.
 
+We create a table that keeps track of how many likes an image received. We use
+a counter data type, so this needs to be in a separate table.
+
+Table `image_likes_count`:
+
+* `image_id` (partition key): uuid
+* `popularity`: counter
+
 Read queries 5 and 6 are satisfied by the `users` table, partitioned by user
 identifier (we are interested in a single user, and they are unique).
 
@@ -355,10 +363,10 @@ services such as CDN.
 
 ### 5.3. Caching
 
-If we cache 20% of daily image traffic, it represents around 10^13 bytes (10T
-) of data. Storing this amount of information would require at least a few tens
-of servers, as cloud providers offer servers with each several terabytes of
-memory.
+If we cache 20% of daily image traffic, it represents around 10^13 bytes
+(10TB) of data. Storing this amount of information would require at least a few
+tens of servers, as cloud providers offer servers with each several terabytes
+of memory.
 
 Assuming the popularity of most images will fade away with time, a
 least-recently used cache expiration policy is a reasonable choice.
@@ -366,11 +374,45 @@ least-recently used cache expiration policy is a reasonable choice.
 The application does not support image updates, so we do not need to specify a
 cache invalidation policy.
 
-A CDN would take care of caching image data for application users.
+The CDN will take care of caching image data for application users.
 
 ### 5.4. System diagram
 
 ![system diagram](architecture.png "system diagram")
 
-## 6. Detailed design
+### User image feed
 
+Once logged in, a feed of images is presented to user. These images are recent
+images posted by users they follow, and are ranked by increasing order of
+timestamp and popularity. In other words, more recent and popular images appear
+higher in the feed. If a user does not follow any user, her feed will be empty.
+
+Image popularity is defined as the sum of the number of likes and comments on
+an image.
+
+The feed contains 100 images, or images for the past day, whatever limit is
+reached first. The feed is updated daily.
+
+To rank images, their timestamp is first truncated to hours, then images are
+sorted by timestamp and ties are broken by 'like' counts.
+
+Because generating the feed involves querying, aggregating, and sorting data,
+it takes some time to generate it and would lead to too much application
+latency if the feed is generated when a user requests it. To solve this issue,
+we pre-generate the feed and store it in the main application database. When a
+user requests the feed, it is accessible via a simple query.
+
+The feed is a list of items with the following attributes:
+
+* image_id
+* owner_id
+* publication_timestamp
+
+The steps to generate the feed are (for each user):
+
+  * get the list of followed users and their albums (tables `user_follows` and
+    `users`)
+  * get the list of recent images of each followed user (table
+    `images_by_user`)
+  * rank images across followed users
+  * store the ranking in a dedicated database table, partitioned by user ID

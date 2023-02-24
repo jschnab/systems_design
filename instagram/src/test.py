@@ -1,5 +1,6 @@
 import io
 import uuid
+from datetime import datetime, timedelta
 
 from PIL import Image
 
@@ -126,8 +127,21 @@ def database_get_album_info():
     print(database.get_album_info("visiting upstate", "jonathan"))
 
 
+def database_count_user_images():
+    user_id = "jonathan"
+    album_names = ("default", "food")
+    timestamp = datetime.now() - timedelta(days=1)
+    print(database.count_user_images_by_album_timestamp(
+        user_id, album_names, timestamp
+    ))
+
+
+def database_user_exists():
+    print(database.user_exists("jaynee"))
+
+
 def main():
-    database_get_image_like_by_user()
+    database_user_exists()
 
 
 if __name__ == "__main__":

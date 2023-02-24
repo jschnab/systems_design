@@ -96,6 +96,21 @@ CREATE TABLE IF NOT EXISTS user_connections (
 WITH CLUSTERING ORDER BY (connection_timestamp DESC)
 ;"""
 
+CREATE_TABLE_IMAGE_POPULARITY = """
+CREATE TABLE IF NOT EXISTS image_popularity (
+  image_id UUID PRIMARY KEY,
+  popularity COUNTER
+)
+;"""
+
+CREATE_TABLE_USER_FEEDS = """
+CREATE TABLE IF NOT EXISTS user_feeds (
+  user_id TEXT PRIMARY KEY,
+  image_id UUID,
+  image_publication_timestamp TIMESTAMP
+)
+;"""
+
 # DML
 CREATE_USER = """
 INSERT INTO users (
@@ -208,6 +223,11 @@ INSERT INTO user_connections (
 VALUES (%s, %s, %s, %s)
 ;"""
 
+INCREMENT_IMAGE_POPULARITY = """
+UPDATE image_popularity SET popularity = popularity + 1
+WHERE image_id = %s
+;"""
+
 # DQL
 GET_IMAGE_INFO = """
 SELECT * FROM images WHERE image_id = %s
@@ -263,3 +283,12 @@ FROM user_connections
 WHERE user_id = %s AND connection_timestamp >= %s
 ORDER BY connection_timestamp DESC
 ;"""
+
+COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP = """
+SELECT COUNT(*) FROM images_by_user
+WHERE owner_id = %s
+AND album_name IN %s
+AND publication_timestamp > %s
+;"""
+
+USER_EXISTS = "SELECT user_id FROM users WHERE user_id = %s;"
