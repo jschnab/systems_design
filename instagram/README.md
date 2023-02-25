@@ -59,7 +59,7 @@ volume of data. With an average of 10^9 images uploaded every day, and assuming
 an average record size of 10^2 bytes in a table that would store image
 information, this table alone would represent around 10^13 bytes (10TB) after
 one year. On top of this, we estimage the database should support 10^4 (tens of
-thousands) of queries per second. These requirements pushe the limits of what a
+thousands) of queries per second. These requirements push the limits of what a
 relational database can handle. We need a distributed database that supports
 sharding and a high query throughput. Apache Cassandra is a reasonable choice.
 
@@ -148,6 +148,9 @@ clustering keys).
 In each table, we present column names, keys, and data types. We store all
 tables under a single keyspace.
 
+Estimations in this section are based on application storage after one year,
+based on throughput detailed in section 2 (capacity estimations).
+
 For each table we will estimate the partition size defined as:
 
 ```math
@@ -185,8 +188,9 @@ Table `user_follows`:
 * `creation_timestamp`: timestamp
 
 The partition size of `user_follows` depends on how many people a user follows,
-and is estimated to be 10^2 on average. We estimate the physical partition size
-to be 10^4 bytes (10KB) on average, and at most 10^5 bytes (100KB).
+and is estimated to be 10^1 on average. We estimate the physical partition size
+to be 10^2 bytes on average, and at most 10^4 bytes (10KB). With 10^8 users,
+the table size across all partitions is 10^10 bytes (10GB).
 
 Table `images_by_user`:
 
@@ -194,34 +198,36 @@ Table `images_by_user`:
 * `album_name` (clustering key): text
 * `publication_timestamp` (clustering key): timestamp
 * `image_id`: uuid
-* `image_path`: text
 
 Adding the clustering column `album_name` will help us take care of query 8
 with the same table. Only low-level clustering columns can be queried with
 range operators, so we set `album_name` as the high-level clustering column and
 `publication_timestamp` as the low-level clustering column.
 
-The partition size is proportional to the number of images owned by users. At
-most, the partition size should be 10^4 (10,000 images uploaded by a user),
-corresponding to a physical size of 10^6 bytes (1MB).
+The partition size is proportional to the number of images owned by users. On
+average, the partition size is 10^3 (1,000 images uploaded by a user),
+corresponding to a physical size of 10^5 bytes (100KB). The partition size is at
+most 10^4 (10,000 images), corresponding to a physical size of 10^6 bytes
+(1MB). With 10^8 users, the table size is 10^13 bytes (10TB).
 
 Read query 2 is satisfied by the table `images.
 
 Table `images`:
 
 * `image_id` (partition key): UUID
-* `image_path`: TEXT
 * `publication_timestamp`: TIMESTAMP
 * `description`: text
 * `album_name`: text
 * `tags`: set(text)
 
-The value of `image_id` is unique, so the partition size for this table is one.
+The value of `image_id` is unique, so the partition size for this table is one,
+for a physical size of 10^2 bytes. With 10^11 images stored, the physical table
+size is 10^13 bytes (10TB).
 
 Read queries 3 and 4 are satisfied by two tables: `image_comments` and
 `image_likes`. Each table is partitioned by image identifier because this query
 is interested in a specific image. To ensure primary key uniqueness, we add a
-timestamp and user identifiers as clustering keys.
+timestamp and user identifier as clustering keys.
 
 Table `image_comments`:
 
@@ -237,11 +243,12 @@ Table `image_likes`:
 * `creation_timestamp`: timestamp
 
 Assuming an average of 10^1 comments and likes per image, the partition size
-for both `image_comments` and `image_likes` tables is 10^1 on average. The size
-of partitions depend on image popularity and will vary across a wide range.
-Assuming the most popular images gather 10^4 comments and 10^5 likes, this
-represents maximum partition sizes of 10^6 bytes (1MB) for comments and 10^7
-bytes (10MB) for likes.
+for both `image_comments` and `image_likes` tables is 10^1 on average, for a
+physical of 10^2 bytes. The size of partitions depend on image popularity and
+will vary across a wide range. Assuming the most popular images gather 10^4
+comments and 10^5 likes, this represents maximum partition sizes of 10^6 bytes
+(1MB) for comments and 10^7 bytes (10MB) for likes. With 10^11 images, the
+total table size is 10^13 bytes (10TB).
 
 We create a table that keeps track of how many likes an image received. We use
 a counter data type, so this needs to be in a separate table.
@@ -250,6 +257,10 @@ Table `image_likes_count`:
 
 * `image_id` (partition key): uuid
 * `popularity`: counter
+
+Each image receives 10^1 likes and comments on average, so the partition size
+is 10^1, for a physical size of 10^2 bytes. With 10^11 images, the total table
+size is 10^13 bytes (10TB).
 
 Read queries 5 and 6 are satisfied by the `users` table, partitioned by user
 identifier (we are interested in a single user, and they are unique).
@@ -263,7 +274,9 @@ Table `users`:
 * `password`: text
 * `album_names`: set<text>
 
-Each user identifier is unique, so the partition size for `users` is 1.
+Each user identifier is unique, so the partition size for `users` is 1, with a
+physical size of 10^2 bytes. With 10^8 users, the total table size is 10^10
+bytes (10GB).
 
 Read query 7 is satisfied by the table `albums`, partitioned by album name
 and album owner identifier (an album name is not unique by itself).
@@ -274,6 +287,11 @@ Table `albums`:
 * `owner_id` (clustering key): text
 * `creation_timestamp`: timestamp
 * `image_ids`: set<uuid>
+
+Each of the 10^8 users have 10^1 albums, so there are 10^9 records in the
+`albums` table. With 10^11 images in total, each album has 10^2 images on
+average. Each record is 10^3 bytes on average, for a total table size of 10^12
+bytes (1TB).
 
 Read query 9 is satisfied by the table `user_followed`, which is an inverted
 version of the table `user_follows` we saw previously.
@@ -287,14 +305,22 @@ Table `user_followed`:
 The partition size of `user_followed` depends on how many people follow this
 user. Popular users could have millions of followers, leading to very
 imbalanced partition sizes. The largest partition, storing the most popular
-user with 10^6 followers, is estimated to be 10^8 bytes (100MB).
+user with 10^6 followers, is estimated to be 10^8 bytes (100MB). Total table
+size should be similar to the table `user_follows`, 10^10 bytes (10GB).
 
 Read query 10 is satisfied by the table `user_connections`:
 
 * `user_id` (partition key): text
 * `connection_timestamp` (clustering key): timestamp
-* `user_ip`: text
+* `user_ip`: inet
 * `success`: boolean
+
+Each user connects once per day on average, so each partition has a size of
+10^2 and a physical size of 10^4 bytes (10KB). The most frequent users may
+connect ten times more than average users, for a maximum partition size of
+100KB. With 10^8 users, the total table size is 10^12 bytes (1TB).
+
+In total, the described data model requires a storage of 10^14 bytes (100TB).
 
 ## 5. High-level design
 
