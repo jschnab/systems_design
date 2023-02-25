@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS images_by_user (
   image_path TEXT,
   PRIMARY KEY (owner_id, album_name, publication_timestamp)
 )
+WITH CLUSTERING ORDER BY (album_name ASC, publication_timestamp DESC)
 ;"""
 
 CREATE_TABLE_IMAGES = """
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS image_comments (
   comment TEXT,
   PRIMARY KEY (image_id, creation_timestamp, user_id)
 )
+WITH CLUSTERING ORDER BY (creation_timestamp DESC, user_id ASC)
 ;"""
 
 CREATE_TABLE_IMAGE_LIKES = """
@@ -105,9 +107,12 @@ CREATE TABLE IF NOT EXISTS image_popularity (
 
 CREATE_TABLE_USER_FEEDS = """
 CREATE TABLE IF NOT EXISTS user_feeds (
-  user_id TEXT PRIMARY KEY,
+  user_id TEXT,
+  rank SMALLINT,
   image_id UUID,
-  image_publication_timestamp TIMESTAMP
+  owner_id TEXT,
+  image_publication_timestamp TIMESTAMP,
+  PRIMARY KEY (user_id, rank)
 )
 ;"""
 
@@ -228,6 +233,17 @@ UPDATE image_popularity SET popularity = popularity + 1
 WHERE image_id = %s
 ;"""
 
+INSERT_USER_FEED = """
+INSERT INTO user_feeds (
+    user_id,
+    rank,
+    image_id,
+    owner_id,
+    image_publication_timestamp
+)
+VALUES (%s, %s, %s, %s, %s)
+;"""
+
 # DQL
 GET_IMAGE_INFO = """
 SELECT * FROM images WHERE image_id = %s
@@ -284,11 +300,32 @@ WHERE user_id = %s AND connection_timestamp >= %s
 ORDER BY connection_timestamp DESC
 ;"""
 
+GET_USER_IMAGES_BY_ALBUM_TIMESTAMP = """
+SELECT owner_id, image_id, publication_timestamp
+FROM images_by_user
+WHERE owner_id = %s
+AND album_name IN %s
+AND publication_timestamp > %s
+;"""
+
 COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP = """
-SELECT COUNT(*) FROM images_by_user
+SELECT COUNT(*)
+FROM images_by_user
 WHERE owner_id = %s
 AND album_name IN %s
 AND publication_timestamp > %s
 ;"""
 
 USER_EXISTS = "SELECT user_id FROM users WHERE user_id = %s;"
+
+GET_IMAGE_POPULARITY = """
+SELECT popularity from image_popularity WHERE image_id = %s
+;"""
+
+GET_FOLLOWERS = "SELECT DISTINCT follower_id FROM user_follows;"
+
+GET_USER_FEED = """
+SELECT image_id, image_publication_timestamp, owner_id
+FROM user_feeds
+WHERE user_id = %s
+;"""

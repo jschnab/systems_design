@@ -1,1 +1,24 @@
 {% extends 'base.html' %}
+
+{% block content %}
+
+<h2>Recent images by people you follow</h2>
+
+<div class="image-collection">
+
+{% for image in image_feed %}
+<div class="image-item">
+  <a class="image-thumbnail" href="{{ url_for('get_image', image_id=image['image_id']) }}">
+  <img src="{{ (image['image_id']~'.thumbnail')|image_url }}"/>
+  </a>
+  <p class="image-owner">Posted by <a href="{{ url_for('user_images', user_id=image['owner_id']) }}">{{ image['owner_id'] }}</a></p>
+  <p class="image-publication-timestamp">{{ image['image_publication_timestamp']|fmt_ts }}</p>
+</div>
+
+{% else %}
+<div class="no-image">There are no images in your feed. <a href="{{ url_for('follow_user') }}">Follow a user</a></div>
+</div>
+
+{% endfor %}
+
+{% endblock %}

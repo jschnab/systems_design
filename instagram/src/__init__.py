@@ -39,8 +39,11 @@ def create_app(test_config=None):
         app.config.from_mapping(test_config)
 
     @app.route("/")
+    @login_required
     def index():
-        return render_template("index.html")
+        feed = database.get_user_feed(session["user_id"])
+        print(feed)
+        return render_template("index.html", image_feed=feed)
 
     @app.route("/put-image", methods=("GET", "POST"))
     @login_required
@@ -150,14 +153,16 @@ def create_app(test_config=None):
     @login_required
     def user_images(user_id):
         images = database.get_images_by_user(user_id)
-        return render_template("user_images.html", images=images)
+        return render_template(
+            "user_images.html", user_id=user_id, images=images
+        )
 
     @app.route("/user-albums/<user_id>")
     @login_required
     def user_albums(user_id):
         albums = database.get_albums_by_user(user_id)
         return render_template(
-            "user_albums.html", albums=albums, user_id=user_id
+            "user_albums.html", user_id=user_id, albums=albums
         )
 
     @app.route("/albums/<user_id>/<album_name>")
@@ -167,6 +172,7 @@ def create_app(test_config=None):
         images = database.get_album_images(album_name, user_id)
         return render_template(
             "album.html",
+            user_id=user_id,
             album_info=album_info,
             images=images,
         )

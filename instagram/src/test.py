@@ -1,4 +1,5 @@
 import io
+import time
 import uuid
 from datetime import datetime, timedelta
 
@@ -6,6 +7,7 @@ from PIL import Image
 
 from . import api
 from . import database
+from . import feed
 from . import image
 from . import object_store
 
@@ -140,8 +142,23 @@ def database_user_exists():
     print(database.user_exists("jaynee"))
 
 
+def feed_user_images():
+    start = time.time()
+    result = feed.user_feed_images("jaynee")
+    print("elapsed:", time.time() - start)
+    print(feed.flatten_feed(result))
+
+
+def database_image_popularity():
+    print(
+        database.get_image_popularity(
+            uuid.UUID("0a275ea3-7293-4a86-97b5-03c1f3443a09")
+        )
+    )
+
+
 def main():
-    database_user_exists()
+    feed_user_images()
 
 
 if __name__ == "__main__":

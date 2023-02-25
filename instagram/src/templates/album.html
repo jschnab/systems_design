@@ -18,7 +18,11 @@
 </div>
 
 {% else %}
+{% if user_id == g.user['user_id'] %}
 <div class="no-image">There are no images in this album. <a href="{{ url_for('put_image') }}">Publish an image</a></div>
+{% else %}
+<div class="no-image">There are no images in this album.</div>
+{% endif %}
 
 {% endfor %}
 </div>

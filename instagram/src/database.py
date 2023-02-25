@@ -331,6 +331,8 @@ def record_user_connect(user_id, user_ip, success):
 
 
 def count_user_images_by_album_timestamp(user_id, album_names, timestamp):
+    if not isinstance(album_names, tuple):
+        album_names = tuple(album_names)
     return execute_query(
         cql_queries.COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP,
         params=(user_id, album_names, timestamp)
@@ -341,5 +343,45 @@ def increment_image_popularity(image_id):
     execute_query(cql_queries.INCREMENT_IMAGE_POPULARITY, params=(image_id,))
 
 
+def get_image_popularity(image_id):
+    result = execute_query(
+        cql_queries.GET_IMAGE_POPULARITY,
+        params=(image_id,)
+    )
+    if result == []:
+        return 0
+    return result[0].popularity
+
+
 def user_exists(user_id):
     return execute_query(cql_queries.USER_EXISTS, params=(user_id,)) != []
+
+
+def get_user_images_by_album_timestamp(user_id, album_names, timestamp):
+    if not isinstance(album_names, tuple):
+        album_names = tuple(album_names)
+    result = execute_query(
+        cql_queries.GET_USER_IMAGES_BY_ALBUM_TIMESTAMP,
+        params=(user_id, album_names, timestamp)
+    )
+    return rows_to_dicts(result)
+
+
+def get_followers():
+    result = execute_query(cql_queries.GET_FOLLOWERS)
+    return rows_to_dicts(result)
+
+
+def insert_feed_images(n_records, params):
+    query = (
+        "BEGIN BATCH "
+        f"{cql_queries.INSERT_USER_FEED * n_records} "
+        "APPLY BATCH"
+    )
+    execute_query(query, params)
+
+
+def get_user_feed(user_id):
+    return rows_to_dicts(
+        execute_query(cql_queries.GET_USER_FEED, params=(user_id,))
+    )

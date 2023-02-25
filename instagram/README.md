@@ -123,7 +123,8 @@ A user could also be interested in the activities of a specific user:
 * Query 8: What images are displayed in this album?
 * Query 9: Who is following me?
 
-To prevent login attacks, we can query recent login attempts:
+To prevent login attacks, we can query recent login attempts to temporarily
+block an account when too many unsuccessful login attempts are made:
 
 * Query 10: What connection attempts were made by a specific user in the past
   15 minutes?
@@ -133,16 +134,7 @@ To prevent login attacks, we can query recent login attempts:
 The queries can be displayed in the context of the application workflow. Read
 queries are represented by 'RQ' and write queries by 'WQ'.
 
-RQ1 -> View user images -> RQ3,RQ4 -> View image details -> WQ2,WQ4,WQ5,WQ6,RQ5
-
-RQ5 -> View user details -> RQ6 -> View user images
-                         -> RQ7 -> View user albums -> WQ4,RQ8 -> View user images
-                         -> WQ7
-                         -> RQ9,RQ10
-
-WQ1 -> View user images
-
-WQ3 -> View user albums
+![application-workflow](app_workflow.png "application workflow")
 
 ### Logical and physical data model
 
@@ -394,7 +386,7 @@ The feed contains 100 images, or images for the past day, whatever limit is
 reached first. The feed is updated daily.
 
 To rank images, their timestamp is first truncated to hours, then images are
-sorted by timestamp and ties are broken by 'like' counts.
+sorted by timestamp and ties are broken by popularity.
 
 Because generating the feed involves querying, aggregating, and sorting data,
 it takes some time to generate it and would lead to too much application
@@ -416,3 +408,7 @@ The steps to generate the feed are (for each user):
     `images_by_user`)
   * rank images across followed users
   * store the ranking in a dedicated database table, partitioned by user ID
+
+
+use cassandra.query.dict_factory for session.row_factory
+use prepared statements

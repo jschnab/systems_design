@@ -62,7 +62,11 @@ nav ul li#menu-userid { margin-left: auto; }
 
 .image-owner-timestamp { margin: 0; font-size: 80%; font-style: italic; }
 
-.image-publication-timestamp { font-size: 80%; font-style: italic; }
+.image-publication-timestamp, .image-owner {
+  font-size: 80%;
+  font-style: italic;
+  margin: 0.25em;
+}
 
 .image-like { display: flex; align-items: center; }
 

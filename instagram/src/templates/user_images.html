@@ -1,12 +1,21 @@
 {% extends 'base.html' %}
 
 {% block header %}
+{% if user_id == g.user['user_id'] %}
 <h2>My images</h2>
+{% else %}
+<h2>{{ user_id }}'s images</h2>
+{% endif %}
 {% endblock %}
 
 {% block content %}
 
+{% if user_id != g.user['user_id'] %}
+<p>See <a href="{{ url_for('user_albums', user_id=user_id) }}">{{ user_id }}'s albums</a></p>
+{% endif %}
+
 <div class="image-collection">
+
 {% for image in images %}
 <div class="image-item">
     <a class="image-thumbnail" href="{{ url_for('get_image', image_id=image['image_id']) }}">
@@ -14,11 +23,17 @@
     </a>
   <p class="image-publication-timestamp">{{ image['publication_timestamp']|fmt_ts }}</p>
 </div>
-{% else %}
-</div>
 
+{% else %}
+
+{% if user_id == g.user['user_id'] %}
 <div class="no-image">You have no images, yet. <a href="{{ url_for('put_image') }}">Publish an image</a></div>
+{% else %}
+<div class="no-image">{{ user_id }} has no images, yet.</div>
+{% endif %}
 
 {% endfor %}
+
+</div>
 
 {% endblock %}
