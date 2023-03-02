@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+set -ex
+
+apt-get -y update
+
+apt-get -y install openjdk-8-jdk
+java -version
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> /home/ubuntu/.bashrc
+
+echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
+
+curl https://downloads.apache.org/cassandra/KEYS | sudo apt-key add -
+
+apt-get -y update
+
+apt-get -y install cassandra

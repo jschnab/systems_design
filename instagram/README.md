@@ -435,6 +435,93 @@ The steps to generate the feed are (for each user):
   * rank images across followed users
   * store the ranking in a dedicated database table, partitioned by user ID
 
+## 6. Detailed design
+
+### 6.1. Cassandra infrastructure
+
+AWS released a
+[whitepaper](https://d0.awsstatic.com/whitepapers/AWS_Cassandra_Whitepaper.pdf)
+about deploying Cassandra.
+
+#### 6.1.1. Networking
+
+We run Cassandra on EC2 instances deployed in a VPC. We create one subnet for
+each availability zone in the AWS region, and we will place EC2 instances in at
+least three availability zones.
+
+The IP address of seed nodes is hardcoded in Cassandra configuration, so we
+create Elastic Network Interfaces (ENIs) that we attach to seed nodes. If a
+seed node fail, we can attach its ENI to a new node, avoiding updating the
+configuration with a different IP address for the new seed node.
+
+#### 6.1.2. Data storage
+
+We can use EBS volumes or instance stores. Instance stores have better
+performance because they are attached to the instance, but they also offer a
+more limited choice of disk sizes, so we choose to store data on EBS volumes.
+
+We use io2 EBS volumes, which are provisioned I/O operations per second (IOPS)
+SSD volumes. We use two separate volumes for the commit log (250GB) and for data
+(1TB). Volumes are mounted on m5.2xlarge instances, which are EBS-optimized. We
+enable enhanced networking on the instances to allow more packets per second to
+between the instance and the EBS volumes.
+
+### 6.2. Cassandra configuration
+
+Since we deployed the Cassandra cluster on EC2 instances, we used the snitch
+class `Ec2MultiRegionSnitch`. We could have used `Ec2Snitch` but we prepare for
+the eventual growth of the cluster beyond a single region. The datacenter name
+corresponds to the AWS region in which nodes are deployed, and the rack name
+corresponds to the AWS availability zone.
+
+Here are the custom values we used in the configuration file `cassandra.yaml`
+(only one seed node IP is represented):
+
+```
+cluster_name: 'Instagram'
+seed_provider:
+  - class_name: or.apache.cassandra.locator.SimpleSeedProvider
+    parameters:
+      - seeds: "172.31.23.218:7000,..."
+listen_address: <node ip>
+rpc_address: <node ip>
+endpoint_snitch: Ec2MultiRegionSnitch
+```
+
+Here are the contents of the file `cassandra-rackdc.properties`, for a node
+deployed in the us-east-1a availability zone:
+
+```
+ec2_naming_scheme: standard
+dc: us-east-1
+rack: us-east-1a
+```
+
+We use the data replication class `NetworkTopologyReplicationStrategy` with a
+replication factor of 3. We thus create the application keyspace using:
+
+```
+CREATE KEYSPACE <keyspace name>
+WITH replication = {
+  'class': 'NetworkTopologyStrategy',
+  'replication_factor' : 3
+};
+```
+
+All tables are read-heavy instead of write-heavy workload, so we use the
+[LeveledCompactionStrategy](https://cassandra.apache.org/doc/latest/cassandra/operating/compaction/lcs.html),
+which allows the application to satisfy reads from a small number of SSTables,
+compared to other compaction strategies. We thus create tables using the
+following `CREATE TABLE` options:
+
+```
+CREATE TABLE instagram.images (
+  <column definitions>
+)
+WITH compaction = {'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'};
+```
+
+TODO
 
 use cassandra.query.dict_factory for session.row_factory
 use prepared statements

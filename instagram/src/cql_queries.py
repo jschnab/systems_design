@@ -1,7 +1,10 @@
 # DDL
 CREATE_KEYSPACE = """
 CREATE KEYSPACE IF NOT EXISTS %(keyspace_name)s
-WITH REPLICATION = {'class': 'SimpleStrategy'}
+WITH REPLICATION = {
+  'class': %(replication_strategy)s,
+  'replication_factor': %(replication_factor)s
+}
 ;"""
 
 CREATE_TABLE_IMAGES_BY_USER = """
