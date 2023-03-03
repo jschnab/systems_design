@@ -1,0 +1,6 @@
+#!/bin/bash
+
+source config.sh
+source venv/bin/activate
+
+gunicorn -w $(grep -c processor /proc/cpuinfo) --preload "src:create_app()"
