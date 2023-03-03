@@ -1,9 +1,9 @@
 # DDL
 CREATE_KEYSPACE = """
-CREATE KEYSPACE IF NOT EXISTS %(keyspace_name)s
+CREATE KEYSPACE IF NOT EXISTS %s
 WITH REPLICATION = {
-  'class': %(replication_strategy)s,
-  'replication_factor': %(replication_factor)s
+  'class': %s,
+  'replication_factor': %s
 }
 ;"""
 

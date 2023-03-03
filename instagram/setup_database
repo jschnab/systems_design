@@ -8,4 +8,5 @@ here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
 source "$here"/venv/bin/activate
 
+python3 -c "import os; os.chdir('$here'); import src.database; src.database.create_keyspace()"
 python3 -c "import os; os.chdir('$here'); import src.database; src.database.create_database_objects()"

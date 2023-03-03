@@ -100,3 +100,5 @@ nav ul li#menu-userid { margin-left: auto; }
 .image-thumbnail, .album-icon { padding: 1em; border-radius: 0.5em; }
 
 .album-name { margin: 0; }
+
+#preview-image-div { margin-top: 2em; }

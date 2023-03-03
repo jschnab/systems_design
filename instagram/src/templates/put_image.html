@@ -26,4 +26,21 @@
   <input type="submit" value="Publish Image">
 </form>
 
+<div id="preview-image-div" hidden>
+<p>Image preview</p>
+<img id="preview-image" src="#" width="1080" height="1080"/>
+</div>
+
+<script>
+  var image = document.getElementById("image");
+  image.onchange = event => {
+    const [file] = image.files;
+    if (file) {
+        document.getElementById("preview-image").src = URL.createObjectURL(file);
+    }
+    document.getElementById("preview-image-div").removeAttribute("hidden");
+  }
+</script>
+
+
 {% endblock %}

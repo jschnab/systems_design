@@ -4,6 +4,7 @@ from cassandra.cluster import (
     Cluster,
     ExecutionProfile,
     EXEC_PROFILE_DEFAULT,
+    NoHostAvailable,
 )
 from cassandra.query import named_tuple_factory
 from cassandra.util import SortedSet
@@ -29,7 +30,11 @@ def configure_session():
         port=CONFIG["database"]["port"],
         execution_profiles={EXEC_PROFILE_DEFAULT: profile},
     )
-    session = cluster.connect(CONFIG["database"]["keyspace_name"])
+    try:
+        session = cluster.connect(CONFIG["database"]["keyspace_name"])
+    # NoHostAvailable is raised before we create the keyspace.
+    except NoHostAvailable:
+        session = cluster.connect()
     # By default a tuple is converted to a list, leading to errors when some
     # queries are parsed.
     session.encoder.mapping[tuple] = session.encoder.cql_encode_tuple
@@ -46,6 +51,18 @@ def execute_query(query, params=None, session=None):
 
 def rows_to_dicts(rows):
     return tuple(row._asdict() for row in rows)
+
+
+def create_keyspace():
+    config = CONFIG["database"]
+    execute_query(
+        cql_queries.CREATE_KEYSPACE,
+        params=(
+            config["keyspace_name"],
+            config["replication_class"],
+            config["replication_factor"],
+        )
+    )
 
 
 def create_table_users():
