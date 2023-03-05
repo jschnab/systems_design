@@ -112,9 +112,9 @@ def login():
 def load_logged_in_user():
     user_id = session.get("user_id")
     if user_id is None:
-        g.user = None
+        g.user_id = None
     else:
-        g.user = database.get_user_info(user_id)
+        g.user_id = user_id
 
 
 @bp.route("/logout")
@@ -126,7 +126,7 @@ def logout():
 def login_required(view):
     @functools.wraps(view)
     def wrapper(**kwargs):
-        if not g.user:
+        if g.user_id is None:
             return redirect(url_for("auth.login"))
         return view(**kwargs)
     return wrapper

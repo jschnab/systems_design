@@ -5,6 +5,7 @@ from .config import CONFIG
 
 S3_CLIENT = boto3.client("s3")
 S3_BUCKET = CONFIG["image_store"]["s3_bucket"]
+CDN_URL = CONFIG["image_store"]["cdn_url"].lstrip("https://").lstrip("http://")
 
 
 def put_image(image_id, image_data):
@@ -30,4 +31,4 @@ def delete_image(image_id):
 
 
 def get_image_url(image_id):
-    return f"https://{CONFIG['image_store']['cdn_url']}/{image_id}"
+    return f"https://{CDN_URL}/{image_id}"

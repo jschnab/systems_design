@@ -4,6 +4,8 @@
 # configuration. A command to create a keyspace can be found in
 # src/cql_queries.py.
 
+set -ex
+
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
 source "$here"/venv/bin/activate

@@ -15,6 +15,7 @@ from .config import CONFIG
 
 MAX_CONNECT_FAIL = 3
 USER_LOCK_TIMEOUT = 15
+SESSION = None
 
 
 def configure_session():
@@ -30,23 +31,21 @@ def configure_session():
         port=CONFIG["database"]["port"],
         execution_profiles={EXEC_PROFILE_DEFAULT: profile},
     )
+    global SESSION
     try:
-        session = cluster.connect(CONFIG["database"]["keyspace_name"])
-    # NoHostAvailable is raised before we create the keyspace.
+        SESSION = cluster.connect(CONFIG["database"]["keyspace_name"])
+    # NoHostAvailable is raised if the keyspace does not exist.
     except NoHostAvailable:
-        session = cluster.connect()
+        SESSION = cluster.connect()
     # By default a tuple is converted to a list, leading to errors when some
     # queries are parsed.
-    session.encoder.mapping[tuple] = session.encoder.cql_encode_tuple
-    return session
+    SESSION.encoder.mapping[tuple] = SESSION.encoder.cql_encode_tuple
 
 
-SESSION = configure_session()
-
-
-def execute_query(query, params=None, session=None):
-    session = session or SESSION
-    return session.execute(query, params).all()
+def execute_query(query, params=None):
+    if SESSION is None:
+        configure_session()
+    return SESSION.execute(query, params).all()
 
 
 def rows_to_dicts(rows):
@@ -56,12 +55,8 @@ def rows_to_dicts(rows):
 def create_keyspace():
     config = CONFIG["database"]
     execute_query(
-        cql_queries.CREATE_KEYSPACE,
-        params=(
-            config["keyspace_name"],
-            config["replication_class"],
-            config["replication_factor"],
-        )
+        cql_queries.CREATE_KEYSPACE.format(keyspace=config["keyspace_name"]),
+        params=(config["replication_class"], config["replication_factor"])
     )
 
 

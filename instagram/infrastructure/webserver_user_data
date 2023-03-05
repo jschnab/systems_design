@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+set -ex
+
+
+# Set a value for the following variables:
+# Domain of the web application. Do not include www. for APP_DOMAIN.
+APP_DOMAIN=
+
+# Database endpoints, separated by commas.
+DB_ENDPOINTS=
+
+# S3 bucket where images are stored.
+S3_BUCKET=
+
+# CDN URL (without https://).
+CDN_URL=
+
+# Name of the user that runs the web application.
+USERNAME=
+
+
+apt-get update
+
+apt-get install -y certbot fail2ban nginx python3-certbot-nginx python3-pip python3-venv
+
+adduser $USERNAME --disabled-password --gecos ""
+
+
+# Install and run web application.
+su - $USERNAME << EOF
+git clone https://github.com/jschnab/systems_design.git
+cd systems_design
+git checkout instagram
+cd instagram
+python3 -m venv venv
+source venv/bin/activate
+pip install wheel
+pip install -r requirements.txt
+EOF
+
+cat > /home/$USERNAME/instagram.conf << EOF
+[general]
+
+# Maximum number of images a user can upload daily.
+user_image_quota = 30
+
+# Name of the user's default album name, exists before a user creates an album.
+default_album_name = default
+
+[database]
+
+# List of cluster node endpoints, separated by ',' (commas).
+# Example (single endpoint): "10.160.9.88"
+# Example (two endpoints): "10.160.9.88,10.160.9.89"
+endpoints = $DB_ENDPOINTS
+
+# Server port.
+port = 9042
+
+# How many replicas must respond for an operation to succeed, by defaut.
+# https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/#cassandra.ConsistencyLevel
+# 0 = ANY
+# 1 = ONE
+# 2 = TWO
+# 3 = THREE
+# 4 = QUORUM
+# 5 = ALL
+# 6 = LOCAL_QUORUM
+# 7 = EACH_QUORUM
+# 8 = SERIAL
+# 9 = LOCAL_SERIAL
+# 10 = LOCAL_ONE
+default_consistency_level = 4
+
+# Name of the keyspace where tables are stored.
+keyspace_name = myinstagram
+
+# Request timeout (seconds), by default.
+default_request_timeout = 5
+
+# Replication configuration, specified when creating the keyspace.
+# https://cassandra.apache.org/doc/4.1/cassandra/cql/ddl.html#create-keyspace-statement
+replication_class = NetworkTopologyStrategy
+replication_factor = 3
+
+[image_store]
+
+# Name of the S3 bucket where images are stored.
+# Do no include s3://.
+s3_bucket = $S3_BUCKET
+
+# URL of the content delivery network (CDN) from where images can be accessed
+# via HTTPS requests. Do no include https:// at the beginning.
+cdn_url = $CDN_URL
+EOF
+
+cat > /etc/systemd/system/gunicorn.service << EOF
+[Unit]
+Description=gunicorn daemon
+After=network.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+Environment="MYINSTAGRAM_CONFIG_PATH=/home/$USERNAME/instagram.conf"
+User=$USERNAME
+Group=$USERNAME
+RuntimeDirectory=gunicorn
+WorkingDirectory=/home/$USERNAME/systems_design/instagram
+ExecStart=/home/$USERNAME/systems_design/instagram/venv/bin/gunicorn -w $(grep -c processor /proc/cpuinfo) --preload "src:create_app()"
+ExecReload=/bin/kill -s HUP \$MAINPID
+KillMode=mixed
+TimeoutStopSec=10
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl enable gunicorn.service
+systemctl start gunicorn.service
+
+
+# Configure and restart fail2ban.
+cat >> "/etc/fail2ban/jail.local" << EOF
+[nginx-404-limit]
+
+enabled = true
+filter = nginx-404-limit
+action = iptables-multiport[name=Resp404Limit, port="http,https", protocol=tcp]
+logpath = %(nginx_access_log)s
+maxretry = 10
+findtime = 60
+bantime = 7200
+EOF
+
+cat > /etc/fail2ban/filter.d/nginx-404-limit.conf << EOF
+[Definition]
+
+failregex = ^<HOST> -.*- \[\] ".*" 4\d{2} \d+
+
+ignoreregex =
+EOF
+
+systemctl restart fail2ban
+
+
+# Configure and reload nginx.
+cat > /etc/nginx/nginx.conf << EOF
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+	worker_connections 768;
+	# multi_accept on;
+}
+
+http {
+
+	##
+	# Basic Settings
+	##
+
+        client_max_body_size 10M;
+	sendfile on;
+	tcp_nopush on;
+	tcp_nodelay on;
+	keepalive_timeout 65;
+	types_hash_max_size 2048;
+	# server_tokens off;
+
+	# server_names_hash_bucket_size 64;
+	# server_name_in_redirect off;
+
+	include /etc/nginx/mime.types;
+	default_type application/octet-stream;
+
+	##
+	# SSL Settings
+	##
+
+	ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+	ssl_prefer_server_ciphers on;
+
+	##
+	# Logging Settings
+	##
+
+	access_log /var/log/nginx/access.log;
+	error_log /var/log/nginx/error.log;
+
+	##
+	# Gzip Settings
+	##
+
+	gzip on;
+        gzip_disable "msie6";
+	gzip_vary on;
+	gzip_proxied any;
+	gzip_comp_level 6;
+	gzip_buffers 32 4k;
+	gzip_http_version 1.1;
+	gzip_types
+          text/plain
+          text/css
+          application/json
+          application/javascript
+          text/xml
+          application/xml
+          application/xml+rss
+          text/javascript;
+
+	##
+	# Virtual Host Configs
+	##
+
+	include /etc/nginx/conf.d/*.conf;
+	include /etc/nginx/sites-enabled/*;
+
+}
+EOF
+
+cat > /etc/nginx/sites-available/instagram << EOF
+server {
+    server_name $APP_DOMAIN www.$APP_DOMAIN;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_redirect off;
+    }
+}
+EOF
+
+ln -s /etc/nginx/sites-available/instagram /etc/nginx/sites-enabled/
+
+systemctl reload nginx
+
+
+echo END

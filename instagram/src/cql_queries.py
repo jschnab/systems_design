@@ -1,10 +1,10 @@
 # DDL
 CREATE_KEYSPACE = """
-CREATE KEYSPACE IF NOT EXISTS %s
-WITH REPLICATION = {
+CREATE KEYSPACE IF NOT EXISTS {keyspace}
+WITH REPLICATION = {{
   'class': %s,
   'replication_factor': %s
-}
+}}
 ;"""
 
 CREATE_TABLE_IMAGES_BY_USER = """
@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS image_comments (
   comment TEXT,
   PRIMARY KEY (image_id, creation_timestamp, user_id)
 )
-WITH CLUSTERING ORDER BY (creation_timestamp DESC, user_id ASC)
 ;"""
 
 CREATE_TABLE_IMAGE_LIKES = """

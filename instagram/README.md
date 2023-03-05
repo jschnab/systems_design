@@ -521,7 +521,31 @@ CREATE TABLE instagram.images (
 WITH compaction = {'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'};
 ```
 
-TODO
+### 6.3. Web application configuration
+
+[Gunicorn's design](https://docs.gunicorn.org/en/stable/design.html) is based
+on the pre-fork worker model, in which workers are forked by a master process.
+If we connect to Cassandra before workers have forked, this will lead to
+timeouts when a query is executed by a worker process, and it is recommended to
+[connect to Cassandra within worker
+processes](https://docs.datastax.com/en/developer/python-driver/3.25/faq/#why-do-connections-or-io-operations-timeout-in-my-wsgi-application).
+
+To do so, we customize the gunicorn server hook
+[post_fork](https://docs.gunicorn.org/en/stable/settings.html?highlight=post_fork#post-fork)
+and use it to connect to Cassandra. We use the following snippet in the
+[configuration
+file](https://docs.gunicorn.org/en/stable/configure.html#configuration-file) `gunicorn.conf.py`:
+
+```python
+import src.database
+
+
+def post_fork(server, worker):
+    server.log.info(f"Executing post-fork for worker {worker.pid}")
+    src.database.configure_session()
+```
+
+## 7. To do
 
 use cassandra.query.dict_factory for session.row_factory
 use prepared statements
