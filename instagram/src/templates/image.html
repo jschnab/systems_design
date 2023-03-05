@@ -66,7 +66,7 @@ function commentImage(form) {
   var comment_info = document.createElement("p");
   comment_info.className = "comment-info";
   const now = new Date().toISOString();
-  comment_info.innerHTML = "{{ g.user['user_id'] }}" + " " + now;
+  comment_info.innerHTML = "{{ g.user_id }}" + " " + now;
   new_comment.appendChild(comment_info);
   var comment_text = document.createElement("p");
   comment_text.className = "comment-text"
