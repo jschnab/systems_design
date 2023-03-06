@@ -6,7 +6,7 @@ from cassandra.cluster import (
     EXEC_PROFILE_DEFAULT,
     NoHostAvailable,
 )
-from cassandra.query import named_tuple_factory
+from cassandra.query import dict_factory
 from cassandra.util import SortedSet
 
 from . import cql_queries
@@ -27,7 +27,7 @@ def configure_session():
             "default_consistency_level"
         ),
         request_timeout=CONFIG["database"].getint("default_request_timeout"),
-        row_factory=named_tuple_factory,
+        row_factory=dict_factory,
     )
     LOGGER.info("Configuring Cassandra cluster info")
     cluster = Cluster(
@@ -54,10 +54,6 @@ def execute_query(query, params=None):
     if SESSION is None:
         configure_session()
     return SESSION.execute(query, params).all()
-
-
-def rows_to_dicts(rows):
-    return tuple(row._asdict() for row in rows)
 
 
 def create_keyspace():
@@ -138,7 +134,8 @@ def create_user(user_id, first_name, last_name, password):
             {CONFIG["general"]["default_album_name"]},
         ),
     )
-    if not response[0].applied:
+    LOGGER.info(response)
+    if not response[0]["[applied]"]:
         return return_codes.USER_EXISTS
     return return_codes.OK
 
@@ -181,7 +178,7 @@ def get_image_info(image_id):
         cql_queries.GET_IMAGE_INFO, params=(image_id,)
     )
     if len(response) > 0:
-        return rows_to_dicts(response)[0]
+        return response[0]
 
 
 def tag_image(image_id, tags):
@@ -195,7 +192,7 @@ def create_album(album_name, user_id):
     response = execute_query(
         cql_queries.CREATE_ALBUM, params=(album_name, user_id, datetime.now())
     )
-    if not response[0].applied:
+    if not response[0]["[applied]"]:
         return return_codes.ALBUM_EXISTS
     return return_codes.OK
 
@@ -246,14 +243,14 @@ def get_followed_users(user_id):
     response = execute_query(
         cql_queries.GET_FOLLOWED_USERS, params=(user_id,)
     )
-    return tuple(row.followed_id for row in response)
+    return tuple(row["followed_id"] for row in response)
 
 
 def get_follower_users(user_id):
     response = execute_query(
         cql_queries.GET_FOLLOWER_USERS, params=(user_id,)
     )
-    return rows_to_dicts(response)
+    return response
 
 
 def get_images_by_user(user_id):
@@ -261,19 +258,19 @@ def get_images_by_user(user_id):
         cql_queries.GET_IMAGES_BY_USER,
         params=(user_id,),
     )
-    return rows_to_dicts(response)
+    return response
 
 
 def get_image_comments(image_id):
     response = execute_query(
         cql_queries.GET_IMAGE_COMMENTS, params=(image_id,)
     )
-    return rows_to_dicts(response)
+    return response
 
 
 def get_image_likes(image_id):
     response = execute_query(cql_queries.GET_IMAGE_LIKES, params=(image_id,))
-    return rows_to_dicts(response)
+    return response
 
 
 def get_image_like_by_user(image_id, user_id):
@@ -282,21 +279,21 @@ def get_image_like_by_user(image_id, user_id):
         params=(image_id, user_id)
     )
     if len(response) > 0:
-        return rows_to_dicts(response)[0]
+        return response[0]
 
 
 def get_user_info(user_id):
     response = execute_query(cql_queries.GET_USER_INFO, params=(user_id,))
     if len(response) == 0:
         return {}
-    return rows_to_dicts(response)[0]
+    return response[0]
 
 
 def get_albums_by_user(user_id):
     response = execute_query(cql_queries.GET_ALBUMS_BY_USER, params=(user_id,))
     if len(response) == 0:
         return SortedSet()
-    return response[0].album_names or SortedSet()
+    return response[0]["album_names"] or SortedSet()
 
 
 def get_album_info(album_name, owner_id):
@@ -305,7 +302,7 @@ def get_album_info(album_name, owner_id):
     )
     if len(response) == 0:
         return {}
-    return rows_to_dicts(response)[0]
+    return response[0]
 
 
 def get_album_images(album_name, owner_id):
@@ -314,7 +311,7 @@ def get_album_images(album_name, owner_id):
     )
     if len(response) == 0:
         return []
-    return rows_to_dicts(response)
+    return response
 
 
 def user_is_locked(user_id):
@@ -323,7 +320,7 @@ def user_is_locked(user_id):
         cql_queries.GET_RECENT_USER_CONNECTIONS,
         params=(user_id, timestamp)
     )
-    connections = rows_to_dicts(result)
+    connections = result
     if len(connections) < MAX_CONNECT_FAIL:
         return False
     failures = 0
@@ -356,7 +353,7 @@ def count_user_images_by_album_timestamp(user_id, album_names, timestamp):
     return execute_query(
         cql_queries.COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP,
         params=(user_id, album_names, timestamp)
-    )[0].count
+    )[0]["count"]
 
 
 def increment_image_popularity(image_id):
@@ -370,7 +367,7 @@ def get_image_popularity(image_id):
     )
     if result == []:
         return 0
-    return result[0].popularity
+    return result[0]["popularity"]
 
 
 def user_exists(user_id):
@@ -384,12 +381,12 @@ def get_user_images_by_album_timestamp(user_id, album_names, timestamp):
         cql_queries.GET_USER_IMAGES_BY_ALBUM_TIMESTAMP,
         params=(user_id, album_names, timestamp)
     )
-    return rows_to_dicts(result)
+    return result
 
 
 def get_followers():
     result = execute_query(cql_queries.GET_FOLLOWERS)
-    return rows_to_dicts(result)
+    return result
 
 
 def insert_feed_images(n_records, params):
@@ -402,6 +399,6 @@ def insert_feed_images(n_records, params):
 
 
 def get_user_feed(user_id):
-    return rows_to_dicts(
-        execute_query(cql_queries.GET_USER_FEED, params=(user_id,))
+    return execute_query(
+        cql_queries.GET_USER_FEED, params=(user_id,)
     )

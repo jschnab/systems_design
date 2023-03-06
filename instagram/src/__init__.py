@@ -20,7 +20,7 @@ from . import object_store
 from . import return_codes
 from .auth import login_required
 from .config import CONFIG
-from .logger import LOGGER
+from .logging import BASE_LOGGER
 
 # 'Return success' code for Flask views.
 OK = "OK"
@@ -31,7 +31,7 @@ def format_timestamp(ts):
 
 
 def create_app(test_config=None):
-    LOGGER.info("Creating Flask app")
+    BASE_LOGGER.info("Creating Flask app")
     app = Flask(__name__, instance_relative_config=True)
     app.secret_key = secrets.token_hex()
 
@@ -239,5 +239,5 @@ def create_app(test_config=None):
         image_url=object_store.get_image_url,
     )
 
-    LOGGER.info("Finished creating Flask app")
+    BASE_LOGGER.info("Finished creating Flask app")
     return app

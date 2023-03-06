@@ -547,5 +547,4 @@ def post_fork(server, worker):
 
 ## 7. To do
 
-use cassandra.query.dict_factory for session.row_factory
 use prepared statements
