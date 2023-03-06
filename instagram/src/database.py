@@ -12,13 +12,16 @@ from cassandra.util import SortedSet
 from . import cql_queries
 from . import return_codes
 from .config import CONFIG
+from .logging import BASE_LOGGER
 
+LOGGER = BASE_LOGGER.getChild(__name__)
 MAX_CONNECT_FAIL = 3
 USER_LOCK_TIMEOUT = 15
 SESSION = None
 
 
 def configure_session():
+    LOGGER.info("Configuring Cassandra execution profile")
     profile = ExecutionProfile(
         consistency_level=CONFIG["database"].getint(
             "default_consistency_level"
@@ -26,6 +29,7 @@ def configure_session():
         request_timeout=CONFIG["database"].getint("default_request_timeout"),
         row_factory=named_tuple_factory,
     )
+    LOGGER.info("Configuring Cassandra cluster info")
     cluster = Cluster(
         CONFIG["database"]["endpoints"].split(","),
         port=CONFIG["database"]["port"],
@@ -33,10 +37,14 @@ def configure_session():
     )
     global SESSION
     try:
-        SESSION = cluster.connect(CONFIG["database"]["keyspace_name"])
+        keyspace = CONFIG["database"]["keyspace_name"]
+        LOGGER.info(f"Connecting using keyspace '{keyspace}'")
+        SESSION = cluster.connect(keyspace)
     # NoHostAvailable is raised if the keyspace does not exist.
     except NoHostAvailable:
+        LOGGER.info("Connecting using default keyspace")
         SESSION = cluster.connect()
+    LOGGER.info("Connected to Cassandra cluster")
     # By default a tuple is converted to a list, leading to errors when some
     # queries are parsed.
     SESSION.encoder.mapping[tuple] = SESSION.encoder.cql_encode_tuple

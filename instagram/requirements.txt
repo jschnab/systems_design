@@ -5,3 +5,4 @@ flask~=2.0
 gunicorn~=20.1
 lz4~=4.3
 pillow~=9.4
+pyyaml~=6.0
