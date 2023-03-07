@@ -1,3 +1,8 @@
+"""
+CQL queries that will be converted to prepared statements are stored in
+variables ending with '_QRY' so they can be identified automatically.
+"""
+
 # DDL
 CREATE_KEYSPACE = """
 CREATE KEYSPACE IF NOT EXISTS {keyspace}
@@ -119,7 +124,7 @@ CREATE TABLE IF NOT EXISTS user_feeds (
 ;"""
 
 # DML
-CREATE_USER = """
+CREATE_USER_QRY = """
 INSERT INTO users (
   user_id,
   first_name,
@@ -128,31 +133,31 @@ INSERT INTO users (
   registration_timestamp,
   album_names
 )
-VALUES (%s, %s, %s, %s, %s, %s)
+VALUES (?, ?, ?, ?, ?, ?)
 IF NOT EXISTS
 ;"""
 
-INSERT_USER_FOLLOWS = """
+INSERT_USER_FOLLOWS_QRY = """
 INSERT INTO user_follows (
   follower_id,
   followed_id,
   creation_timestamp
 )
-VALUES (%s, %s, %s)
+VALUES (?, ?, ?)
 IF NOT EXISTS
 ;"""
 
-INSERT_USER_FOLLOWED = """
+INSERT_USER_FOLLOWED_QRY = """
 INSERT INTO user_followed (
   followed_id,
   follower_id,
   creation_timestamp
 )
-VALUES (%s, %s, %s)
+VALUES (?, ?, ?)
 IF NOT EXISTS
 ;"""
 
-INSERT_IMAGE_BY_USER = """
+INSERT_IMAGE_BY_USER_QRY = """
 INSERT INTO images_by_user (
   owner_id,
   album_name,
@@ -160,10 +165,10 @@ INSERT INTO images_by_user (
   image_id,
   image_path
 )
-VALUES (%s, %s, %s, %s, %s)
+VALUES (?, ?, ?, ?, ?)
 ;"""
 
-INSERT_IMAGE = """
+INSERT_IMAGE_QRY = """
 INSERT INTO images (
   image_id,
   image_path,
@@ -172,70 +177,72 @@ INSERT INTO images (
   description,
   tags
 )
-VALUES (%s, %s, %s, %s, %s, %s)
+VALUES (?, ?, ?, ?, ?, ?)
 ;"""
 
-TAG_IMAGE = """
-UPDATE images SET tags = tags + %s WHERE image_id = %s
+TAG_IMAGE_QRY = """
+UPDATE images SET tags = tags + ? WHERE image_id = ?
 ;"""
 
-CREATE_ALBUM = """
+CREATE_ALBUM_QRY = """
 INSERT INTO albums (
     album_name,
     owner_id,
     creation_timestamp
 )
-VALUES (%s, %s, %s)
+VALUES (?, ?, ?)
 IF NOT EXISTS
 ;"""
 
-ADD_ALBUM_TO_USER = """
-UPDATE users SET album_names = album_names + {%s} WHERE user_id = %s
+ADD_ALBUM_TO_USER_QRY = """
+UPDATE users SET album_names = album_names + ? WHERE user_id = ?
 ;"""
 
-SET_ALBUM_FOR_IMAGE = "UPDATE images SET album_name = %s WHERE image_id = %s;"
+SET_ALBUM_FOR_IMAGE_QRY = """
+UPDATE images SET album_name = ? WHERE image_id = ?
+;"""
 
-ADD_IMAGE_TO_ALBUM = """
+ADD_IMAGE_TO_ALBUM_QRY = """
 UPDATE albums
-SET image_ids = image_ids + {%s}
-WHERE album_name = %s AND owner_id = %s
+SET image_ids = image_ids + ?
+WHERE album_name = ? AND owner_id = ?
 ;"""
 
-COMMENT_IMAGE = """
+COMMENT_IMAGE_QRY = """
 INSERT INTO image_comments (
     image_id,
     creation_timestamp,
     user_id,
     comment
 )
-VALUES (%s, %s, %s, %s)
+VALUES (?, ?, ?, ?)
 ;"""
 
-LIKE_IMAGE = """
+LIKE_IMAGE_QRY = """
 INSERT INTO image_likes (
    image_id,
    user_id,
    creation_timestamp
 )
-VALUES (%s, %s, %s)
+VALUES (?, ?, ?)
 ;"""
 
-RECORD_USER_CONNECTION = """
+RECORD_USER_CONNECTION_QRY = """
 INSERT INTO user_connections (
     user_id,
     connection_timestamp,
     user_ip,
     success
 )
-VALUES (%s, %s, %s, %s)
+VALUES (?, ?, ?, ?)
 ;"""
 
-INCREMENT_IMAGE_POPULARITY = """
+INCREMENT_IMAGE_POPULARITY_QRY = """
 UPDATE image_popularity SET popularity = popularity + 1
-WHERE image_id = %s
+WHERE image_id = ?
 ;"""
 
-INSERT_USER_FEED = """
+INSERT_USER_FEED_QRY = """
 INSERT INTO user_feeds (
     user_id,
     rank,
@@ -243,91 +250,91 @@ INSERT INTO user_feeds (
     owner_id,
     image_publication_timestamp
 )
-VALUES (%s, %s, %s, %s, %s)
+VALUES (?, ?, ?, ?, ?)
 ;"""
 
 # DQL
-GET_IMAGE_INFO = """
-SELECT * FROM images WHERE image_id = %s
+GET_IMAGE_INFO_QRY = """
+SELECT * FROM images WHERE image_id = ?
 ;"""
 
-GET_FOLLOWED_USERS = """
-SELECT followed_id FROM user_follows WHERE follower_id = %s
+GET_FOLLOWED_USERS_QRY = """
+SELECT followed_id FROM user_follows WHERE follower_id = ?
 ALLOW FILTERING
 ;"""
 
-GET_FOLLOWER_USERS = """
-SELECT follower_id FROM user_followed WHERE followed_id = %s
+GET_FOLLOWER_USERS_QRY = """
+SELECT follower_id FROM user_followed WHERE followed_id = ?
 ;"""
 
-GET_IMAGES_BY_USER = """
+GET_IMAGES_BY_USER_QRY = """
 SELECT image_id, image_path, publication_timestamp FROM images_by_user
-WHERE owner_id = %s
+WHERE owner_id = ?
 ;"""
 
-GET_IMAGES_BY_ALBUM = """
+GET_IMAGES_BY_ALBUM_QRY = """
 SELECT image_id, publication_timestamp FROM images_by_user
-WHERE owner_id = %s AND album_name = %s
+WHERE owner_id = ? AND album_name = ?
 ;"""
 
-GET_IMAGE_COMMENTS = "SELECT * FROM image_comments WHERE image_id = %s;"
+GET_IMAGE_COMMENTS_QRY = "SELECT * FROM image_comments WHERE image_id = ?;"
 
-GET_IMAGE_LIKES = "SELECT * FROM image_likes WHERE image_id = %s;"
+GET_IMAGE_LIKES_QRY = "SELECT * FROM image_likes WHERE image_id = ?;"
 
-GET_IMAGE_LIKE_BY_USER = """
-SELECT * FROM image_likes WHERE image_id = %s AND user_id = %s
+GET_IMAGE_LIKE_BY_USER_QRY = """
+SELECT * FROM image_likes WHERE image_id = ? AND user_id = ?
 ;"""
 
-GET_USER_INFO = """
-SELECT * FROM users WHERE user_id = %s
+GET_USER_INFO_QRY = """
+SELECT * FROM users WHERE user_id = ?
 ;"""
 
-GET_ALBUMS_BY_USER = """
-SELECT album_names FROM users WHERE user_id = %s
+GET_ALBUMS_BY_USER_QRY = """
+SELECT album_names FROM users WHERE user_id = ?
 ;"""
 
-GET_ALBUM_INFO = """
-SELECT * FROM albums WHERE album_name = %s AND owner_id = %s
+GET_ALBUM_INFO_QRY = """
+SELECT * FROM albums WHERE album_name = ? AND owner_id = ?
 ;"""
 
-GET_ALBUM_IMAGES = """
+GET_ALBUM_IMAGES_QRY = """
 SELECT image_id, publication_timestamp FROM images_by_user
-WHERE owner_id = %s AND album_name = %s
+WHERE owner_id = ? AND album_name = ?
 ;"""
 
-GET_RECENT_USER_CONNECTIONS = """
+GET_RECENT_USER_CONNECTIONS_QRY = """
 SELECT connection_timestamp, success
 FROM user_connections
-WHERE user_id = %s AND connection_timestamp >= %s
+WHERE user_id = ? AND connection_timestamp >= ?
 ORDER BY connection_timestamp DESC
 ;"""
 
-GET_USER_IMAGES_BY_ALBUM_TIMESTAMP = """
+GET_USER_IMAGES_BY_ALBUM_TIMESTAMP_QRY = """
 SELECT owner_id, image_id, publication_timestamp
 FROM images_by_user
-WHERE owner_id = %s
-AND album_name IN %s
-AND publication_timestamp > %s
+WHERE owner_id = ?
+AND album_name IN ?
+AND publication_timestamp > ?
 ;"""
 
-COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP = """
+COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP_QRY = """
 SELECT COUNT(*)
 FROM images_by_user
-WHERE owner_id = %s
-AND album_name IN %s
-AND publication_timestamp > %s
+WHERE owner_id = ?
+AND album_name IN ?
+AND publication_timestamp > ?
 ;"""
 
-USER_EXISTS = "SELECT user_id FROM users WHERE user_id = %s;"
+USER_EXISTS_QRY = "SELECT user_id FROM users WHERE user_id = ?;"
 
-GET_IMAGE_POPULARITY = """
-SELECT popularity from image_popularity WHERE image_id = %s
+GET_IMAGE_POPULARITY_QRY = """
+SELECT popularity from image_popularity WHERE image_id = ?
 ;"""
 
-GET_FOLLOWERS = "SELECT DISTINCT follower_id FROM user_follows;"
+GET_FOLLOWERS_QRY = "SELECT DISTINCT follower_id FROM user_follows;"
 
-GET_USER_FEED = """
+GET_USER_FEED_QRY = """
 SELECT image_id, image_publication_timestamp, owner_id
 FROM user_feeds
-WHERE user_id = %s
+WHERE user_id = ?
 ;"""

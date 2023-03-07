@@ -20,6 +20,10 @@ USER_LOCK_TIMEOUT = 15
 SESSION = None
 
 
+class PreparedStatements:
+    pass
+
+
 def configure_session():
     LOGGER.info("Configuring Cassandra execution profile")
     profile = ExecutionProfile(
@@ -50,9 +54,20 @@ def configure_session():
     SESSION.encoder.mapping[tuple] = SESSION.encoder.cql_encode_tuple
 
 
-def execute_query(query, params=None):
+def prepare_statements():
+    LOGGER.info("Preparing statments")
     if SESSION is None:
         configure_session()
+    for var in dir(cql_queries):
+        if var.endswith("_QRY"):
+            setattr(
+                PreparedStatements,
+                var.replace("_QRY", ""),
+                SESSION.prepare(getattr(cql_queries, var)),
+            )
+
+
+def execute_query(query, params=None):
     return SESSION.execute(query, params).all()
 
 
@@ -60,7 +75,7 @@ def create_keyspace():
     config = CONFIG["database"]
     execute_query(
         cql_queries.CREATE_KEYSPACE.format(keyspace=config["keyspace_name"]),
-        params=(config["replication_class"], config["replication_factor"])
+        params=(config["replication_class"], config["replication_factor"]),
     )
 
 
@@ -124,7 +139,7 @@ def create_database_objects():
 
 def create_user(user_id, first_name, last_name, password):
     response = execute_query(
-        cql_queries.CREATE_USER,
+        PreparedStatements.CREATE_USER,
         params=(
             user_id,
             first_name,
@@ -134,7 +149,6 @@ def create_user(user_id, first_name, last_name, password):
             {CONFIG["general"]["default_album_name"]},
         ),
     )
-    LOGGER.info(response)
     if not response[0]["[applied]"]:
         return return_codes.USER_EXISTS
     return return_codes.OK
@@ -149,7 +163,7 @@ def add_image(
 ):
     now = datetime.now()
     execute_query(
-        cql_queries.INSERT_IMAGE_BY_USER,
+        PreparedStatements.INSERT_IMAGE_BY_USER,
         params=(
             owner_id,
             album_name,
@@ -159,7 +173,7 @@ def add_image(
         ),
     )
     execute_query(
-        cql_queries.INSERT_IMAGE,
+        PreparedStatements.INSERT_IMAGE,
         params=(
             image_id,
             f"{CONFIG['image_store']['s3_bucket']}/{image_id}",
@@ -175,22 +189,23 @@ def add_image(
 
 def get_image_info(image_id):
     response = execute_query(
-        cql_queries.GET_IMAGE_INFO, params=(image_id,)
+        PreparedStatements.GET_IMAGE_INFO, params=(image_id,)
     )
     if len(response) > 0:
         return response[0]
 
 
 def tag_image(image_id, tags):
-    execute_query(cql_queries.TAG_IMAGE, params=(tags, image_id))
+    execute_query(PreparedStatements.TAG_IMAGE, params=(tags, image_id))
 
 
 def create_album(album_name, user_id):
     execute_query(
-        cql_queries.ADD_ALBUM_TO_USER, params=(album_name, user_id)
+        PreparedStatements.ADD_ALBUM_TO_USER, params=({album_name}, user_id)
     )
     response = execute_query(
-        cql_queries.CREATE_ALBUM, params=(album_name, user_id, datetime.now())
+        PreparedStatements.CREATE_ALBUM,
+        params=(album_name, user_id, datetime.now()),
     )
     if not response[0]["[applied]"]:
         return return_codes.ALBUM_EXISTS
@@ -200,29 +215,29 @@ def create_album(album_name, user_id):
 def follow_user(follower_id, followed_id):
     now = datetime.now()
     execute_query(
-        cql_queries.INSERT_USER_FOLLOWS,
+        PreparedStatements.INSERT_USER_FOLLOWS,
         params=(follower_id, followed_id, now),
     )
     execute_query(
-        cql_queries.INSERT_USER_FOLLOWED,
+        PreparedStatements.INSERT_USER_FOLLOWED,
         params=(followed_id, follower_id, now),
     )
 
 
 def add_image_to_album(image_id, album_name, user_id):
     execute_query(
-        cql_queries.SET_ALBUM_FOR_IMAGE,
+        PreparedStatements.SET_ALBUM_FOR_IMAGE,
         params=(album_name, image_id),
     )
     execute_query(
-        cql_queries.ADD_IMAGE_TO_ALBUM,
-        params=(image_id, album_name, user_id),
+        PreparedStatements.ADD_IMAGE_TO_ALBUM,
+        params=({image_id}, album_name, user_id),
     )
 
 
 def comment_image(image_id, user_id, comment_text):
     execute_query(
-        cql_queries.COMMENT_IMAGE,
+        PreparedStatements.COMMENT_IMAGE,
         params=(
             image_id,
             datetime.now(),
@@ -234,28 +249,28 @@ def comment_image(image_id, user_id, comment_text):
 
 def like_image(image_id, user_id):
     execute_query(
-        cql_queries.LIKE_IMAGE,
+        PreparedStatements.LIKE_IMAGE,
         params=(image_id, user_id, datetime.now()),
     )
 
 
 def get_followed_users(user_id):
     response = execute_query(
-        cql_queries.GET_FOLLOWED_USERS, params=(user_id,)
+        PreparedStatements.GET_FOLLOWED_USERS, params=(user_id,)
     )
     return tuple(row["followed_id"] for row in response)
 
 
 def get_follower_users(user_id):
     response = execute_query(
-        cql_queries.GET_FOLLOWER_USERS, params=(user_id,)
+        PreparedStatements.GET_FOLLOWER_USERS, params=(user_id,)
     )
     return response
 
 
 def get_images_by_user(user_id):
     response = execute_query(
-        cql_queries.GET_IMAGES_BY_USER,
+        PreparedStatements.GET_IMAGES_BY_USER,
         params=(user_id,),
     )
     return response
@@ -263,34 +278,39 @@ def get_images_by_user(user_id):
 
 def get_image_comments(image_id):
     response = execute_query(
-        cql_queries.GET_IMAGE_COMMENTS, params=(image_id,)
+        PreparedStatements.GET_IMAGE_COMMENTS, params=(image_id,)
     )
     return response
 
 
 def get_image_likes(image_id):
-    response = execute_query(cql_queries.GET_IMAGE_LIKES, params=(image_id,))
+    response = execute_query(
+        PreparedStatements.GET_IMAGE_LIKES, params=(image_id,)
+    )
     return response
 
 
 def get_image_like_by_user(image_id, user_id):
     response = execute_query(
-        cql_queries.GET_IMAGE_LIKE_BY_USER,
-        params=(image_id, user_id)
+        PreparedStatements.GET_IMAGE_LIKE_BY_USER, params=(image_id, user_id)
     )
     if len(response) > 0:
         return response[0]
 
 
 def get_user_info(user_id):
-    response = execute_query(cql_queries.GET_USER_INFO, params=(user_id,))
+    response = execute_query(
+        PreparedStatements.GET_USER_INFO, params=(user_id,)
+    )
     if len(response) == 0:
         return {}
     return response[0]
 
 
 def get_albums_by_user(user_id):
-    response = execute_query(cql_queries.GET_ALBUMS_BY_USER, params=(user_id,))
+    response = execute_query(
+        PreparedStatements.GET_ALBUMS_BY_USER, params=(user_id,)
+    )
     if len(response) == 0:
         return SortedSet()
     return response[0]["album_names"] or SortedSet()
@@ -298,7 +318,7 @@ def get_albums_by_user(user_id):
 
 def get_album_info(album_name, owner_id):
     response = execute_query(
-        cql_queries.GET_ALBUM_INFO, params=(album_name, owner_id)
+        PreparedStatements.GET_ALBUM_INFO, params=(album_name, owner_id)
     )
     if len(response) == 0:
         return {}
@@ -307,7 +327,7 @@ def get_album_info(album_name, owner_id):
 
 def get_album_images(album_name, owner_id):
     response = execute_query(
-        cql_queries.GET_ALBUM_IMAGES, params=(owner_id, album_name)
+        PreparedStatements.GET_ALBUM_IMAGES, params=(owner_id, album_name)
     )
     if len(response) == 0:
         return []
@@ -317,8 +337,8 @@ def get_album_images(album_name, owner_id):
 def user_is_locked(user_id):
     timestamp = datetime.now() - timedelta(minutes=15)
     result = execute_query(
-        cql_queries.GET_RECENT_USER_CONNECTIONS,
-        params=(user_id, timestamp)
+        PreparedStatements.GET_RECENT_USER_CONNECTIONS,
+        params=(user_id, timestamp),
     )
     connections = result
     if len(connections) < MAX_CONNECT_FAIL:
@@ -337,13 +357,13 @@ def user_is_locked(user_id):
 
 def record_user_connect(user_id, user_ip, success):
     execute_query(
-        cql_queries.RECORD_USER_CONNECTION,
+        PreparedStatements.RECORD_USER_CONNECTION,
         params=(
             user_id,
             datetime.now(),
             user_ip,
             success,
-        )
+        ),
     )
 
 
@@ -351,19 +371,20 @@ def count_user_images_by_album_timestamp(user_id, album_names, timestamp):
     if not isinstance(album_names, tuple):
         album_names = tuple(album_names)
     return execute_query(
-        cql_queries.COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP,
-        params=(user_id, album_names, timestamp)
+        PreparedStatements.COUNT_USER_IMAGES_BY_ALBUM_TIMESTAMP,
+        params=(user_id, album_names, timestamp),
     )[0]["count"]
 
 
 def increment_image_popularity(image_id):
-    execute_query(cql_queries.INCREMENT_IMAGE_POPULARITY, params=(image_id,))
+    execute_query(
+        PreparedStatements.INCREMENT_IMAGE_POPULARITY, params=(image_id,)
+    )
 
 
 def get_image_popularity(image_id):
     result = execute_query(
-        cql_queries.GET_IMAGE_POPULARITY,
-        params=(image_id,)
+        PreparedStatements.GET_IMAGE_POPULARITY, params=(image_id,)
     )
     if result == []:
         return 0
@@ -371,34 +392,34 @@ def get_image_popularity(image_id):
 
 
 def user_exists(user_id):
-    return execute_query(cql_queries.USER_EXISTS, params=(user_id,)) != []
+    return (
+        execute_query(PreparedStatements.USER_EXISTS, params=(user_id,)) != []
+    )
 
 
 def get_user_images_by_album_timestamp(user_id, album_names, timestamp):
     if not isinstance(album_names, tuple):
         album_names = tuple(album_names)
     result = execute_query(
-        cql_queries.GET_USER_IMAGES_BY_ALBUM_TIMESTAMP,
-        params=(user_id, album_names, timestamp)
+        PreparedStatements.GET_USER_IMAGES_BY_ALBUM_TIMESTAMP,
+        params=(user_id, album_names, timestamp),
     )
     return result
 
 
 def get_followers():
-    result = execute_query(cql_queries.GET_FOLLOWERS)
+    result = execute_query(PreparedStatements.GET_FOLLOWERS)
     return result
 
 
 def insert_feed_images(n_records, params):
     query = (
         "BEGIN BATCH "
-        f"{cql_queries.INSERT_USER_FEED * n_records} "
+        f"{PreparedStatements.INSERT_USER_FEED * n_records} "
         "APPLY BATCH"
     )
     execute_query(query, params)
 
 
 def get_user_feed(user_id):
-    return execute_query(
-        cql_queries.GET_USER_FEED, params=(user_id,)
-    )
+    return execute_query(PreparedStatements.GET_USER_FEED, params=(user_id,))
