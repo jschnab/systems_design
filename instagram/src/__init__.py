@@ -228,6 +228,18 @@ def create_app(test_config=None):
             mimetype="image/png",
         )
 
+    @app.route("/tc.html")
+    def terms_conditions():
+        return render_template("terms_conditions.html")
+
+    @app.route("/privacy.html")
+    def privacy_policy():
+        return render_template("privacy_policy.html")
+
+    @app.route("/contact.html")
+    def contact():
+        return render_template("contact.html")
+
     app.register_blueprint(auth.bp)
 
     app.wsgi_app = ProxyFix(

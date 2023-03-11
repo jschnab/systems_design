@@ -1,8 +1,23 @@
-html { font-family: sans-serif; background: #000; color: #fff; }
+html {
+  font-family: sans-serif;
+  background: #000;
+  color: #fff;
+  height: 100%;
+}
 
-body { margin: 1em; }
+body {
+  margin: 1em;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 
-.content { max-width: 1080px; margin: 0 auto; }
+.content {
+  max-width: 1080px;
+  margin: 0 auto;
+  flex: 1 0 auto;
+  align-items: flex-start;
+}
 
 a { text-decoration: none; color: #fff; }
 
@@ -39,15 +54,34 @@ input[type=text], input[type=password], select { min-width: 10em; }
 
 textarea { min-width: 25em; min-height: 10em; }
 
-nav { padding-bottom: 1em; border-bottom: 1px solid #444; }
+nav#menu {
+  margin-bottom: 1em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid #444;
+}
 
-nav ul {
+nav#footer {
+  margin: 1em;
+  padding-top: 1em;
+  border-top: 1px solid #444;
+}
+
+nav#menu ul {
   display: flex;
   flex-flow: row wrap-reverse;
   list-style-type: none;
   margin: 0;
   padding: 0;
   justify-content: flex-start;
+}
+
+nav#footer ul {
+  display: flex;
+  flex-flow: row wrap;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  justify-content: center;
 }
 
 nav h1 a { margin: 0.5em; padding: 0.5em; border-radius: 0.25em; }
