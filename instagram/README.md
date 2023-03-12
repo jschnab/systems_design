@@ -463,7 +463,7 @@ more limited choice of disk sizes, so we choose to store data on EBS volumes.
 We use io2 EBS volumes, which are provisioned I/O operations per second (IOPS)
 SSD volumes. We use two separate volumes for the commit log (250GB) and for data
 (1TB). Volumes are mounted on m5.2xlarge instances, which are EBS-optimized. We
-enable enhanced networking on the instances to allow more packets per second to
+enable enhanced networking on the instances to allow more packets per second
 between the instance and the EBS volumes.
 
 ### 6.2. Cassandra configuration
@@ -545,3 +545,115 @@ def post_fork(server, worker):
     src.database.configure_session()
     src.database.prepare_statements()
 ```
+
+### 6.4. Image processing
+
+Images taken by common cameras and cell phones equipped with a 12 megapixel
+have an average size of 3MB to 4MB in JPEG format, but may be much larger
+depending on the camera. In order to have a predictable application memory use
+we limit the size of an image that can be uploaded to 10MB. nginx limits
+requests body size as well, with a limit of 1MB, so we raise this limit to 10MB
+in the configuration (the non-image data of HTTP requests has a negligible size
+compared to the image data):
+
+```
+http {
+    client_max_body_size 10M;
+    ...
+}
+```
+
+Images are uploaded via an HTML `form`, with a script that display a preview
+of the image once selected:
+
+```html
+<form method="post" enctype="multipart/form-data">
+  <label for="image>Upload an image</label>
+  <input type="file" name="image" id="image" accept="image/*">
+  <input type="submit" value="Publish Image">
+</form>
+
+<div id="preview-image-div" hidden>
+<p>Image preview</p>
+<img id="preview-image" src="#" width="1080" height="1080"/>
+</div>
+
+<script>
+  var image = document.getElementById("image");
+  image.onchange = event => {
+    const [file] = image.files;
+    if (file) {
+      document.getElementById("preview-image").src = URL.createObjectURL(file);
+    }
+    document.getElementById("preview-image-div").removeAttribute("hidden");
+  }
+</script>
+```
+
+The application will display images that have a size of 1080 pixels on their
+longest edge, so we resize them. In addition, the camera may not be in the
+standard orientation when the image was captured, leading to the image having
+an orientation tag. This could lead to image orientation issues if care is not
+taken to preserve the orientation tag during image processing, therefore we
+transpose the image orientation and discard the tag. Finally, we generate an
+image thumbnail to display collections. The Python library
+[pillow](https://pillow.readthedocs.io/en/stable/) has all the required
+functionality. In the following snippet, the variable `data` holds image data
+(assumed to be JPEG) sent by the POST HTTP request:
+
+```python
+import io
+
+from PIL import Image, ImageOps
+
+
+img = Image.open(io.BytesIO(data))
+fmt = img.format
+img = ImageOps.exif_transpose(img)
+
+# resize image
+scale = max(img.width, img.height) / 1080
+if scale > 1:
+    width = int(abs(img.width / scale))
+    height = int(abs(img.height / scale))
+    img = img.resize((width, height))
+
+img.format = fmt
+thumbnail = img.cop().thumbnail((128, 128))
+thumbnail.format = fmt
+```
+
+Finally, the image and its thumbnail are stored in object storage. Resized
+images have a size of 10^5 bytes, while thumbnails have a size of 10^3 bytes.
+
+### 6.5. Image storage
+
+Images are stored in AWS S3, an object store with high durability and
+availability.
+
+S3 has several storage "tiers" available, with different pricing models that
+are basically more expensive when data is more available. An interesting
+storage tier is named [intelligent
+tiering](https://aws.amazon.com/s3/storage-classes/intelligent-tiering/), which
+automatically transitions infrequently-accessed objects to cheaper and less
+available (but still immediately available) storage tiers. This seems to make
+sense for our use-case because image popularity is usually high just after it
+is published (because it appears in the user "image feed"), but then quickly
+fades out after a few days. To simplify, let's assume that using intelligent
+instead of standard storage saves 50% of storage costs (a middle ground between
+cost savings in infrequent access storage and archive storage). After a year,
+we stored 10^15 bytes of image data, which costs around $22,000 in standard
+storage and $11,000 in intelligent storage, saving $11,000. However,
+intelligent storage incur a cost of $0.01 per 1,000 object transitions. Each
+image is 10^5 bytes, so we store 10^10 images per year and incur transition
+costs of $200,000 (each image is transitioned twice). For image thumbnail
+storage, it's even less advantageous to use intelligent tiering. In conclusion,
+additional transition costs largely offset any storage savings that could be
+made with intelligent tiering. S3 standard storage is more adapted to Our
+application requirements.
+
+[Bucket versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html)
+is used to guard against accidental deletions. The
+[lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
+of objects will be configured to keep a single non-current object version for
+7 days before it is permanently deleted.
