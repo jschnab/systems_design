@@ -29,17 +29,9 @@ apt-get install -y certbot fail2ban nginx python3-certbot-nginx python3-pip pyth
 adduser $USERNAME --disabled-password --gecos ""
 
 
-# Install and run web application.
-su - $USERNAME << EOF
-git clone https://github.com/jschnab/systems_design.git
-cd systems_design
-git checkout instagram
-cd instagram
-python3 -m venv venv
-source venv/bin/activate
-pip install wheel
-pip install -r requirements.txt
-EOF
+# Install, configure, and run the web application.
+mkdir -p /var/log/myinstagram
+chown -R $USERNAME: /var/log/myinstagram
 
 cat > /home/$USERNAME/instagram.conf << EOF
 [general]
@@ -49,6 +41,13 @@ user_image_quota = 30
 
 # Name of the user's default album name, exists before a user creates an album.
 default_album_name = default
+
+[logging]
+
+# Path to the YAML file containing logging configuration.
+# Read the documentation for configuration details:
+# https://docs.python.org/3/howto/logging.html
+# config_path =
 
 [database]
 
@@ -95,6 +94,22 @@ s3_bucket = $S3_BUCKET
 # URL of the content delivery network (CDN) from where images can be accessed
 # via HTTPS requests. Do no include https:// at the beginning.
 cdn_url = $CDN_URL
+EOF
+
+cat > /home/$USERNAME/.bashrc << EOF
+export MYINSTAGRAM_CONFIG_PATH=/home/$USERNAME/instagram.conf
+EOF
+
+su - $USERNAME << EOF
+git clone https://github.com/jschnab/systems_design.git
+cd systems_design
+git checkout instagram
+cd instagram
+python3 -m venv venv
+source venv/bin/activate
+pip install wheel
+pip install -r requirements.txt
+./setup_database
 EOF
 
 cat > /etc/systemd/system/gunicorn.service << EOF

@@ -17,14 +17,16 @@ from .logging import BASE_LOGGER
 LOGGER = BASE_LOGGER.getChild(__name__)
 MAX_CONNECT_FAIL = 3
 USER_LOCK_TIMEOUT = 15
+CLUSTER = None
 SESSION = None
 
 
 class PreparedStatements:
-    pass
+    ready = False
 
 
-def configure_session():
+def configure_cluster():
+    global CLUSTER
     LOGGER.info("Configuring Cassandra execution profile")
     profile = ExecutionProfile(
         consistency_level=CONFIG["database"].getint(
@@ -34,28 +36,39 @@ def configure_session():
         row_factory=dict_factory,
     )
     LOGGER.info("Configuring Cassandra cluster info")
-    cluster = Cluster(
+    CLUSTER = Cluster(
         CONFIG["database"]["endpoints"].split(","),
         port=CONFIG["database"]["port"],
         execution_profiles={EXEC_PROFILE_DEFAULT: profile},
     )
+    LOGGER.info("Finished configuring cluster info")
+
+
+def configure_session():
     global SESSION
+    LOGGER.info("Configuring Cassandra session")
+    keyspace = CONFIG["database"]["keyspace_name"]
     try:
-        keyspace = CONFIG["database"]["keyspace_name"]
+        configure_cluster()
         LOGGER.info(f"Connecting using keyspace '{keyspace}'")
-        SESSION = cluster.connect(keyspace)
+        SESSION = CLUSTER.connect(keyspace)
     # NoHostAvailable is raised if the keyspace does not exist.
     except NoHostAvailable:
+        LOGGER.info("Failed to connect using keyspace '{keyspace}'")
+        # Reusing the cluster object after a failed connection leads to a
+        # 'NoHostAvailable' exception.
+        configure_cluster()
         LOGGER.info("Connecting using default keyspace")
-        SESSION = cluster.connect()
+        SESSION = CLUSTER.connect()
     LOGGER.info("Connected to Cassandra cluster")
     # By default a tuple is converted to a list, leading to errors when some
     # queries are parsed.
     SESSION.encoder.mapping[tuple] = SESSION.encoder.cql_encode_tuple
+    LOGGER.info("Finished configuring Cassandra session")
 
 
 def prepare_statements():
-    LOGGER.info("Preparing statments")
+    LOGGER.info("Preparing CQL statments")
     if SESSION is None:
         configure_session()
     for var in dir(cql_queries):
@@ -65,18 +78,25 @@ def prepare_statements():
                 var.replace("_QRY", ""),
                 SESSION.prepare(getattr(cql_queries, var)),
             )
+    PreparedStatements.ready = True
+    LOGGER.info("Finished preparing CQL statements")
 
 
 def execute_query(query, params=None):
+    if SESSION is None:
+        configure_session()
     return SESSION.execute(query, params).all()
 
 
 def create_keyspace():
+    LOGGER.info("Creating keyspace")
     config = CONFIG["database"]
     execute_query(
         cql_queries.CREATE_KEYSPACE.format(keyspace=config["keyspace_name"]),
         params=(config["replication_class"], config["replication_factor"]),
+        prepared=False,
     )
+    LOGGER.info(f"Finished creating keyspace {config['keyspace_name']}")
 
 
 def create_table_users():
@@ -123,7 +143,8 @@ def create_table_user_feeds():
     execute_query(cql_queries.CREATE_TABLE_USER_FEEDS)
 
 
-def create_database_objects():
+def create_tables():
+    LOGGER.info("Creating tables")
     create_table_users()
     create_table_user_follows()
     create_table_user_is_followed()
@@ -135,6 +156,7 @@ def create_database_objects():
     create_table_user_connections()
     create_table_image_popularity()
     create_table_user_feeds()
+    LOGGER.info("Finished creating tables")
 
 
 def create_user(user_id, first_name, last_name, password):

@@ -644,12 +644,12 @@ instead of standard storage saves 50% of storage costs (a middle ground between
 cost savings in infrequent access storage and archive storage). After a year,
 we stored 10^15 bytes of image data, which costs around $22,000 in standard
 storage and $11,000 in intelligent storage, saving $11,000. However,
-intelligent storage incur a cost of $0.01 per 1,000 object transitions. Each
+intelligent storage incurs a cost of $0.01 per 1,000 object transitions. Each
 image is 10^5 bytes, so we store 10^10 images per year and incur transition
 costs of $200,000 (each image is transitioned twice). For image thumbnail
 storage, it's even less advantageous to use intelligent tiering. In conclusion,
 additional transition costs largely offset any storage savings that could be
-made with intelligent tiering. S3 standard storage is more adapted to Our
+made with intelligent tiering. S3 standard storage is more adapted to our
 application requirements.
 
 [Bucket versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html)
