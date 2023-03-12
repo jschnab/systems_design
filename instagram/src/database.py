@@ -94,7 +94,6 @@ def create_keyspace():
     execute_query(
         cql_queries.CREATE_KEYSPACE.format(keyspace=config["keyspace_name"]),
         params=(config["replication_class"], config["replication_factor"]),
-        prepared=False,
     )
     LOGGER.info(f"Finished creating keyspace {config['keyspace_name']}")
 
