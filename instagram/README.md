@@ -204,6 +204,9 @@ with the same table. Only low-level clustering columns can be queried with
 range operators, so we set `album_name` as the high-level clustering column and
 `publication_timestamp` as the low-level clustering column.
 
+Edit: We should add the image ID to the primary key, otherwise it is impossible
+to filter records by image ID, for example when we delete an image.
+
 The partition size is proportional to the number of images owned by users. On
 average, the partition size is 10^3 (1,000 images uploaded by a user),
 corresponding to a physical size of 10^5 bytes (100KB). The partition size is at
@@ -657,3 +660,6 @@ is used to guard against accidental deletions. The
 [lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
 of objects will be configured to keep a single non-current object version for
 7 days before it is permanently deleted.
+
+TODO:
+

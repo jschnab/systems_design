@@ -79,13 +79,26 @@ def create_app(test_config=None):
             "put_image.html", message=message, user_albums=user_albums
         )
 
+    @app.route("/delete-image", methods=("POST",))
+    @login_required
+    def delete_image():
+        publication_timestamp = datetime.strptime(
+            request.form["publication-timestamp"], "%Y-%m-%d %H:%M:%S.%f"
+        )
+        api.delete_image(
+            image_id=uuid.UUID(request.form["image-id"]),
+            album_name=request.form["album-name"],
+            owner_id=request.form["owner-id"],
+            publication_timestamp=publication_timestamp,
+        )
+
     @app.route("/put-album", methods=("GET", "POST"))
     @login_required
     def put_album():
         message = None
         if request.method == "POST":
             user_id = session.get("user_id")
-            album_name = request.form["album-name"]
+            album_name = request.form["album-name"].strip()
             rcode = database.create_album(
                 album_name=album_name, user_id=user_id
             )
@@ -121,6 +134,7 @@ def create_app(test_config=None):
         return render_template(
             "image.html",
             image_id=str(image_id),
+            album_name=image_info["album_name"],
             owner_id=image_info["owner_id"],
             image_description=image_info["description"],
             publication_timestamp=image_info["publication_timestamp"],
@@ -178,12 +192,21 @@ def create_app(test_config=None):
             images=images,
         )
 
+    @app.route("/friends/<user_id>")
+    @login_required
+    def friends(user_id):
+        return render_template(
+            "friends.html",
+            followed=database.get_followed_users(user_id),
+            followers=database.get_follower_users(user_id),
+        )
+
     @app.route("/follow-user", methods=("GET", "POST"))
     @login_required
     def follow_user():
         msg = None
         if request.method == "POST":
-            followed_user_id = request.form["followed-user-id"]
+            followed_user_id = request.form["followed-user-id"].strip()
             if not database.user_exists(followed_user_id):
                 msg = f"User '{followed_user_id}' does not exist"
             elif followed_user_id == session["user_id"]:

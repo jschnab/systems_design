@@ -46,6 +46,7 @@ def user_feed_images(user_id):
 
 
 def make_user_feeds():
+    database.prepare_statements()
     followers = database.get_followers()
     for fo in followers:
         user_id = fo["follower_id"]

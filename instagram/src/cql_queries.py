@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS images_by_user (
   owner_id TEXT,
   album_name TEXT,
   publication_timestamp TIMESTAMP,
+  deletion_timestamp TIMESTAMP,
   image_id UUID,
   image_path TEXT,
   PRIMARY KEY (owner_id, album_name, publication_timestamp)
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS images (
   image_path TEXT,
   owner_id TEXT,
   publication_timestamp TIMESTAMP,
+  deletion_timestamp TIMESTAMP,
   description TEXT,
   album_name TEXT,
   tags SET<TEXT>
@@ -168,6 +170,12 @@ INSERT INTO images_by_user (
 VALUES (?, ?, ?, ?, ?)
 ;"""
 
+DELETE_IMAGE_BY_USER_QRY = """
+UPDATE images_by_user
+SET deletion_timestamp = ?
+WHERE owner_id = ? AND album_name = ? AND publication_timestamp = ?
+;"""
+
 INSERT_IMAGE_QRY = """
 INSERT INTO images (
   image_id,
@@ -178,6 +186,12 @@ INSERT INTO images (
   tags
 )
 VALUES (?, ?, ?, ?, ?, ?)
+;"""
+
+DELETE_IMAGE_QRY = """
+UPDATE images
+SET deletion_timestamp = ?
+WHERE image_id = ?
 ;"""
 
 TAG_IMAGE_QRY = """
@@ -205,6 +219,12 @@ UPDATE images SET album_name = ? WHERE image_id = ?
 ADD_IMAGE_TO_ALBUM_QRY = """
 UPDATE albums
 SET image_ids = image_ids + ?
+WHERE album_name = ? AND owner_id = ?
+;"""
+
+DELETE_IMAGE_FROM_ALBUM_QRY = """
+UPDATE albums
+SET image_ids = image_ids - ?
 WHERE album_name = ? AND owner_id = ?
 ;"""
 
@@ -242,7 +262,7 @@ UPDATE image_popularity SET popularity = popularity + 1
 WHERE image_id = ?
 ;"""
 
-INSERT_USER_FEED_QRY = """
+INSERT_USER_FEED = """
 INSERT INTO user_feeds (
     user_id,
     rank,
@@ -250,7 +270,7 @@ INSERT INTO user_feeds (
     owner_id,
     image_publication_timestamp
 )
-VALUES (?, ?, ?, ?, ?)
+VALUES (%s, %s, %s, %s, %s)
 ;"""
 
 # DQL
@@ -268,13 +288,9 @@ SELECT follower_id FROM user_followed WHERE followed_id = ?
 ;"""
 
 GET_IMAGES_BY_USER_QRY = """
-SELECT image_id, image_path, publication_timestamp FROM images_by_user
+SELECT image_id, image_path, publication_timestamp, deletion_timestamp
+FROM images_by_user
 WHERE owner_id = ?
-;"""
-
-GET_IMAGES_BY_ALBUM_QRY = """
-SELECT image_id, publication_timestamp FROM images_by_user
-WHERE owner_id = ? AND album_name = ?
 ;"""
 
 GET_IMAGE_COMMENTS_QRY = "SELECT * FROM image_comments WHERE image_id = ?;"
@@ -298,7 +314,8 @@ SELECT * FROM albums WHERE album_name = ? AND owner_id = ?
 ;"""
 
 GET_ALBUM_IMAGES_QRY = """
-SELECT image_id, publication_timestamp FROM images_by_user
+SELECT image_id, publication_timestamp, deletion_timestamp
+FROM images_by_user
 WHERE owner_id = ? AND album_name = ?
 ;"""
 
@@ -310,7 +327,7 @@ ORDER BY connection_timestamp DESC
 ;"""
 
 GET_USER_IMAGES_BY_ALBUM_TIMESTAMP_QRY = """
-SELECT owner_id, image_id, publication_timestamp
+SELECT owner_id, image_id, publication_timestamp, deletion_timestamp
 FROM images_by_user
 WHERE owner_id = ?
 AND album_name IN ?

@@ -37,9 +37,9 @@ def check_password_complexity(pw):
 @bp.route("/register", methods=("GET", "POST"))
 def register():
     if request.method == "POST":
-        user_id = request.form["user_id"]
-        first_name = request.form["first_name"]
-        last_name = request.form["last_name"]
+        user_id = request.form["user_id"].strip()
+        first_name = request.form["first_name"].strip()
+        last_name = request.form["last_name"].strip()
         password_1 = request.form["password_1"]
         password_2 = request.form["password_2"]
 
@@ -71,7 +71,7 @@ def register():
 @bp.route("/login", methods=("GET", "POST"))
 def login():
     if request.method == "POST":
-        user_id = request.form["user_id"]
+        user_id = request.form["user_id"].strip()
         password = request.form["password"]
 
         user_info = database.get_user_info(user_id)

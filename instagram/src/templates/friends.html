@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>People you follow</h2>
+<ul id="followed-user-list">
+{% for user in followed %}
+<li><a href="{{ url_for('user_images', user_id=user) }}">{{ user }}</a>
+{% endfor %}
+</ul>
+
+<h2>People who follow you</h2>
+<ul id="follower-user-list">
+{% for user in followers %}
+<li><a href="{{ url_for('user_images', user_id=user) }}">{{ user }}</a>
+{% endfor %}
+</ul>
+
+{% endblock %}

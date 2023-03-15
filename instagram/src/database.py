@@ -208,6 +208,19 @@ def add_image(
         add_image_to_album(image_id, album_name, owner_id)
 
 
+def delete_image(image_id, album_name, owner_id, publication_timestamp):
+    now = datetime.now()
+    execute_query(
+        PreparedStatements.DELETE_IMAGE_BY_USER,
+        params=(now, owner_id, album_name, publication_timestamp)
+    )
+    execute_query(
+        PreparedStatements.DELETE_IMAGE,
+        params=(now, image_id)
+    )
+    delete_image_from_album(image_id, album_name, owner_id)
+
+
 def get_image_info(image_id):
     response = execute_query(
         PreparedStatements.GET_IMAGE_INFO, params=(image_id,)
@@ -256,6 +269,13 @@ def add_image_to_album(image_id, album_name, user_id):
     )
 
 
+def delete_image_from_album(image_id, album_name, user_id):
+    execute_query(
+        PreparedStatements.DELETE_IMAGE_FROM_ALBUM,
+        params=({image_id}, album_name, user_id),
+    )
+
+
 def comment_image(image_id, user_id, comment_text):
     execute_query(
         PreparedStatements.COMMENT_IMAGE,
@@ -286,7 +306,7 @@ def get_follower_users(user_id):
     response = execute_query(
         PreparedStatements.GET_FOLLOWER_USERS, params=(user_id,)
     )
-    return response
+    return tuple(row["follower_id"] for row in response)
 
 
 def get_images_by_user(user_id):
@@ -294,7 +314,7 @@ def get_images_by_user(user_id):
         PreparedStatements.GET_IMAGES_BY_USER,
         params=(user_id,),
     )
-    return response
+    return tuple(row for row in response if row["deletion_timestamp"] is None)
 
 
 def get_image_comments(image_id):
@@ -334,7 +354,9 @@ def get_albums_by_user(user_id):
     )
     if len(response) == 0:
         return SortedSet()
-    return response[0]["album_names"] or SortedSet()
+    return sorted(
+        response[0]["album_names"], key=lambda x: x.lower()
+    ) or SortedSet()
 
 
 def get_album_info(album_name, owner_id):
@@ -352,7 +374,7 @@ def get_album_images(album_name, owner_id):
     )
     if len(response) == 0:
         return []
-    return response
+    return tuple(row for row in response if row["deletion_timestamp"] is None)
 
 
 def user_is_locked(user_id):
@@ -425,7 +447,7 @@ def get_user_images_by_album_timestamp(user_id, album_names, timestamp):
         PreparedStatements.GET_USER_IMAGES_BY_ALBUM_TIMESTAMP,
         params=(user_id, album_names, timestamp),
     )
-    return result
+    return tuple(row for row in result if row["deletion_timestamp"] is None)
 
 
 def get_followers():
@@ -436,7 +458,7 @@ def get_followers():
 def insert_feed_images(n_records, params):
     query = (
         "BEGIN BATCH "
-        f"{PreparedStatements.INSERT_USER_FEED * n_records} "
+        f"{cql_queries.INSERT_USER_FEED * n_records} "
         "APPLY BATCH"
     )
     execute_query(query, params)

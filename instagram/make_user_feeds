@@ -9,5 +9,6 @@ set -ex
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
 source "$here"/venv/bin/activate
+source ~/.bashrc
 
 python3 -c "import os; os.chdir('$here'); import src.feed; src.feed.make_user_feeds()"

@@ -157,8 +157,15 @@ def database_image_popularity():
     )
 
 
+def database_get_album_images():
+    print(
+        database.get_album_images("default", "jonathan")
+    )
+
+
 def main():
-    feed_user_images()
+    database.prepare_statements()
+    database_get_album_images()
 
 
 if __name__ == "__main__":

@@ -34,3 +34,13 @@ def put_image(
         album_name=album_name,
     )
     return image_id
+
+
+def delete_image(image_id, album_name, owner_id, publication_timestamp):
+    database.delete_image(
+        image_id,
+        album_name,
+        owner_id,
+        publication_timestamp,
+    )
+    object_store.delete_image(f"{image_id}")

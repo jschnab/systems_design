@@ -106,6 +106,8 @@ nav ul li#menu-userid { margin-left: auto; }
 
 .image-like-icon { margin-right: 0.5em; }
 
+.image-delete { margin: 1em 0; }
+
 .image-comments { margin-bottom: 1em; }
 
 .comment-item {
@@ -136,3 +138,5 @@ nav ul li#menu-userid { margin-left: auto; }
 .album-name { margin: 0; }
 
 #preview-image-div { margin-top: 2em; }
+
+#preview-image { width: 1080px; height: auto; }

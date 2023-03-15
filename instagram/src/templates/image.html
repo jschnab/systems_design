@@ -14,13 +14,13 @@
 </div>
 
 <div class="image-like">
-    {% if user_liked_image %}
-    <img id="image-like" class="image-like-icon" src="{{ url_for('like_on_icon') }}">
-    <button id="button-like" onclick="likeImage" disabled>You liked this picture</button>
-    {% else %}
-    <img id="image-like" class="image-like-icon" src="{{ url_for('like_off_icon') }}">
-    <button id="button-like" onclick="likeImage()">Like</button>
-    {% endif %}
+  {% if user_liked_image %}
+  <img id="image-like" class="image-like-icon" src="{{ url_for('like_on_icon') }}">
+  <button id="button-like" onclick="likeImage" disabled>You liked this picture</button>
+  {% else %}
+  <img id="image-like" class="image-like-icon" src="{{ url_for('like_off_icon') }}">
+  <button id="button-like" onclick="likeImage()">Like</button>
+  {% endif %}
 </div>
 
 <div id="image-comments" class="image-comments">
@@ -40,6 +40,12 @@
   </form>
 </div>
 
+{% if g.user_id == owner_id %}
+<div class="image-delete">
+  <button id="button-delete" onclick="deleteImage()">Delete image</button>
+</div>
+{% endif %}
+
 <script>
 function likeImage(form) {
   const like_url = {{ url_for("like_image")|tojson }};
@@ -56,10 +62,25 @@ function likeImage(form) {
   );
 }
 
+function deleteImage(form) {
+  if (confirm("Do you really want to delete this image?") == true) {
+    var data = new FormData();
+    data.append("image-id", "{{ image_id }}");
+    data.append("owner-id", "{{ owner_id }}");
+    data.append("album-name", "{{ album_name }}");
+    data.append("publication-timestamp", "{{ publication_timestamp }}");
+    const delete_url = {{ url_for("delete_image")|tojson }};
+    fetch(delete_url, {"method": "POST", "body": data}).then(
+      (resp) => { window.location.href = "{{ url_for('user_images', user_id=owner_id) }}" }
+    );
+  }
+}
+
 function commentImage(form) {
-  const comment_url = {{ url_for("comment_image")|tojson }};
   var data = new FormData(form);
+  if (data.get("comment") == "") { return; }
   data.append("image_id", "{{ image_id }}");
+  const comment_url = {{ url_for("comment_image")|tojson }};
   fetch(comment_url, {"method": "POST", "body": data});
   var new_comment = document.createElement("div");
   new_comment.className = "comment-item";
