@@ -11,8 +11,7 @@
       <li><a href="{{ url_for('user_albums', user_id=g.user_id) }}">My Albums</a></li>
       <li><a href="{{ url_for('friends', user_id=g.user_id) }}">Friends</a></li>
       <li><a href="{{ url_for('follow_user') }}">Follow user</a></li>
-      <li id="menu-userid"><span>Welcome, {{ g.user_id }}!</span></li>
-      <li><a href="{{ url_for('auth.logout') }}">Log Out</a></li>
+      <li id="logout" ><img class="avatar" src="{{ g.avatar_url }}">Hello, {{ g.user_id }}!<a href="{{ url_for('auth.logout') }}">Log Out</a></li>
     {% else %}
       <li><a href="{{ url_for('auth.register') }}">Register</a></li>
       <li><a href="{{ url_for('auth.login') }}">Log In</a></li>

@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <label for="user_id">User ID</label>
     <input type="text" name="user_id" id="user_id" maxlength=40 required>
     <label for="first_name">First Name</label>
@@ -26,6 +26,8 @@
       placeholder="Re-type password"
       required
     >
+    <label for="avatar">Upload a profile image (optional)</label>
+    <input type="file" name="avatar" id="avatar" accept="image/*">
     <input type="submit" value="Register">
   </form>
 {% endblock %}

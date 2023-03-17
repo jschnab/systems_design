@@ -43,9 +43,24 @@ def make_thumbnail(img):
     return img_copy
 
 
-def process_image(data):
+def crop_image(img):
+    width, height = img.size
+    if width > height:
+        crop_width = (width - height) // 2
+        crop_height = 0
+    else:
+        crop_width = 0
+        crop_height = (height - width) // 2
+    return img.crop(
+        (crop_width, crop_height, width - crop_width, height - crop_height)
+    )
+
+
+def process_image(data, crop=False):
     img = Image.open(io.BytesIO(data))
     fmt = img.format
+    if crop:
+        img = crop_image(img)
     img = ImageOps.exif_transpose(img)
     img.format = fmt
     check_format(img)

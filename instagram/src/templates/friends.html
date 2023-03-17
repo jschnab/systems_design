@@ -5,14 +5,20 @@
 <h2>People you follow</h2>
 <ul id="followed-user-list">
 {% for user in followed %}
-<li><a href="{{ url_for('user_images', user_id=user) }}">{{ user }}</a>
+  <li class="friend-list-item">
+  <img class="avatar" src="{{ user['avatar'] }}">
+  <a href="{{ url_for('user_images', user_id=user['id']) }}">{{ user['id'] }}</a>
+  </li>
 {% endfor %}
 </ul>
 
 <h2>People who follow you</h2>
 <ul id="follower-user-list">
 {% for user in followers %}
-<li><a href="{{ url_for('user_images', user_id=user) }}">{{ user }}</a>
+  <li class="friend-list-item">
+  <img class="avatar" src="{{ user['avatar'] }}">
+  <a href="{{ url_for('user_images', user_id=user['id']) }}">{{ user['id'] }}</a>
+  </li>
 {% endfor %}
 </ul>
 

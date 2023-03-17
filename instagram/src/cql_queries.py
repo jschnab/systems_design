@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_name TEXT,
   password TEXT,
   album_names SET<TEXT>,
+  avatar_id UUID
 )
 ;"""
 
@@ -131,11 +132,12 @@ INSERT INTO users (
   user_id,
   first_name,
   last_name,
+  avatar_id,
   password,
   registration_timestamp,
   album_names
 )
-VALUES (?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 IF NOT EXISTS
 ;"""
 

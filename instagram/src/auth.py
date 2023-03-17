@@ -16,10 +16,12 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from . import api
 from . import database
 from . import return_codes
+from .logging import BASE_LOGGER
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 MIN_PASSWORD_LEN = 10
+LOGGER = BASE_LOGGER.getChild(__name__)
 
 
 def check_password_complexity(pw):
@@ -40,6 +42,14 @@ def register():
         user_id = request.form["user_id"].strip()
         first_name = request.form["first_name"].strip()
         last_name = request.form["last_name"].strip()
+        LOGGER.info(
+            f"Request to register user '{user_id}' with first name "
+            f"'{first_name}' and last name '{last_name}'"
+        )
+        if "avatar" in request.files:
+            avatar_data = request.files["avatar"].read()
+        else:
+            avatar_data = None
         password_1 = request.form["password_1"]
         password_2 = request.form["password_2"]
 
@@ -54,16 +64,22 @@ def register():
             error = "Passwords do not match"
 
         if error is None:
+            if avatar_data is not None:
+                avatar_id = api.put_avatar_image(avatar_data)
+            else:
+                avatar_id = None
             pw_hash = generate_password_hash(password_1)
             rcode = api.create_user(
-                user_id, first_name, last_name, pw_hash,
+                user_id, first_name, last_name, pw_hash, avatar_id,
             )
             if rcode is return_codes.USER_EXISTS:
                 error = f"User ID '{user_id}' is already taken"
             else:
+                LOGGER.info(f"Registered user '{user_id}'")
                 return redirect(url_for("auth.login"))
 
         flash(error)
+        LOGGER.error(error)
 
     return render_template("auth/register.html")
 
@@ -76,11 +92,15 @@ def login():
 
         user_info = database.get_user_info(user_id)
         if not user_info:
-            flash("Incorrect user")
+            error = f"Incorrect user '{user_id}'"
+            flash(error)
+            LOGGER.error(error)
             return render_template("auth/login.html")
 
         if database.user_is_locked(user_id):
-            flash("User account is locked for 15 minutes")
+            error = "User account is locked for 15 minutes"
+            flash(error)
+            LOGGER.error(error)
             return render_template("auth/login.html")
 
         error = None
@@ -101,9 +121,11 @@ def login():
         if error is None:
             session.clear()
             session["user_id"] = user_id
+            session["avatar_url"] = api.get_avatar_url(user_info["avatar_id"])
             return redirect(url_for("index"))
 
         flash(error)
+        LOGGER.error(error)
 
     return render_template("auth/login.html")
 
@@ -115,6 +137,7 @@ def load_logged_in_user():
         g.user_id = None
     else:
         g.user_id = user_id
+        g.avatar_url = session["avatar_url"]
 
 
 @bp.route("/logout")

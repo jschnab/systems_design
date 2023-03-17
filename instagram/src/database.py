@@ -158,13 +158,14 @@ def create_tables():
     LOGGER.info("Finished creating tables")
 
 
-def create_user(user_id, first_name, last_name, password):
+def create_user(user_id, first_name, last_name, password, avatar_id):
     response = execute_query(
         PreparedStatements.CREATE_USER,
         params=(
             user_id,
             first_name,
             last_name,
+            avatar_id,
             password,
             datetime.now(),
             {CONFIG["general"]["default_album_name"]},

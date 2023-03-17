@@ -50,7 +50,9 @@ input[type=text], input[type=password], select, textarea {
   align-self: start;
 }
 
-input[type=text], input[type=password], select { min-width: 10em; }
+input[type=file] { margin-bottom: 1em; align-self: start; }
+
+input[type=text], input[type=password], select { min-width: 20em; }
 
 textarea { min-width: 25em; min-height: 10em; }
 
@@ -86,11 +88,18 @@ nav#footer ul {
 
 nav h1 a { margin: 0.5em; padding: 0.5em; border-radius: 0.25em; }
 
-nav ul li { padding: 1em; }
+nav ul li { padding: 1em; display: flex; align-items: center; }
 
 nav ul li a { padding: 1em; border-radius: 0.5em; }
 
-nav ul li#menu-userid { margin-left: auto; }
+nav ul li#logout { margin-left: auto; }
+
+.avatar {
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  margin-right: 0.5em;
+}
 
 .image-info { padding: 1em; margin: 1em 0; }
 
@@ -142,3 +151,5 @@ nav ul li#menu-userid { margin-left: auto; }
 #preview-image-div { margin-top: 2em; }
 
 #preview-image { width: 1080px; height: auto; }
+
+.friend-list-item { padding: 1em; display: flex; align-items: center; }

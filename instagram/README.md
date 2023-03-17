@@ -205,7 +205,9 @@ range operators, so we set `album_name` as the high-level clustering column and
 `publication_timestamp` as the low-level clustering column.
 
 Edit: We should add the image ID to the primary key, otherwise it is impossible
-to filter records by image ID, for example when we delete an image.
+to filter records by image ID, for example when we delete an image. Also, if
+the album name is part of the primary key, it is impossible to update the album
+name of an image.
 
 The partition size is proportional to the number of images owned by users. On
 average, the partition size is 10^3 (1,000 images uploaded by a user),
