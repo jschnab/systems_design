@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<h2>Recent images by people you follow</h2>
+<h2>Recent friend images</h2>
 
 <div class="image-collection">
 
@@ -16,7 +16,9 @@
 </div>
 
 {% else %}
-<div class="no-image">There are no images in your feed. <a href="{{ url_for('follow_user') }}">Follow a user</a></div>
+<div class="no-image">
+  <p>There are no images in your feed.</p>
+  <a href="{{ url_for('follow_user') }}">Follow a user</a>
 </div>
 
 {% endfor %}

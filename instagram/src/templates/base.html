@@ -1,9 +1,15 @@
 <!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{%endblock %}MesPhotos</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <nav id="menu">
   <h1><a href="{{ url_for('index') }}">MesPhotos</a></h1>
-  <ul>
+  <div id="hamburger">
+    <span class="bar"></span>
+    <span class="bar"></span>
+    <span class="bar"></span>
+  </div>
+  <ul id="menu-list">
     {% if g.user_id %}
       <li><a href="{{ url_for('put_image') }}">Publish Image</a></li>
       <li><a href="{{ url_for('put_album') }}">Create Album</a></li>
@@ -36,3 +42,16 @@
     </ul>
   </nav>
 </footer>
+
+<script>
+function toggleMenu() {
+  const menu = document.getElementById("menu-list");
+  if (menu.style.display == "flex") {
+    menu.style.display = "none";
+  }
+  else {
+    menu.style.display = "flex";
+  }
+}
+document.getElementById("hamburger").addEventListener("click", toggleMenu);
+</script>

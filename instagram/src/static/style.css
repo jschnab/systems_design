@@ -56,6 +56,19 @@ input[type=text], input[type=password], select { min-width: 20em; }
 
 textarea { min-width: 25em; min-height: 10em; }
 
+
+/* Navigation menu */
+
+.hamburger { display: none; }
+
+.bar {
+  display: block;
+  color: #fff;
+  width: 25px;
+  height: 3px;
+  margin: 5px auto;
+}
+
 nav#menu {
   margin-bottom: 1em;
   padding-bottom: 1em;
@@ -93,6 +106,59 @@ nav ul li { padding: 1em; display: flex; align-items: center; }
 nav ul li a { padding: 1em; border-radius: 0.5em; }
 
 nav ul li#logout { margin-left: auto; }
+
+@media screen and (max-width: 768px) {
+
+  nav#menu {
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: center;
+  }
+
+  nav h1 {
+    align-self: flex-start;
+  }
+
+  #hamburger {
+    background: #333;
+    padding: 0.5em;
+    border-radius: 0.5em;
+  }
+
+  #hamburger:hover { background: #555; }
+
+  #hamburger:active { background: #777; }
+
+  .bar {
+    display: block;
+    background-color: #fff;
+    width: 25px;
+    height: 3px;
+    margin: 5px auto;
+  }
+
+  nav#menu ul {
+    display: none;
+    flex-flow: column nowrap;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+  }
+
+  nav ul li { padding: 0.5em; }
+
+  nav#footer ul {
+    display: flex;
+    flex-flow: column nowrap;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+  }
+
+  nav#footer ul li { padding: 0; }
+}
 
 .avatar {
   border-radius: 50%;
