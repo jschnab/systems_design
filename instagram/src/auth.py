@@ -64,7 +64,7 @@ def register():
             error = "Passwords do not match"
 
         if error is None:
-            if avatar_data is not None:
+            if avatar_data is not None and len(avatar_data) > 0:
                 avatar_id = api.put_avatar_image(avatar_data)
             else:
                 avatar_id = None
