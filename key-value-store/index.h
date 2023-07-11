@@ -5,39 +5,57 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "linked_list.h"
 #include "tree.h"
 
 
+/* XIndex is a used temporarily to write the index to disk */
 typedef struct index {
-    RBTree *items;
-    size_t size;
+    List *list; /* Linked list of index items. */
+    long n;     /* Number of index items. */
+    long size;  /* Total index size, in bytes. */
 } Index;
 
 
-typedef struct indexvalue {
+/*
+   Index item structure:
+
+   Element       | Size (bytes) | Offset (bytes)
+   ---------------------------------------------
+   key size      |       1      |       0
+   key           |   key size   |       1
+   record offset |       8      |  key size + 1
+
+
+   Index item length: 1 + key size + 8
+
+*/
+typedef struct indexitem {
     char key_size;
     char *key;
     long record_offset;
-} IndexValue;
+} IndexItem;
 
 
-Index *index_build(FILE *);
+Index *index_build_from_file(FILE *);
+
+Index *index_build_from_memtab(RBTree *);
+
+IndexItem *index_item_from_memtab(TreeNode *);
 
 Index *index_create();
 
 void index_destroy(Index *);
 
-IndexValue *index_get_item(char *, Index *);
+void index_put_item(IndexItem *, Index *);
 
-void index_put_item(IndexValue *, Index *);
+long index_search(char *, Index *);
 
-long index_search(char *key, Index *);
+IndexItem *index_item_create(char, char *, long);
 
-IndexValue *index_value_create(char, char *, long);
+IndexItem *index_item_deserialize(void *);
 
-IndexValue *index_value_deserialize(void *);
-
-void index_value_destroy(IndexValue *);
+void index_item_destroy(IndexItem *);
 
 
 #endif

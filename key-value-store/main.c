@@ -2,11 +2,11 @@
 #include <stdio.h>
 
 #include "index.h"
+#include "io.h"
 #include "tree.h"
 
 
 int main(int argc, char *argv[]) {
-    /*
     RBTree *tree = tree_create();
 
     tree_insert(tree, "hello", "world", 5);
@@ -26,10 +26,12 @@ int main(int argc, char *argv[]) {
     write_segment_file(tree, "test.db");
 
     tree_destroy(tree);
-    */
 
     FILE *fp = fopen("test.db", "r");
-    Index *index = index_build(fp);
+    Index *index = index_build_from_file(fp);
+    key = "alice";
+    long offset = index_search(key, index);
+    printf("offset for %s: %ld\n", key, offset);
     index_destroy(index);
 
     return 0;

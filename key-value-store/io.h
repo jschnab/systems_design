@@ -35,47 +35,7 @@
 #define INDEX_ITEM_MAX_SZ (INDEX_ITEM_CST_SZ + KEY_MAX_LEN)
 
 
-/* XIndex is a used temporarily to write the index to disk */
-typedef struct xindex {
-    List *list; /* Linked list of index items. */
-    long n;     /* Number of index items. */
-    long size;  /* Total index size, in bytes. */
-} XIndex;
-
-
-/*
-   Index item structure:
-
-   Element       | Size (bytes) | Offset (bytes)
-   ---------------------------------------------
-   key size      |       1      |       0
-   key           |   key size   |       1
-   record offset |       8      |  key size + 1
-
-
-   Index item length: 1 + key size + 8
-
-*/
-typedef struct indexitem {
-    char key_size;
-    char *key;
-    long record_offset;
-} IndexItem;
-
-
-XIndex *xindex_build(RBTree *);
-
-void index_add_item(TreeNode *, long, XIndex *);
-
-XIndex *xindex_create();
-
-void xindex_destroy(XIndex *);
-
-IndexItem *index_item_create();
-
-void index_item_destroy(IndexItem *);
-
-void * read_index_data(FILE *, size_t *);
+void *read_index_data(FILE *, size_t *);
 
 void write_record(TreeNode *, FILE *);
 
