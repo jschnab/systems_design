@@ -1,10 +1,12 @@
+#include <stdint.h>
 #include <stdio.h>
 
-#include "io.h"
+#include "index.h"
 #include "tree.h"
 
 
 int main(int argc, char *argv[]) {
+    /*
     RBTree *tree = tree_create();
 
     tree_insert(tree, "hello", "world", 5);
@@ -17,9 +19,18 @@ int main(int argc, char *argv[]) {
     tree_delete(tree, "charlie");
     tree_insert(tree, "charlie", "karl", 4);
 
+    char *key = "greg";
+    TreeNode *result = tree_search(key, tree);
+    printf("searching %s, found %s\n", key, (char *)result->value);
+
     write_segment_file(tree, "test.db");
 
     tree_destroy(tree);
+    */
+
+    FILE *fp = fopen("test.db", "r");
+    Index *index = index_build(fp);
+    index_destroy(index);
 
     return 0;
 }

@@ -3,35 +3,10 @@
 #include "io.h"
 
 
-#define ATTR_SIZE(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
-
-/* Segment file header offsets. */
-#define VER_OFFSET 0
-#define VER_SZ 8
-#define NUM_REC_OFFSET (VER_OFFSET + VER_SZ)
-#define NUM_REC_SZ 8
-#define DATA_START_OFFSET (NUM_REC_OFFSET + NUM_REC_SZ)
-#define DATA_START_SZ 8
-#define INDEX_OFFSET (DATA_START_OFFSET + DATA_START_SZ)
-
-/* Record offsets.  */
-#define RECORD_LEN_SZ 4
-#define KEY_LEN_SZ 1
-#define KEY_MAX_LEN 256
-
-/* Index region offsets (relative to the start of the index region). */
-#define INDEX_LEN_SZ 4
-#define INDEX_ITEMS_OFFSET (INDEX_OFFSET + INDEX_LEN_SZ)
-#define RECORD_OFFSET_SZ 8
-#define INDEX_INTERVAL 1000
-#define INDEX_ITEM_CST_SZ (KEY_LEN_SZ + RECORD_OFFSET_SZ)
-#define INDEX_ITEM_MAX_SZ (INDEX_ITEM_CST_SZ + KEY_MAX_LEN)
-
-
 const char *VERSION = "0.1.0\0\0\0";
 
 
-void index_add_item(TreeNode *node, long offset, Index *index) {
+void index_add_item(TreeNode *node, long offset, XIndex *index) {
     IndexItem *item = index_item_create();
     item->key_size = node->key_size;
     item->key = (char *) malloc_safe(node->key_size + 1);
@@ -43,9 +18,9 @@ void index_add_item(TreeNode *node, long offset, Index *index) {
 }
 
 
-Index *index_build(RBTree *tree) {
-    Index *index = index_create();
-    TreeNode *node = tree_leftmost_node(tree->root);
+XIndex *xindex_build(RBTree *tree) {
+    XIndex *index = xindex_create();
+    TreeNode *node = tree_leftmost_node(tree);
     long i;
     long offset = 0;
     for (i = 0; node != NIL; node = tree_successor_node(node), i++) {
@@ -62,8 +37,8 @@ Index *index_build(RBTree *tree) {
 }
 
 
-Index *index_create() {
-    Index *new = (Index *) malloc_safe(sizeof(Index));
+XIndex *xindex_create() {
+    XIndex *new = (XIndex *) malloc_safe(sizeof(XIndex));
     new->list = (List *) list_create();
     new->n = 0;
     new->size = 0;
@@ -71,7 +46,7 @@ Index *index_create() {
 };
 
 
-void index_destroy(Index *index) {
+void xindex_destroy(XIndex *index) {
     ListNode *head = index->list->head;
     ListNode *prev = NULL;
     while (head != NULL) {
@@ -101,6 +76,18 @@ void index_item_destroy(IndexItem *item) {
 }
 
 
+void *read_index_data(FILE *fp, size_t *data_size) {
+    fseek(fp, DATA_START_OFFSET, SEEK_SET);
+    long data_offset;
+    fread(&data_offset, DATA_START_SZ, 1, fp);
+    void *index_data = malloc_safe(data_offset - INDEX_OFFSET);
+    fseek(fp, INDEX_OFFSET, SEEK_SET);
+    fread(index_data, data_offset - INDEX_OFFSET, 1, fp);
+    *data_size = data_offset - INDEX_OFFSET;
+    return index_data;
+}
+
+
 void write_record(TreeNode *node, FILE *fp) {
     int total_size = RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
     fwrite(&total_size, RECORD_LEN_SZ, 1, fp);
@@ -113,7 +100,7 @@ void write_record(TreeNode *node, FILE *fp) {
 void write_segment_file(RBTree *tree, char *file_path) {
     FILE *fp = fopen(file_path, "w");
     write_segment_header(tree, fp);
-    TreeNode *node = tree_leftmost_node(tree->root);
+    TreeNode *node = tree_leftmost_node(tree);
     while (node != NIL) {
         if (node->value != NULL) {
             write_record(node, fp);
@@ -124,8 +111,9 @@ void write_segment_file(RBTree *tree, char *file_path) {
 }
 
 
+/* need to refactor: index_build */
 void write_segment_header(RBTree *tree, FILE *fp) {
-    Index *index = index_build(tree);
+    XIndex *index = xindex_build(tree);
 
     /* version number */
     fwrite(VERSION, VER_SZ, 1, fp);
@@ -154,5 +142,5 @@ void write_segment_header(RBTree *tree, FILE *fp) {
         index_item = index_item->next;
     }
 
-    index_destroy(index);
+    xindex_destroy(index);
 }

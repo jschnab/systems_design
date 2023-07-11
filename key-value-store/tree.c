@@ -82,6 +82,14 @@ void tnode_insert_fixup(RBTree *tree, TreeNode *z) {
 }
 
 
+TreeNode *tnode_leftmost_node(TreeNode *node) {
+    while (node != NIL && node->left != NIL) {
+        node = node->left;
+    }
+    return node;
+}
+
+
 void tnode_print(TreeNode *node) {
     printf(
         "Key=%s, Value=%s, Color=%s, Left=%s, Right=%s, Parent=%s\n",
@@ -250,11 +258,31 @@ void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
 }
 
 
-TreeNode *tree_leftmost_node(TreeNode *node) {
+TreeNode *tree_leftmost_node(RBTree *tree) {
+    TreeNode *node = tree->root;
     while (node != NIL && node->left != NIL) {
         node = node->left;
     }
     return node;
+}
+
+
+TreeNode *tree_search(char *key, RBTree *tree) {
+    TreeNode *node = tree->root;
+    int cmp;
+    while (node != NIL) {
+        cmp = strcmp(key, node->key);
+        if (cmp == 0) {
+            return node->value != NULL ? node : NULL;
+        }
+        else if (cmp < 0) {
+            node = node->left;
+        }
+        else {
+            node = node->right;
+        }
+    }
+    return NULL;
 }
 
 
@@ -263,7 +291,7 @@ TreeNode *tree_successor_node(TreeNode *node) {
         return NIL;
     }
     if (node->right != NIL) {
-        return tree_leftmost_node(node->right);
+        return tnode_leftmost_node(node->right);
     }
     TreeNode *par = node->parent;
     while (par != NIL && node == par->right) {

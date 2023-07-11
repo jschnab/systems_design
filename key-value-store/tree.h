@@ -39,6 +39,8 @@ void tnode_destroy(TreeNode *);
 
 void tnode_insert_fixup(RBTree *, TreeNode *);
 
+TreeNode *tnode_leftmost_node(TreeNode *);
+
 void tnode_print(TreeNode *);
 
 void tnode_rotate_left(RBTree *, TreeNode *);
@@ -55,7 +57,9 @@ void tree_destroy_helper(TreeNode *);
 
 void tree_insert(RBTree *, char *, void *, size_t);
 
-TreeNode *tree_leftmost_node(TreeNode *);
+TreeNode *tree_leftmost_node(RBTree *);
+
+TreeNode *tree_search(char *, RBTree *);
 
 TreeNode *tree_successor_node(TreeNode *);
 
