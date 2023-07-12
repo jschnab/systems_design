@@ -34,7 +34,7 @@
 #define INDEX_LEN_SZ 4
 #define INDEX_ITEMS_OFFSET (INDEX_OFFSET + INDEX_LEN_SZ)
 #define RECORD_OFFSET_SZ 8
-#define INDEX_INTERVAL 1000
+#define INDEX_INTERVAL 2
 #define INDEX_ITEM_CST_SZ (2 * (KEY_LEN_SZ + RECORD_OFFSET_SZ))
 #define INDEX_ITEM_MAX_SZ (INDEX_ITEM_CST_SZ + 2 * KEY_MAX_LEN)
 
@@ -43,6 +43,8 @@
 
 
 void *read_index_data(FILE *, size_t *);
+
+RBTree *read_sst_segment(FILE *);
 
 void *read_sst_block(FILE *, long, long);
 

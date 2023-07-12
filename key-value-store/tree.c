@@ -54,9 +54,11 @@ void tnode_insert_fixup(RBTree *tree, TreeNode *z) {
                 z->parent->parent->color = RED;
                 z = z->parent->parent;
             }
-            else if (z == z->parent->right) {
-                z = z->parent;
-                tnode_rotate_left(tree, z);
+            else {
+                if (z == z->parent->right) {
+                    z = z->parent;
+                    tnode_rotate_left(tree, z);
+                }
                 z->parent->color = BLACK;
                 z->parent->parent->color = RED;
                 tnode_rotate_right(tree, z->parent->parent);
@@ -70,9 +72,11 @@ void tnode_insert_fixup(RBTree *tree, TreeNode *z) {
                 z->parent->parent->color = RED;
                 z = z->parent->parent;
             }
-            else if (z == z->parent->left) {
-                z = z->parent;
-                tnode_rotate_right(tree, z);
+            else {
+                if (z == z->parent->left) {
+                    z = z->parent;
+                    tnode_rotate_right(tree, z);
+                }
                 z->parent->color = BLACK;
                 z->parent->parent->color = RED;
                 tnode_rotate_left(tree, z->parent->parent);
@@ -148,7 +152,7 @@ void tnode_rotate_right(RBTree *tree, TreeNode *y) {
         y->parent->right = x;
     }
     else {
-        y->parent->left = y;
+        y->parent->left = x;
     }
     x->right = y;
     y->parent = x;

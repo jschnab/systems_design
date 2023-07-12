@@ -10,7 +10,7 @@
 
 
 int main(int argc, char *argv[]) {
-    /* test build tree and write segment file
+    /* test build memtable and write segment file
     RBTree *tree = tree_create();
 
     tree_insert(tree, "hello", "world", 5);
@@ -32,7 +32,14 @@ int main(int argc, char *argv[]) {
     tree_destroy(tree);
     */
 
-    /* test build index from file and search index */
+    /* test build memtable from segment file */
+    FILE *fp = fopen("test.db", "r");
+    RBTree *memtab = read_sst_segment(fp);
+    tree_traverse_inorder(memtab->root);
+    tree_destroy(memtab);
+    fclose(fp);
+
+    /* test build index from file and search index
     FILE *fp = fopen("test.db", "r");
     Index *index = index_build_from_file(fp);
     char *key = "zebra";
@@ -57,6 +64,7 @@ int main(int argc, char *argv[]) {
 
     fclose(fp);
     index_destroy(index);
+    */
 
     /* test wal read/write
     FILE *wal = fopen("test.wal", "w+");

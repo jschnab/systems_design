@@ -7,6 +7,7 @@
 const char *VERSION = "0.1.0\0\0\0";
 
 
+/* Consider removing data_size, it does not seem to be used by caller */
 void *read_index_data(FILE *fp, size_t *data_size) {
     fseek(fp, DATA_START_OFFSET, SEEK_SET);
     long data_offset;
@@ -16,6 +17,38 @@ void *read_index_data(FILE *fp, size_t *data_size) {
     fread(index_data, data_offset - INDEX_OFFSET, 1, fp);
     *data_size = data_offset - INDEX_OFFSET;
     return index_data;
+}
+
+
+RBTree *read_sst_segment(FILE *fp) {
+    fseek(fp, DATA_START_OFFSET, SEEK_SET);
+    long data_offset;
+    fread(&data_offset, DATA_START_SZ, 1, fp);
+    fseek(fp, data_offset, SEEK_SET);
+    RBTree *memtab = tree_create();
+    long record_size = 0;
+    char key_size = 0;
+    char *key = NULL;
+    long value_size;
+    void *value = NULL;
+    size_t bytes_read = 0;
+    while (true) {
+        bytes_read = fread(&record_size, RECORD_LEN_SZ, 1, fp);
+        if (bytes_read < 1) {
+            break;
+        }
+        fread(&key_size, KEY_LEN_SZ, 1, fp);
+        key = malloc_safe(key_size + 1);
+        fread(key, key_size, 1, fp);
+        key[(int)key_size] = '\0';
+        value_size = record_size - RECORD_LEN_SZ - KEY_LEN_SZ - key_size;
+        value = malloc_safe(value_size);
+        fread(value, value_size, 1, fp);
+        tree_insert(memtab, key, value, value_size);
+        free_safe(key);
+        free_safe(value);
+    }
+    return memtab;
 }
 
 

@@ -87,6 +87,55 @@ existing key is added to the tree, the value of the node with the matching key
 is updated. When a key is deleted, its value is set to null (tombstone) and it
 is skipped when the memtable is written to disk.
 
+## Master table
+
+The master table is made of a memtable, SST, and WAL that store information
+about database namespaces:
+
+* name of namespaces (i.e. tables)
+* file path to SST segments (each segment is in a separate file)
+* file path to write-ahead log of each SST
+
+Each namespace has several records (i.e. memtable nodes):
+
+* Record with the key <namespace>-sst to store the SST paths (string of
+  null-separated file paths).
+* Record with the key <namespace>-wal to store the path of the WAL.
+
+The files for each namespace are stored in a folder that bears the name of the
+namespace.
+
+## Application startup
+
+A user creates a database object by passing the name of a database file path.
+This database base is effectively as "master namespace". The master SST is made
+of only one segment, stored in a file that bears the name of the database. The
+master WAL is stored in a file that bears the name of the database suffixed
+with "-wal".
+
+If the master WAL is not empty upon startup, a memtable is built from the WAL
+and merged with the master SST before being immediately saved to disk. Then,
+the WAL is truncated. The master memtable is usually kep in memory, unless it
+is larger than a pre-determined size, in which case only the master table index
+is kept in memory.
+
+The database object allows performing the following actions:
+
+* Create a namespace.
+* Use a namespace (required to perform queries).
+* Query a namespace.
+* Delete a namespace.
+
+To allow these actions, the database object contains:
+
+* A memtable of the master table.
+* An index of the master table.
+* A file pointer to the master WAL.
+* A memtable of the currently used namespace.
+* An index of the first SST of the currently used namespace.
+* A list of SST segments of the currently used namespace.
+* A file pointer to the currently used namespace WAL.
+
 ## Data flow
 
 ### Write request
