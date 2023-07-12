@@ -4,7 +4,30 @@
 #include "io.h"
 
 
-const char *VERSION = "0.1.0\0\0\0";
+static const char *VERSION = _VERSION;
+
+
+TreeNode *master_record_from_segment_set(char *ns_name, HashSet *set) {
+    long value_size = 0;
+    void *value;
+    for (int i = 0; i < set->count; i++) {
+        if ((set->items)[i] != HS_DELETED_ITEM) {
+            /* +1 for null termination. */
+            value_size += strlen((set->items)[i]) + 1;
+        }
+    }
+    value = malloc_safe(value_size);
+    int len;
+    for (int i = 0; i < set->size; i++) {
+        if ((set->items)[i] != HS_DELETED_ITEM) {
+            len = strlen((set->items)[i]);
+            strcpy(value, (set->items)[i]);
+            ((char *)value)[len] = '\0';
+            value += len + 1;
+        }
+    }
+    return tnode_create(ns_name, value, value_size);
+}
 
 
 /* Consider removing data_size, it does not seem to be used by caller */

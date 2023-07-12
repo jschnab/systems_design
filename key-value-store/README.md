@@ -93,8 +93,8 @@ The master table is made of a memtable, SST, and WAL that store information
 about database namespaces:
 
 * name of namespaces (i.e. tables)
-* file path to SST segments (each segment is in a separate file)
-* file path to write-ahead log of each SST
+* file path to SST segments (remember each segment is in a separate file)
+* file path to WAL of each SST
 
 Each namespace has several records (i.e. memtable nodes):
 
@@ -105,19 +105,14 @@ Each namespace has several records (i.e. memtable nodes):
 The files for each namespace are stored in a folder that bears the name of the
 namespace.
 
+How do we store the master table? The goal of the master table is to keep track
+of what files store what segment, so how do we keep track of what files store
+segments of the master table?
+
 ## Application startup
 
 A user creates a database object by passing the name of a database file path.
-This database base is effectively as "master namespace". The master SST is made
-of only one segment, stored in a file that bears the name of the database. The
-master WAL is stored in a file that bears the name of the database suffixed
-with "-wal".
-
-If the master WAL is not empty upon startup, a memtable is built from the WAL
-and merged with the master SST before being immediately saved to disk. Then,
-the WAL is truncated. The master memtable is usually kep in memory, unless it
-is larger than a pre-determined size, in which case only the master table index
-is kept in memory.
+This database base is effectively as "master namespace".
 
 The database object allows performing the following actions:
 

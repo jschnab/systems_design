@@ -9,8 +9,9 @@
 #include "tree.h"
 
 
-/* XIndex is a used temporarily to write the index to disk */
+/* Index is a used temporarily to write the index to disk */
 typedef struct index {
+    char *segment_path;
     List *list; /* Linked list of index items. */
     long n;     /* Number of index items. */
     long size;  /* Total index size, in bytes. */

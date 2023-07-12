@@ -1,8 +1,11 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "alloc.h"
+#include "api.h"
 #include "index.h"
 #include "io.h"
 #include "sst.h"
@@ -10,6 +13,8 @@
 
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL));
+
     /* test build memtable and write segment file
     RBTree *tree = tree_create();
 
@@ -32,12 +37,13 @@ int main(int argc, char *argv[]) {
     tree_destroy(tree);
     */
 
-    /* test build memtable from segment file */
+    /* test build memtable from segment file
     FILE *fp = fopen("test.db", "r");
     RBTree *memtab = read_sst_segment(fp);
     tree_traverse_inorder(memtab->root);
     tree_destroy(memtab);
     fclose(fp);
+    */
 
     /* test build index from file and search index
     FILE *fp = fopen("test.db", "r");
@@ -103,6 +109,12 @@ int main(int argc, char *argv[]) {
     tree_destroy(memtab);
     fclose(wal);
     */
+
+
+    /* test open db handle */
+    Db *db = db_open("mykv.db");
+    create_namespace("test", db);
+    db_close(db);
 
     return 0;
 }

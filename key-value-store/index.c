@@ -77,6 +77,7 @@ Index *index_build_from_memtab(RBTree *tree) {
 
 Index *index_create() {
     Index *new = (Index *) malloc_safe(sizeof(Index));
+    new->segment_path = NULL;
     new->list = (List *) list_create();
     new->n = 0;
     new->size = 0;

@@ -7,14 +7,20 @@
 
 #include "alloc.h"
 #include "linked_list.h"
+#include "hashset.h"
 #include "tree.h"
 
 
 #define ATTR_SIZE(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
 
-/* Interface commands. */
+#define _VERSION "0.1.0\0\0\0"
+
+/* Interface command codes for user namespace WAL. */
 #define INSERT 1
 #define DELETE 2
+/* Interface command codes for master namespace WAL. */ 
+#define CREATE_NS 3
+#define ADD_SST_SEG 4
 
 /* Segment file header offsets. */
 #define VER_OFFSET 0
@@ -29,6 +35,7 @@
 #define RECORD_LEN_SZ 4
 #define KEY_LEN_SZ 1
 #define KEY_MAX_LEN 256
+#define RECORD_CST_SZ (RECORD_LEN_SZ + KEY_LEN_SZ)
 
 /* Index region offsets (relative to the start of the index region). */
 #define INDEX_LEN_SZ 4
@@ -41,6 +48,8 @@
 /* Write-Ahead Log offsets and sizes. */
 #define WAL_CMD_SZ 1
 
+
+TreeNode *master_record_from_segment_set(char *, HashSet *);
 
 void *read_index_data(FILE *, size_t *);
 

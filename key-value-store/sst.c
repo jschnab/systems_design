@@ -29,3 +29,17 @@ TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
     }
     return NULL;
 }
+
+
+
+SSTSegment *sstsegment_create(char *segment_path, bool build_index) {
+    SSTSegment *new = (SSTSegment *) malloc_safe(sizeof(SSTSegment));
+    new->path = segment_path;
+    FILE *seg = fopen(segment_path, "r");
+    new->index = NULL;
+    if (build_index) {
+        new->index = index_build_from_file(seg);
+    }
+    fclose(seg);
+    return new;
+}
