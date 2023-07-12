@@ -19,6 +19,52 @@ void *read_index_data(FILE *fp, size_t *data_size) {
 }
 
 
+void *read_sst_block(FILE *fp, long start, long end) {
+    void *data = malloc_safe(end - start);
+    fseek(fp, start, SEEK_SET);
+    fread(data, end - start, 1, fp);
+    return data;
+}
+
+
+/* Reads a Write-Ahead Log into an RB tree, i.e. restores memtable from WAL. */
+RBTree *restore_wal(FILE *fp) {
+    char command = 0;
+    long record_size = 0;
+    char key_size = 0;
+    char *key = NULL;
+    long value_size = 0;
+    void *value = NULL;
+    long bytes_read = 0;
+    RBTree *memtab = tree_create();
+    fseek(fp, VER_SZ, SEEK_SET);
+    while (true) {
+        bytes_read = fread(&record_size, RECORD_LEN_SZ, 1, fp);
+        if (bytes_read < 1) {
+            break;
+        }
+        fread(&command, WAL_CMD_SZ, 1, fp);
+        fread(&key_size, KEY_LEN_SZ, 1, fp);
+        key = (char *) malloc_safe(key_size + 1);
+        fread(key, key_size, 1, fp);
+        key[(int)key_size] = '\0';
+        value_size = record_size - RECORD_LEN_SZ - WAL_CMD_SZ - KEY_LEN_SZ - key_size;
+        value = malloc_safe(value_size);
+        fread(value, value_size, 1, fp);
+        switch (command) {
+            case INSERT:
+                tree_insert(memtab, key, value, value_size);
+                break;
+            case DELETE:
+                tree_delete(memtab, key);
+        }
+        free(key);
+        free(value);
+    }
+    return memtab;
+}
+
+
 void write_record(TreeNode *node, FILE *fp) {
     int total_size = RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
     fwrite(&total_size, RECORD_LEN_SZ, 1, fp);
@@ -62,15 +108,43 @@ void write_segment_header(RBTree *tree, FILE *fp) {
     IndexItem *data;
     for (int i = 0; i < index->n; i++) {
         data = (IndexItem *) index_item->data;
-        data->record_offset += first_rec_offset;
-        /* write item key length */
-        fwrite(&data->key_size, KEY_LEN_SZ, 1, fp);
-        /* write item key */
-        fwrite(data->key, data->key_size, 1, fp);
-        /* write item record offset */
-        fwrite(&data->record_offset, RECORD_OFFSET_SZ, 1, fp);
+        data->start_offset += first_rec_offset;
+        data->end_offset += first_rec_offset;
+        /* write item start key info */
+        fwrite(&data->start_key_size, KEY_LEN_SZ, 1, fp);
+        fwrite(data->start_key, data->start_key_size, 1, fp);
+        /* write item end key info */
+        fwrite(&data->end_key_size, KEY_LEN_SZ, 1, fp);
+        fwrite(data->end_key, data->end_key_size, 1, fp);
+        /* write item record offsets */
+        fwrite(&data->start_offset, RECORD_OFFSET_SZ, 1, fp);
+        fwrite(&data->end_offset, RECORD_OFFSET_SZ, 1, fp);
         index_item = index_item->next;
     }
 
     index_destroy(index);
+}
+
+
+void write_wal_command(
+    char command,
+    char *key,
+    void *value,
+    long value_size,
+    FILE *fp
+) {
+    char key_size = strlen(key);
+    long total_size = RECORD_LEN_SZ + WAL_CMD_SZ + KEY_LEN_SZ + key_size + value_size;
+    fseek(fp, 0, SEEK_END);
+    fwrite(&total_size, RECORD_LEN_SZ, 1, fp);
+    fwrite(&command, WAL_CMD_SZ, 1, fp);
+    fwrite(&key_size, KEY_LEN_SZ, 1, fp);
+    fwrite(key, key_size, 1, fp);
+    fwrite(value, value_size, 1, fp);
+}
+
+
+void write_wal_header(FILE *fp) {
+    /* version number */
+    fwrite(VERSION, VER_SZ, 1, fp);
 }

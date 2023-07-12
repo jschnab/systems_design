@@ -20,20 +20,26 @@ typedef struct index {
 /*
    Index item structure:
 
-   Element       | Size (bytes) | Offset (bytes)
-   ---------------------------------------------
-   key size      |       1      |       0
-   key           |   key size   |       1
-   record offset |       8      |  key size + 1
+   Element        | Size (bytes)   |         Offset (bytes)
+   --------------------------------------------------------------------
+   start key size |       1        |               0
+   start key      | start key size |               1
+   end key size   |       1        |       1 + start key size
+   end key        |  end key size  |       2 + start key size
+   start offset   |       8        | 2 + start key size + end key size
+   end offset     |       8        | 10 + start key size + end key size
 
 
-   Index item length: 1 + key size + 8
+   Index item length: 1 + start key size + end key size + 8
 
 */
 typedef struct indexitem {
-    char key_size;
-    char *key;
-    long record_offset;
+    char start_key_size;
+    char *start_key;
+    char end_key_size;
+    char *end_key;
+    long start_offset;
+    long end_offset;
 } IndexItem;
 
 
@@ -49,9 +55,9 @@ void index_destroy(Index *);
 
 void index_put_item(IndexItem *, Index *);
 
-long index_search(char *, Index *);
+void index_search(char *, Index *, long *, long *);
 
-IndexItem *index_item_create(char, char *, long);
+IndexItem *index_item_create(char, char *, char, char *, long, long);
 
 IndexItem *index_item_deserialize(void *);
 

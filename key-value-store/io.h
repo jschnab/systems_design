@@ -12,6 +12,10 @@
 
 #define ATTR_SIZE(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
 
+/* Interface commands. */
+#define INSERT 1
+#define DELETE 2
+
 /* Segment file header offsets. */
 #define VER_OFFSET 0
 #define VER_SZ 8
@@ -31,17 +35,28 @@
 #define INDEX_ITEMS_OFFSET (INDEX_OFFSET + INDEX_LEN_SZ)
 #define RECORD_OFFSET_SZ 8
 #define INDEX_INTERVAL 1000
-#define INDEX_ITEM_CST_SZ (KEY_LEN_SZ + RECORD_OFFSET_SZ)
-#define INDEX_ITEM_MAX_SZ (INDEX_ITEM_CST_SZ + KEY_MAX_LEN)
+#define INDEX_ITEM_CST_SZ (2 * (KEY_LEN_SZ + RECORD_OFFSET_SZ))
+#define INDEX_ITEM_MAX_SZ (INDEX_ITEM_CST_SZ + 2 * KEY_MAX_LEN)
+
+/* Write-Ahead Log offsets and sizes. */
+#define WAL_CMD_SZ 1
 
 
 void *read_index_data(FILE *, size_t *);
+
+void *read_sst_block(FILE *, long, long);
+
+RBTree *restore_wal(FILE *);
 
 void write_record(TreeNode *, FILE *);
 
 void write_segment_file(RBTree *, char *);
 
 void write_segment_header(RBTree *, FILE *);
+
+void write_wal_command(char, char *, void *, long, FILE *);
+
+void write_wal_header(FILE *);
 
 
 #endif

@@ -11,9 +11,12 @@ IO = $(IO_H) $(IO_C)
 LIST_H = linked_list.h
 LIST_C = linked_list.c
 LIST = $(LIST_H) $(LIST_C)
+SST_H = sst.h
+SST_C = sst.c
+SST = $(SST_H) $(SST_C)
 TREE_H = tree.h
 TREE_C = tree.c
 TREE = $(TREE_H) $(TREE_C)
 
-kv: $(ALLOC) $(DEBUG_H) $(INDEX) $(IO) $(LIST) $(TREE) main.c
-	gcc -Wall -o kv $(ALLOC_C) $(INDEX_C) $(IO_C) $(LIST_C) $(TREE_C) main.c
+kv: $(ALLOC) $(DEBUG_H) $(INDEX) $(IO) $(LIST) $(SST) $(TREE) main.c
+	gcc -Wall -o kv $(ALLOC_C) $(INDEX_C) $(IO_C) $(LIST_C) $(SST_C) $(TREE_C) main.c

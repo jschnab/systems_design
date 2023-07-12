@@ -16,7 +16,7 @@ Index *index_build_from_file(FILE *fp) {
     for (int i = 0; i < length; i++) {
         item = index_item_deserialize(data + offset);
         index_put_item(item, index);
-        offset += item->key_size + RECORD_OFFSET_SZ;
+        offset += item->start_key_size + item->end_key_size + INDEX_ITEM_CST_SZ;
     }
     return index;
 }
@@ -24,29 +24,54 @@ Index *index_build_from_file(FILE *fp) {
 
 Index *index_build_from_memtab(RBTree *tree) {
     Index *index = index_create();
-    TreeNode *node = tree_leftmost_node(tree);
-    long i;
-    long offset = 0;
+    if (tree->n == 0) {
+        return index;
+    }
+
     IndexItem *item;
-    for (i = 0; node != NIL; node = tree_successor_node(node), i++) {
+    TreeNode *node = tree_leftmost_node(tree);
+    char *start_key = node->key;
+    char start_key_sz = node->key_size;
+    char *end_key = node->key;
+    char end_key_sz = node->key_size;
+    long start_offset = 0;
+    long end_offset = RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
+    node = tree_successor_node(node);
+
+    for (long i = 1; node != NIL; node = tree_successor_node(node), i++) {
         if (node->value == NULL) {
             i--;
             continue;
         }
-        else if (i % INDEX_INTERVAL == 0) {
-            item = index_item_from_memtab(node);
-            item->record_offset = offset;
+        if (i % INDEX_INTERVAL == 0) {
+            item = index_item_create(
+                start_key_sz,
+                start_key,
+                end_key_sz,
+                end_key,
+                start_offset,
+                end_offset
+            );
             index_put_item(item, index);
+            start_key_sz = node->key_size;
+            start_key = node->key;
+            start_offset = end_offset;
         }
-        offset += RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
+        end_offset += RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
+        end_key_sz = node->key_size;
+        end_key = node->key;
     }
+
+    item = index_item_create(
+        start_key_sz,
+        start_key,
+        end_key_sz,
+        end_key,
+        start_offset,
+        end_offset
+    );
+    index_put_item(item, index);
     return index;
-}
-
-
-/* Only attribute missing is record_offset, must be set separately. */
-IndexItem *index_item_from_memtab(TreeNode *node) {
-    return index_item_create(node->key_size, node->key, 0);
 }
 
 
@@ -76,52 +101,100 @@ void index_destroy(Index *index) {
 void index_put_item(IndexItem *item, Index *index) {
     list_append(index->list, item);
     index->n++;
-    index->size += INDEX_ITEM_CST_SZ + item->key_size;
+    index->size += INDEX_ITEM_CST_SZ + item->start_key_size + item->end_key_size;
 }
 
 
-/* Returns offset of the index group that should be searched for key, or -1 if
- * the key sorts before the first key of the first index group. */
-long index_search(char *key, Index *index) {
+/* Determines the offset of the start (inclusive) and the end (exclusive) of
+ * the index group that should be searched for key. The value of start and end
+ * are set to -1 if the key sorts before the first key of the first index
+ * group. */
+void index_search(char *key, Index *index, long *start, long *end) {
+    *start = -1;
+    *end = -1;
     ListNode *node = index->list->head;
-    ListNode *prev = NULL;
-    while (node != NULL && strcmp(key, ((IndexItem *)node->data)->key) >= 0) {
-        prev = node;
+    while (
+        node != NULL
+        && strcmp(key, ((IndexItem *)node->data)->end_key) > 0
+    ) {
         node = node->next;
     }
-    if (prev != NULL) {
-        return ((IndexItem *)prev->data)->record_offset;
+    if (
+        node != NULL
+        && strcmp(key, ((IndexItem *)node->data)->start_key) >= 0
+    ) {
+        *start = ((IndexItem *)node->data)->start_offset;
+        *end = ((IndexItem *)node->data)->end_offset;
     }
-    return -1;
 }
 
 
-IndexItem *index_item_create(char key_size, char *key, long record_offset) {
+IndexItem *index_item_create(
+    char start_key_size,
+    char *start_key,
+    char end_key_size,
+    char *end_key,
+    long start_offset,
+    long end_offset
+) {
     IndexItem *new = (IndexItem *) malloc_safe(sizeof(IndexItem));
-    new->key_size = key_size;
-    new->key = (char *) malloc_safe(key_size + 1);
-    strcpy(new->key, key);
-    new->record_offset = record_offset;
+    new->start_key_size = start_key_size;
+    new->start_key = (char *) malloc_safe(start_key_size + 1);
+    strcpy(new->start_key, start_key);
+    new->end_key_size = end_key_size;
+    new->end_key = (char *) malloc_safe(end_key_size + 1);
+    strcpy(new->end_key, end_key);
+    new->start_offset = start_offset;
+    new->end_offset = end_offset;
     return new;
 }
 
 
 IndexItem *index_item_deserialize(void *data) {
-    char key_size;
-    memcpy(&key_size, data, sizeof(char));
-    char *key = (char *) malloc_safe(key_size + 1);
-    memcpy(key, data + sizeof(char), key_size);
-    key[(int)key_size] = '\0';
-    long record_offset;
-    memcpy(&record_offset, data + sizeof(char) + key_size, RECORD_OFFSET_SZ);
-    IndexItem *new = index_item_create(key_size, key, record_offset);
-    free_safe(key);
+    char start_key_size;
+    memcpy(&start_key_size, data, sizeof(char));
+    char *start_key = (char *) malloc_safe(start_key_size + 1);
+    memcpy(start_key, data + sizeof(char), start_key_size);
+    start_key[(int)start_key_size] = '\0';
+
+    char end_key_size;
+    memcpy(&end_key_size, data + sizeof(char) + start_key_size, sizeof(char));
+    char *end_key = (char *) malloc_safe(end_key_size + 1);
+    memcpy(end_key, data + 2 * sizeof(char) + start_key_size, end_key_size);
+    end_key[(int)end_key_size] = '\0';
+
+    long start_offset;
+    memcpy(
+        &start_offset,
+        data + 2 * sizeof(char) + start_key_size + end_key_size,
+        RECORD_OFFSET_SZ
+    );
+
+    long end_offset;
+    memcpy(
+        &end_offset,
+        data + 2 * sizeof(char) + start_key_size + end_key_size + RECORD_OFFSET_SZ,
+        RECORD_OFFSET_SZ
+    );
+
+    IndexItem *new = index_item_create(
+        start_key_size,
+        start_key,
+        end_key_size,
+        end_key,
+        start_offset,
+        end_offset
+    );
+    free_safe(start_key);
+    free_safe(end_key);
     return new;
 }
 
 
 void index_item_destroy(IndexItem *item) {
-    free_safe(item->key);
-    item->key = NULL;
+    free_safe(item->start_key);
+    item->start_key = NULL;
+    free_safe(item->end_key);
+    item->end_key = NULL;
     free_safe(item);
 }

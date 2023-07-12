@@ -18,6 +18,7 @@ int tnode_comp(TreeNode *a, TreeNode *b) {
 }
 
 
+/* Parameter 'key' should be null-terminated. */
 TreeNode *tnode_create(char *key, void *value, size_t value_size) {
     TreeNode *new = (TreeNode *) malloc_safe(sizeof(TreeNode));
     char key_size = strlen(key);
@@ -205,6 +206,7 @@ void tree_destroy_helper(TreeNode *node) {
 }
 
 
+/* Parameter 'key' should be null-terminated. */
 void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
     TreeNode *par = NIL;
     TreeNode *cur = tree->root;

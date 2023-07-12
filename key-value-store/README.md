@@ -86,3 +86,25 @@ deleted, except when the whole tree is destroyed. When an already
 existing key is added to the tree, the value of the node with the matching key
 is updated. When a key is deleted, its value is set to null (tombstone) and it
 is skipped when the memtable is written to disk.
+
+## Data flow
+
+### Write request
+
+When an insert/update or delete is sent to the application, the following steps
+occur:
+
+1. Append command to write-ahead log.
+2. Insert/update or delete memtable value for requested key.
+3. If the size of the memtable exceeds a pre-determined size threshold, it is
+   written to disk as an SST segment and an index is built for future queries.
+
+### Read request
+
+The following structures are searched in order:
+
+1. Current memtable (in memory).
+2. From the most recent to the least recent, the index (in-memory) is searched
+   for a key range that contains the requested key.
+3. Upon an index hit, the relevant SST segment block is read from disk, and the
+   value corresponding to the key is returned.
