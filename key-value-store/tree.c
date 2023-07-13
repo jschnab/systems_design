@@ -218,10 +218,13 @@ void tree_destroy_helper(TreeNode *node) {
 
 /* Parameter 'key' should be null-terminated. */
 void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
+    debug("in tree_insert");
     TreeNode *par = NIL;
     TreeNode *cur = tree->root;
     int cmp;
     while (cur != NIL) {
+        debug("cur != NIL");
+        debug("cur->key: %s", cur->key);
         par = cur;
         cmp = strcmp(key, cur->key);
 
@@ -250,22 +253,32 @@ void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
             cur = cur->right;
         }
     }
+    debug("creating tnode");
     TreeNode *node = tnode_create(key, value, value_size);
+    debug("created tnode");
     node->parent = par;
+    debug("set parent");
     if (par == NIL) {
+        debug("parent is NIL");
         tree->root = node;
     }
     else if (tnode_comp(node, par) < 0) {
+        debug("parent is left node");
         par->left = node;
     }
     else {
+        debug("parent is right node");
         par->right = node;
     }
+    debug("setting node attrs");
     node->left = NIL;
     node->right = NIL;
     node->color = RED;
+    debug("balancing tree");
     tnode_insert_fixup(tree, node);
+    debug("increment count");
     tree->n++;
+    debug("increment data size");
     tree->data_size += node->key_size + node->value_size;
 }
 

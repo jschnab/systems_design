@@ -108,29 +108,31 @@ void namespace_insert(char cmd, char *key, void *value, size_t value_size, Names
 
 
 /* Searches a key in a namespace (memtables, then SST segments) and returns a
- * TreeNode object containing the corresponding value. If the key is not found,
- * returns NULL. */
+ * new TreeNode object containing the corresponding value. If the key is not
+ * found, returns NULL. */
 TreeNode *namespace_search(char *key, Namespace *ns) {
-    TreeNode *result;
-    result = tree_search(key, ns->memtab);
-    if (result == NULL) {
-        debug("key '%s' not found in memtable, searching SST segments", key);
-        long start;
-        long end;
-        ListNode *node = ns->segment_list->head;
-        while (node != NULL) {
-            SSTSegment *segment = (SSTSegment *) node->data;
-            debug("searching segment path %s", segment->path);
-            index_search(key, segment->index, &start, &end);
-            if (start != -1) {
-                debug("found key '%s' between offsets %ld and %ld", key, start, end);
-                FILE *fp = fopen(segment->path, "r");
-                void *data = read_sst_block(fp, start, end);
-                result = sst_block_search(key, data, end - start);
-                break;
-            }
-            node = node->next;
+    TreeNode *found = tree_search(key, ns->memtab);
+    if (found != NULL) {
+        debug("key '%s' found in memtable", key);
+        return tnode_create(found->key, found->value, found->value_size);
+    }
+    debug("key '%s' not found in memtable, searching SST segments", key);
+    TreeNode *result = NULL;
+    long start;
+    long end;
+    ListNode *node = ns->segment_list->head;
+    while (node != NULL) {
+        SSTSegment *segment = (SSTSegment *) node->data;
+        debug("searching segment path %s", segment->path);
+        index_search(key, segment->index, &start, &end);
+        if (start != -1) {
+            debug("found key '%s' between offsets %ld and %ld", key, start, end);
+            FILE *fp = fopen(segment->path, "r");
+            void *data = read_sst_block(fp, start, end);
+            result = sst_block_search(key, data, end - start);
+            break;
         }
+        node = node->next;
     }
     return result;
 }

@@ -7,7 +7,7 @@
 
 
 /* Searches a key in a block of records read from disk. If a record is found,
- * de-serialize it as an RB tree node, else return NULL */
+ * de-serialize it as a new RB tree node, else return NULL */
 TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
     debug("searching SST block for key: %s", key);
     int record_size = 0;
@@ -29,9 +29,6 @@ TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
                 value = malloc_safe(value_size);
                 memcpy(value, data + offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size, value_size);
             }
-            /* Should probably have a function 'tnode_init' that creates an
-             * empty object and fill it with value obtained here, too many
-             * malloc and free otherwise. */
             TreeNode *ret = tnode_init();
             ret->key = key;
             ret->key_size = key_size;

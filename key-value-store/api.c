@@ -1,5 +1,6 @@
 #include "api.h"
 #include "debug.h"
+#include "tree.h"
 
 
 static const char *VERSION = _VERSION;
@@ -64,12 +65,16 @@ void db_close(Db *db) {
     HashSet *segments = NULL;
     char path_len;
     if (db->user_ns != NULL) {
+        /* Copy user namespace name for later use, when adding segments paths
+         * to master table. */
+        char *user_ns_name = malloc_safe(strlen(db->user_ns->name) + 1);
+        strcpy(user_ns_name, db->user_ns->name);
         segments = namespace_destroy(db->user_ns);
         debug("user namespace has %d segments", segments->count);
         if (segments->count > 0) {
             debug("writing segments to master SST memtable");
             /* The key is the namespace name, and the value the list of SST segment
-             * paths. First the number of path is stored in 8 bytes, then for each
+             * paths. First the number of paths is stored in 8 bytes, then for each
              * path we store its length in 1 byte, then the path string. */
             /* First we get the total value size. */
             long value_size = SEG_NUM_SZ;
@@ -79,26 +84,33 @@ void db_close(Db *db) {
                 }
             }
             /* Now we can copy segment paths to the value. */
+            debug("value size: %ld", value_size);
             void *value = malloc_safe(value_size);
+            debug("buffering value at address: %p", value);
             memcpy(value, &segments->count, SEG_NUM_SZ);
             long off = SEG_NUM_SZ;
             for (long i = 0; i < segments->size; i++) {
                 if (segments->items[i] != NULL && segments->items[i] != HS_DELETED_ITEM) {
                     path_len = strlen(segments->items[i]);
+                    debug("segment %s has length %d", segments->items[i], path_len);
                     memcpy(value + off, &path_len, SEG_PATH_LEN_SZ);
+                    debug("copying path length at address %p", value+off);
                     off += SEG_PATH_LEN_SZ;
                     memcpy(value + off, segments->items[i], path_len);
+                    debug("copying path at address %p", value+off);
                     off += path_len;
                 }
             }
             /* Insert the user namespace paths in the master memtable. */
+            tree_traverse_inorder(db->master_ns->memtab->root);
             namespace_insert(
                 ADD_SST_SEG,
-                db->user_ns->name,
+                user_ns_name,
                 value,
                 value_size,
                 db->master_ns
             );
+            free_safe(user_ns_name);
         }
         hs_destroy(segments);
     }
@@ -122,6 +134,24 @@ void db_close(Db *db) {
     hs_destroy(segments);
     fclose(db->fp);
     free_safe(db);
+}
+
+
+TreeNode *db_get(char *key, Db *db) {
+    if (db->user_ns == NULL) {
+        log_warn("no active user namespace, aborting");
+        return;
+    }
+    return namespace_search(key, db->user_ns);
+}
+
+
+void db_insert(char *key, void *value, long value_size, Db *db) {
+    if (db->user_ns == NULL) {
+        log_warn("no active user namespace, aborting");
+        return;
+    }
+    namespace_insert(INSERT, key, value, value_size, db->user_ns);
 }
 
 

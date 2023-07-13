@@ -28,6 +28,7 @@ void *malloc_safe(size_t s) {
 
 
 void free_safe(void *obj) {
+    /* Not needed, free is no-op if pointer is NULL. */
     if (obj != NULL) {
         free(obj);
     }

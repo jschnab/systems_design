@@ -128,10 +128,36 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
-    /* test use namespace */
+    /* test use namespace
     Db *db = db_open("mykv.db");
     namespace_use("users", db);
     db_close(db);
+    */
+
+    /* test insert values in user namespace
+    Db *db = db_open("mykv.db");
+    namespace_create("users", db);
+    printf("master memtab after create 'users'\n");
+    tree_traverse_inorder(db->master_ns->memtab->root);
+    printf("\n");
+    namespace_use("users", db);
+    printf("master memtab after use 'users'\n");
+    tree_traverse_inorder(db->master_ns->memtab->root);
+    printf("\n");
+    db_insert("hello", "world", 5, db);
+    printf("master memtab after insert 'hello' in 'users'\n");
+    tree_traverse_inorder(db->master_ns->memtab->root);
+    printf("\n");
+    db_insert("alice", "bob", 3, db);
+    printf("master memtab after insert 'alice' in 'users'\n");
+    tree_traverse_inorder(db->master_ns->memtab->root);
+    printf("\n");
+    db_insert("charlie", "parker", 6, db);
+    printf("master memtab after insert 'charlie' in 'users'\n");
+    tree_traverse_inorder(db->master_ns->memtab->root);
+    printf("\n");
+    db_close(db);
+    */
 
     return 0;
 }
