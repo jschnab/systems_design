@@ -65,7 +65,7 @@ void db_close(Db *db) {
     char path_len;
     if (db->user_ns != NULL) {
         segments = namespace_destroy(db->user_ns);
-        debug("namespace '%s' has %d segments", db->user_ns->name, segments->count);
+        debug("user namespace has %d segments", segments->count);
         if (segments->count > 0) {
             debug("writing segments to master SST memtable");
             /* The key is the namespace name, and the value the list of SST segment
@@ -104,14 +104,9 @@ void db_close(Db *db) {
     }
 
     segments = namespace_destroy(db->master_ns);
-    debug("master table has %d segments", segments->count);
+    debug("master namespace has %d segments", segments->count);
     fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
-    size_t bytes_written = fwrite(&segments->count, SEG_NUM_SZ, 1, db->fp);
-    debug("written segment count (%ld bytes)", bytes_written);
-    if (bytes_written < 1) {
-        log_err("error writing segment number to db file");
-        exit(1);
-    }
+    fwrite(&segments->count, SEG_NUM_SZ, 1, db->fp);
     if (segments->count > 0) {
         debug("writing segments to root file");
         /* We check all set items for a value, hence segments->size. */
@@ -119,10 +114,8 @@ void db_close(Db *db) {
             if (segments->items[i] != NULL && segments->items[i] != HS_DELETED_ITEM) {
                 debug("writing master SST segment path %s", segments->items[i]);
                 path_len = strlen(segments->items[i]);
-                bytes_written = fwrite(&path_len, SEG_PATH_LEN_SZ, 1, db->fp);
-                debug("written path len (%ld bytes)", bytes_written);
-                bytes_written = fwrite(segments->items[i], path_len, 1, db->fp);
-                debug("written path (%ld bytes)", bytes_written);
+                fwrite(&path_len, SEG_PATH_LEN_SZ, 1, db->fp);
+                fwrite(segments->items[i], path_len, 1, db->fp);
             }
         }
     }

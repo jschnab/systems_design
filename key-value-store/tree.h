@@ -37,6 +37,8 @@ TreeNode *tnode_create(char *, void *, size_t);
 
 void tnode_destroy(TreeNode *);
 
+TreeNode *tnode_init();
+
 void tnode_insert_fixup(RBTree *, TreeNode *);
 
 TreeNode *tnode_leftmost_node(TreeNode *);

@@ -28,6 +28,8 @@ typedef struct db {
 
 void namespace_create(char *, Db *);
 
+void namespace_use(char *, Db *);
+
 Db *db_open(char *);
 
 void db_close(Db *);

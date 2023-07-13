@@ -38,8 +38,8 @@ char *random_string(long len) {
  */
 HashSet *namespace_destroy(Namespace *ns) {
     debug("destroying namespace '%s'", ns->name);
+    debug("memtab has %ld items", ns->memtab->n);
     if (ns->memtab->n > 0) {
-        debug("memtab has %ld items", ns->memtab->n);
         char *segment_path = random_string(RANDOM_STR_LEN + 1);
         debug("writing memtable to %s", segment_path);
         write_segment_file(ns->memtab, segment_path);
@@ -47,7 +47,13 @@ HashSet *namespace_destroy(Namespace *ns) {
         hs_add(ns->segment_set, segment_path);
     }
     tree_destroy(ns->memtab);
-    freopen(ns->wal_path, "w", ns->wal_fp);
+    fseek(ns->wal_fp, 0, SEEK_END);
+    debug("WAL %s has len %ld", ns->wal_path, ftell(ns->wal_fp));
+    debug("truncating WAL: %s", ns->wal_path);
+    FILE *fp = freopen(ns->wal_path, "w", ns->wal_fp);
+    if (fp == NULL) {
+        log_warn("failed to truncated WAL %s", ns->wal_path);
+    }
     fclose(ns->wal_fp);
     list_destroy(ns->segment_list);
     HashSet *ret = ns->segment_set;
@@ -63,15 +69,15 @@ Namespace *namespace_init(
     long n_segments
 ) {
     FILE *wal_fp = fopen(wal_path, "a");
-    fseek(wal_fp, 0, SEEK_END);
     if (ftell(wal_fp) > 0) {
         log_err(
-            "need to restore WAL for namespace '%s', not implemented yet, exiting\n",
+            "need to restore WAL for namespace '%s', not implemented yet, exiting",
             name
         );
         exit(1);
     }
     Namespace *ns = (Namespace *) malloc_safe(sizeof(Namespace));
+    ns->wal_path = wal_path;
     ns->wal_fp = wal_fp;
     write_wal_header(ns->wal_fp);
     int len = strlen(name);
@@ -114,8 +120,10 @@ TreeNode *namespace_search(char *key, Namespace *ns) {
         ListNode *node = ns->segment_list->head;
         while (node != NULL) {
             SSTSegment *segment = (SSTSegment *) node->data;
+            debug("searching segment path %s", segment->path);
             index_search(key, segment->index, &start, &end);
             if (start != -1) {
+                debug("found key '%s' between offsets %ld and %ld", key, start, end);
                 FILE *fp = fopen(segment->path, "r");
                 void *data = read_sst_block(fp, start, end);
                 result = sst_block_search(key, data, end - start);

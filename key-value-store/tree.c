@@ -87,6 +87,12 @@ void tnode_insert_fixup(RBTree *tree, TreeNode *z) {
 }
 
 
+TreeNode *tnode_init() {
+    return (TreeNode *) malloc_safe(sizeof(TreeNode));
+
+}
+
+
 TreeNode *tnode_leftmost_node(TreeNode *node) {
     while (node != NIL && node->left != NIL) {
         node = node->left;

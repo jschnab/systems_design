@@ -128,5 +128,10 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
+    /* test use namespace */
+    Db *db = db_open("mykv.db");
+    namespace_use("users", db);
+    db_close(db);
+
     return 0;
 }
