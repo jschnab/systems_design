@@ -113,13 +113,18 @@ int main(int argc, char *argv[]) {
 
     /* test open db handle and create namespace
     Db *db = db_open("mykv.db");
-    create_namespace("test", db);
+    namespace_create("test", db);
     db_close(db);
     */
 
     /* test search namespace */
     Db *db = db_open("mykv.db");
-    TreeNode * found = namespace_search("test", db->master_ns);
+    char *key = "test";
+    TreeNode *found = namespace_search(key, db->master_ns);
+    if (found != NULL)
+        printf("found namespace: %s\n", key);
+    else
+        printf("namespace not found: %s\n", key);
     db_close(db);
 
     return 0;

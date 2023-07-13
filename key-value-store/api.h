@@ -26,7 +26,7 @@ typedef struct db {
 } Db;
 
 
-void create_namespace(char *, Db *);
+void namespace_create(char *, Db *);
 
 Db *db_open(char *);
 
