@@ -5,6 +5,11 @@
 static const char *VERSION = _VERSION;
 
 
+void create_namespace(char *name, Db *db) {
+    namespace_insert(CREATE_NS, name, NULL, 0, db->master_ns);
+}
+
+
 void db_close(Db *db) {
     HashSet *segments = NULL;
     char path_len;
@@ -50,10 +55,11 @@ void db_close(Db *db) {
 
     segments = namespace_destroy(db->master_ns);
     debug("master table has %d segments", segments->count);
+    debug("segments set has %d items", segments->size);
+    fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
+    fwrite(&segments->count, SEG_NUM_SZ, 1, db->fp);
     if (segments->count > 0) {
         debug("writing segments to root file");
-        fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
-        fwrite(&segments->count, SEG_NUM_SZ, 1, db->fp);
         for (long i = 0; i < segments->size; i++) {
             if (segments->items[i] != NULL && segments->items[i] != HS_DELETED_ITEM) {
                 debug("writing master SST segment path %s", segments->items[i]);

@@ -28,4 +28,6 @@ Namespace *namespace_init(char *, char *, char **, long);
 
 void namespace_insert(char, char *, void *, size_t, Namespace *);
 
+void namespace_search(char *, Namespace *);
+
 #endif

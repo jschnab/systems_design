@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 
     /* test open db handle */
     Db *db = db_open("mykv.db");
-    //create_namespace("test", db);
+    create_namespace("test", db);
     db_close(db);
 
     return 0;

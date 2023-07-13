@@ -7,6 +7,7 @@
 static const char *VERSION = _VERSION;
 
 
+/* should probably deprecate this function */
 TreeNode *master_record_from_segment_set(char *ns_name, HashSet *set) {
     long value_size = 0;
     void *value;

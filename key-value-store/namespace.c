@@ -40,7 +40,7 @@ HashSet *namespace_destroy(Namespace *ns) {
     debug("destroying namespace '%s'", ns->name);
     if (ns->memtab->n > 0) {
         debug("memtab has %ld items", ns->memtab->n);
-        char *segment_path = random_string(RANDOM_STR_LEN);
+        char *segment_path = random_string(RANDOM_STR_LEN + 1);
         debug("writing memtable to %s", segment_path);
         write_segment_file(ns->memtab, segment_path);
         debug("adding segment path to segment set");
@@ -98,3 +98,10 @@ void namespace_insert(char cmd, char *key, void *value, size_t value_size, Names
     tree_insert(ns->memtab, key, value, value_size);
     debug("inserted key '%s' in memtab", key);
 }
+
+
+/*
+TreeNode *namespace_search(char *, Namespace *ns) {
+    
+}
+*/
