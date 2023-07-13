@@ -5,6 +5,70 @@
 static const char *VERSION = _VERSION;
 
 
+void db_close(Db *db) {
+    HashSet *segments = NULL;
+    char path_len;
+    if (db->user_ns != NULL) {
+        segments = namespace_destroy(db->user_ns);
+        debug("namespace '%s' has %d segments", db->user_ns->name, segments->count);
+        if (segments->count > 0) {
+            debug("writing segments to master SST memtable");
+            /* The key is the namespace name, and the value the list of SST segment
+             * paths. First the number of path is stored in 8 bytes, then for each
+             * path we store its length in 1 byte, then the path string. */
+            /* First we get the total value size. */
+            long value_size = SEG_NUM_SZ;
+            for (long i = 0; i < segments->size; i++) {
+                if (segments->items[i] != NULL && segments->items[i] != HS_DELETED_ITEM) {
+                    value_size += strlen(segments->items[i]) + SEG_PATH_LEN_SZ;
+                }
+            }
+            /* Now we can copy segment paths to the value. */
+            void *value = malloc_safe(value_size);
+            memcpy(value, &segments->count, SEG_NUM_SZ);
+            long off = SEG_NUM_SZ;
+            for (long i = 0; i < segments->size; i++) {
+                if (segments->items[i] != NULL && segments->items[i] != HS_DELETED_ITEM) {
+                    path_len = strlen(segments->items[i]);
+                    memcpy(value + off, &path_len, SEG_PATH_LEN_SZ);
+                    off += SEG_PATH_LEN_SZ;
+                    memcpy(value + off, segments->items[i], path_len);
+                    off += path_len;
+                }
+            }
+            /* Insert the user namespace paths in the master memtable. */
+            namespace_insert(
+                ADD_SST_SEG,
+                db->user_ns->name,
+                value,
+                value_size,
+                db->master_ns
+            );
+        }
+        hs_destroy(segments);
+    }
+
+    segments = namespace_destroy(db->master_ns);
+    debug("master table has %d segments", segments->count);
+    if (segments->count > 0) {
+        debug("writing segments to root file");
+        fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
+        fwrite(&segments->count, SEG_NUM_SZ, 1, db->fp);
+        for (long i = 0; i < segments->size; i++) {
+            if (segments->items[i] != NULL && segments->items[i] != HS_DELETED_ITEM) {
+                debug("writing master SST segment path %s", segments->items[i]);
+                path_len = strlen(segments->items[i]);
+                fwrite(&path_len, SEG_PATH_LEN_SZ, 1, db->fp);
+                fwrite(segments->items[i], path_len, 1, db->fp);
+            }
+        }
+    }
+    hs_destroy(segments);
+    fclose(db->fp);
+    free_safe(db);
+}
+
+
 Db *db_open(char *path) {
     FILE *fp;
     long n_segments = 0;
