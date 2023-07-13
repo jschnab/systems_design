@@ -83,6 +83,7 @@ Namespace *namespace_init(
     ns->segment_set = hs_init();
     SSTSegment *seg;
     for (long i = 0; i < n_segments; i++) {
+        debug("reading SST segment #%ld: %s", i, segment_paths[i]);
         seg = sstsegment_create(segment_paths[i], true);
         list_append(ns->segment_list, seg);
         hs_add(ns->segment_set, segment_paths[i]);
@@ -100,10 +101,14 @@ void namespace_insert(char cmd, char *key, void *value, size_t value_size, Names
 }
 
 
+/* Searches a key in a namespace (memtables, then SST segments) and returns a
+ * TreeNode object containing the corresponding value. If the key is not found,
+ * returns NULL. */
 TreeNode *namespace_search(char *key, Namespace *ns) {
     TreeNode *result;
     result = tree_search(key, ns->memtab);
     if (result == NULL) {
+        debug("key '%s' not found in memtable, searching SST segments", key);
         long start;
         long end;
         ListNode *node = ns->segment_list->head;
@@ -116,6 +121,7 @@ TreeNode *namespace_search(char *key, Namespace *ns) {
                 result = sst_block_search(key, data, end - start);
                 break;
             }
+            node = node->next;
         }
     }
     return result;
