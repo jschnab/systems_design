@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,7 +20,7 @@ void hs_add(HashSet *set, char *value) {
         hs_resize_up(set);
     }
 
-    int index = hs_get_hash(value, set->size, 0);
+    unsigned int index = hs_get_hash(value, set->size, 0);
     char *cur = set->items[index];
     int attempt = 1;
     while (cur != NULL && cur != HS_DELETED_ITEM) {
@@ -31,6 +32,7 @@ void hs_add(HashSet *set, char *value) {
         cur = set->items[index];
         attempt++;
     }
+    printf("put item at index %d\n", index);
     set->items[index] = value;
     set->count++;
 }
@@ -68,21 +70,24 @@ void hs_discard(HashSet *set, char *value) {
 }
 
 
-int hs_get_hash(char *value, int size, int attempt) {
-    int hash_a = hs_hash(value, HS_PRIME_1, size);
-    int hash_b = hs_hash(value, HS_PRIME_2, size);
-    return (hash_a + (attempt * (hash_b + 1))) % size;
+unsigned int hs_get_hash(char *value, int size, int attempt) {
+    unsigned int hash_a = hs_hash(value, HS_PRIME_1, size);
+    printf("hash_a = %d\n", hash_a);
+    unsigned int hash_b = hs_hash(value, HS_PRIME_2, size);
+    printf("hash_b = %d\n", hash_b);
+    return (unsigned int) (hash_a + (attempt * (hash_b + 1))) % size;
 }
 
 
-int hs_hash(char *value, int prime, int size) {
-    long hash = 0;
+unsigned int hs_hash(char *value, int prime, int size) {
+    unsigned long hash = 0;
     int len = strlen(value);
     for (int i = 0; i < len; i++) {
-        hash += (long) pow(prime, len - i - 1) * value[i];
+        hash += (unsigned long) pow(prime, len - i - 1) * value[i];
+        printf("intermediate hash = %ld\n", hash);
     }
     hash %= size;
-    return (int) hash;
+    return (unsigned int) hash;
 }
 
 
@@ -180,7 +185,7 @@ void hs_resize_up(HashSet *set) {
  * true  - the value is in the set
  * false - the value is not in the set */
 bool hs_search(HashSet *set, char *value) {
-    int index = hs_get_hash(value, set->size, 0);
+    unsigned int index = hs_get_hash(value, set->size, 0);
     char *item = set->items[index];
     int attempt = 1;
     while (item != NULL) {
