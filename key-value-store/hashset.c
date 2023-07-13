@@ -1,5 +1,4 @@
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,7 +31,6 @@ void hs_add(HashSet *set, char *value) {
         cur = set->items[index];
         attempt++;
     }
-    printf("put item at index %d\n", index);
     set->items[index] = value;
     set->count++;
 }
@@ -72,9 +70,7 @@ void hs_discard(HashSet *set, char *value) {
 
 unsigned int hs_get_hash(char *value, int size, int attempt) {
     unsigned int hash_a = hs_hash(value, HS_PRIME_1, size);
-    printf("hash_a = %d\n", hash_a);
     unsigned int hash_b = hs_hash(value, HS_PRIME_2, size);
-    printf("hash_b = %d\n", hash_b);
     return (unsigned int) (hash_a + (attempt * (hash_b + 1))) % size;
 }
 
@@ -84,7 +80,6 @@ unsigned int hs_hash(char *value, int prime, int size) {
     int len = strlen(value);
     for (int i = 0; i < len; i++) {
         hash += (unsigned long) pow(prime, len - i - 1) * value[i];
-        printf("intermediate hash = %ld\n", hash);
     }
     hash %= size;
     return (unsigned int) hash;

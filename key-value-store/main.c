@@ -111,9 +111,15 @@ int main(int argc, char *argv[]) {
     */
 
 
-    /* test open db handle */
+    /* test open db handle and create namespace
     Db *db = db_open("mykv.db");
     create_namespace("test", db);
+    db_close(db);
+    */
+
+    /* test search namespace */
+    Db *db = db_open("mykv.db");
+    TreeNode * found = namespace_search("test", db->master_ns);
     db_close(db);
 
     return 0;

@@ -100,8 +100,23 @@ void namespace_insert(char cmd, char *key, void *value, size_t value_size, Names
 }
 
 
-/*
-TreeNode *namespace_search(char *, Namespace *ns) {
-    
+TreeNode *namespace_search(char *key, Namespace *ns) {
+    TreeNode *result;
+    result = tree_search(key, ns->memtab);
+    if (result == NULL) {
+        long start;
+        long end;
+        ListNode *node = ns->segment_list->head;
+        while (node != NULL) {
+            SSTSegment *segment = (SSTSegment *) node->data;
+            index_search(key, segment->index, &start, &end);
+            if (start != -1) {
+                FILE *fp = fopen(segment->path, "r");
+                void *data = read_sst_block(fp, start, end);
+                result = sst_block_search(key, data, end - start);
+                break;
+            }
+        }
+    }
+    return result;
 }
-*/
