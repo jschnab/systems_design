@@ -152,3 +152,69 @@ The following structures are searched in order:
    for a key range that contains the requested key.
 3. Upon an index hit, the relevant SST segment block is read from disk, and the
    value corresponding to the key is returned.
+
+
+## Write-Ahead Log (WAL)
+
+### WAL actions
+
+A WAL action is an write command performed by the database, either as part of
+automatic maintenance or at the initiative of the user.
+
+We distinguish actions taking place in the usernamespace from actions taking
+place in the master namespace.
+
+User namespace actions:
+
+* `INSERT`: Adding a new key/value pair, or replacing the exiting value with a
+  new value.
+* `DELETE`: Replacing the existing value with a tombstone value.
+
+Master namespace actions:
+
+* `CREATE_NS`: Create a new user namespace, i.e. add a new key to the master
+  SST.
+* `ADD_NS_SEG`: Add a new SST segment to a namespace.
+* `DELETE_NS_SEG`: Delete an SST segment from a namespace.
+
+### WAL replay
+
+If the WAL file for a namespace exists and is not empty upon database start,
+this means that data changes may have not made their way to SST segments stored
+on disk. Therefore, if the WAL exists and is not empty, we will simply apply
+the commands it contains to the relevant namespaces. We do not immediately take
+steps to store these changes on disk or truncate the WAL. These operations will
+be taken care of when the database is closed. This approach maintains WAL
+processing simplicity: the WAL is "replayed" on startup, the WAL is fed during
+queries, and the WAL is truncated on shutdown.
+
+### When is a master namespace segment created?
+
+New SST segments are created when the memtable contains records at the time of
+database shutdown. Records are added to the master memtable during several
+actions:
+
+1. A user namespace is created (WAL command is `CREATE_NS`).
+2. A user namespace is closed (WAL command is `ADD_NS_SEG`).
+
+To replay `CREATE_NS`, we put a record to the master memtable that has the
+namespace name as the key, `NULL` as the value, and 0 as the value size.
+
+To replay `ADD_SST_SEG`, we put a record to the master memtable that has the
+namespace name as the key, and serialized SST segment paths (all paths to be
+added) as the value. The WAL stores the full value.
+
+### How do we log writes made to the database file?
+
+The database file is the one that has the path used in the function `db_open`
+of the `io` module. This file stores the list of SST segments for the master
+table. There is a WAL for the database file as well, which has the same path as
+the database file with a `.wal` suffix. Because there is no memtable for the
+database file operations, restoring this WAL involves applying WAL actions
+directly to disk.
+
+Contrary to tables, which are segmented in separate files, there is a single
+database file. Partial writing to this file could irremediably corrupt the
+database, so we always write all master table paths to the the database WAL,
+and also back to the database file. This way, the full file containing all
+master table paths can be restored from the WAL.

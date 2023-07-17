@@ -35,7 +35,11 @@ char *random_string(long len) {
  * - master SST segment paths are written to root file
  *
  * The return value must be freed by caller.
- */
+ *
+ * We should refactor this function to truncate the WAL after SST segment paths
+ * have been written to the higher level WAL (e.g. master WAL in the case of a
+ * user namespace. Otherwise, we won't know at which path SST segment path are
+ * located. */
 List *namespace_destroy(Namespace *ns) {
     debug("destroying namespace '%s'", ns->name);
     debug("memtab has %ld items", ns->memtab->n);
@@ -68,23 +72,27 @@ Namespace *namespace_init(
     char **segment_paths,
     long n_segments
 ) {
-    FILE *wal_fp = fopen(wal_path, "a");
-    if (ftell(wal_fp) > 0) {
-        log_err(
-            "need to restore WAL for namespace '%s', not implemented yet, exiting",
-            name
-        );
-        exit(1);
-    }
     Namespace *ns = (Namespace *) malloc_safe(sizeof(Namespace));
-    ns->wal_path = wal_path;
-    ns->wal_fp = wal_fp;
-    write_wal_header(ns->wal_fp);
     int len = strlen(name);
     ns->name = malloc_safe(len + 1);
     strcpy(ns->name, name);
     ns->name[len] = '\0';
-    ns->memtab = tree_create();
+    ns->wal_path = wal_path;
+    FILE *wal_fp = fopen(wal_path, "a");
+    ns->wal_fp = wal_fp;
+    unsigned long wal_size = ftell(wal_fp);
+    if (wal_size > 0) {
+        freopen(wal_path, "r+", wal_fp);
+        ns->memtab = restore_wal(wal_fp, wal_size);
+        freopen(wal_path, "w", wal_fp);
+        /* For consistency, set mode to "a" whether WAL restoration happend or
+         * not. */
+        freopen(wal_path, "a", wal_fp);
+    }
+    else {
+        ns->memtab = tree_create();
+    }
+    write_wal_header(ns->wal_fp);
     ns->segment_list = list_create();
     ns->segment_set = hs_init();
     SSTSegment *seg;
@@ -106,6 +114,15 @@ void namespace_insert(char cmd, char *key, void *value, size_t value_size, Names
     debug("wrote command '%d' to WAL", cmd);
     tree_insert(ns->memtab, key, value, value_size);
     debug("inserted key '%s' in memtab", key);
+}
+
+
+void namespace_delete(char cmd, char *key, Namespace *ns) {
+    debug("deleting key '%s' from namespace '%s'", key, ns->name);
+    write_wal_command(cmd, key, NULL, 0, ns->wal_fp);
+    debug("wrote command '%d' to WAL", cmd);
+    tree_delete(ns->memtab, key);
+    debug("deleted key '%s' from memtab", key);
 }
 
 

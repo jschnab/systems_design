@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include "debug.h"
 #include "index.h"
 #include "io.h"
 
@@ -44,6 +45,7 @@ void *read_index_data(FILE *fp, size_t *data_size) {
 }
 
 
+/* Is this function still necessary? */
 RBTree *read_sst_segment(FILE *fp) {
     fseek(fp, DATA_START_OFFSET, SEEK_SET);
     long data_offset;
@@ -85,29 +87,35 @@ void *read_sst_block(FILE *fp, long start, long end) {
 
 
 /* Reads a Write-Ahead Log into an RB tree, i.e. restores memtable from WAL. */
-RBTree *restore_wal(FILE *fp) {
-    char command = 0;
+RBTree *restore_wal(FILE *fp, unsigned long file_size) {
+    unsigned long wal_data_size = file_size - VER_SZ;
+    debug("wal data size: %ld bytes\n", wal_data_size);
+    void *wal_data = malloc_safe(wal_data_size);
     long record_size = 0;
+    char command = 0;
     char key_size = 0;
     char *key = NULL;
     long value_size = 0;
     void *value = NULL;
-    long bytes_read = 0;
+    unsigned long bytes_restored = wal_data_size;
+    unsigned long off = 0;
     RBTree *memtab = tree_create();
     fseek(fp, VER_SZ, SEEK_SET);
-    while (true) {
-        bytes_read = fread(&record_size, RECORD_LEN_SZ, 1, fp);
-        if (bytes_read < 1) {
-            break;
-        }
-        fread(&command, WAL_CMD_SZ, 1, fp);
-        fread(&key_size, KEY_LEN_SZ, 1, fp);
+    fread(wal_data, wal_data_size, 1, fp);
+    while (bytes_restored > 0) {
+        memcpy(&record_size, wal_data + off, RECORD_LEN_SZ);
+        off += RECORD_LEN_SZ;
+        memcpy(&command, wal_data + off, WAL_CMD_SZ);
+        off += WAL_CMD_SZ;
+        memcpy(&key_size, wal_data + off, KEY_LEN_SZ);
+        off += KEY_LEN_SZ;
         key = (char *) malloc_safe(key_size + 1);
-        fread(key, key_size, 1, fp);
+        memcpy(key, wal_data + off, key_size);
+        off += key_size;
         key[(int)key_size] = '\0';
         value_size = record_size - RECORD_LEN_SZ - WAL_CMD_SZ - KEY_LEN_SZ - key_size;
         value = malloc_safe(value_size);
-        fread(value, value_size, 1, fp);
+        memcpy(value, wal_data + off, value_size);
         switch (command) {
             case INSERT:
                 tree_insert(memtab, key, value, value_size);
@@ -118,6 +126,7 @@ RBTree *restore_wal(FILE *fp) {
         free(key);
         free(value);
     }
+    free(wal_data);
     return memtab;
 }
 
@@ -183,6 +192,21 @@ void write_segment_header(RBTree *tree, FILE *fp) {
     index_destroy(index);
 }
 
+/*
+   WAL item structure:
+
+   Element        | Size (bytes)   |         Offset (bytes)
+   --------------------------------------------------------
+   record length  |       4        |               0
+   WAL command    |       1        |               4
+   key length     |       1        |               5
+   key            |   key length   |               6
+   value          |    variable    |         6 + key length
+
+
+   Index item length: 1 + start key size + end key size + 8
+
+*/
 
 void write_wal_command(
     char command,
@@ -198,7 +222,9 @@ void write_wal_command(
     fwrite(&command, WAL_CMD_SZ, 1, fp);
     fwrite(&key_size, KEY_LEN_SZ, 1, fp);
     fwrite(key, key_size, 1, fp);
-    fwrite(value, value_size, 1, fp);
+    if (value_size > 0) {
+        fwrite(value, value_size, 1, fp);
+    }
 }
 
 

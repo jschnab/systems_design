@@ -21,6 +21,7 @@
 /* Interface command codes for master namespace WAL. */ 
 #define CREATE_NS 3
 #define ADD_SST_SEG 4
+#define DELETE_SST_SEG 5
 
 /* Segment file header offsets. */
 #define VER_OFFSET 0
@@ -57,7 +58,7 @@ RBTree *read_sst_segment(FILE *);
 
 void *read_sst_block(FILE *, long, long);
 
-RBTree *restore_wal(FILE *);
+RBTree *restore_wal(FILE *, unsigned long);
 
 void write_record(TreeNode *, FILE *);
 

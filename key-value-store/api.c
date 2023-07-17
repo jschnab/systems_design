@@ -86,7 +86,6 @@ void db_close(Db *db) {
             debug("value size: %ld", value_size);
             /* Now we can copy segment paths to the value. */
             void *value = malloc_safe(value_size);
-            debug("buffering value at address: %p", value);
             long segment_count = (long) segments->n;
             memcpy(value, &segment_count, SEG_NUM_SZ);
             long off = SEG_NUM_SZ;
@@ -94,16 +93,12 @@ void db_close(Db *db) {
                 seg = (SSTSegment *)node->data;
                 path_len = strlen(seg->path);
                 debug("segment %s has length %d", seg->path, path_len);
-                debug("copying path length at address %p", value+off);
                 memcpy(value + off, &path_len, SEG_PATH_LEN_SZ);
                 off += SEG_PATH_LEN_SZ;
-                debug("copying path at address %p", value+off);
                 memcpy(value + off, seg->path, path_len);
                 off += path_len;
             }
             /* Insert the user namespace paths in the master memtable. */
-            debug("master ns memtab root addr: %p", db->master_ns->memtab->root);
-            debug("master ns memtab is NIL: %s", db->master_ns->memtab->root == NIL ? "true" : "false");
             namespace_insert(
                 ADD_SST_SEG,
                 user_ns_name,
@@ -122,7 +117,6 @@ void db_close(Db *db) {
     fwrite(&segments->n, SEG_NUM_SZ, 1, db->fp);
     if (segments->n > 0) {
         debug("writing segments to root file");
-        /* We check all set items for a value, hence segments->size. */
         for (ListNode *node = segments->head; node != NULL; node = node->next) {
             seg = (SSTSegment *)node->data;
             debug("writing master SST segment path %s", seg->path);
