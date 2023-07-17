@@ -22,7 +22,7 @@ typedef struct namesp {
 
 char *random_string(long);
 
-HashSet *namespace_destroy(Namespace *);
+List *namespace_destroy(Namespace *);
 
 Namespace *namespace_init(char *, char *, char **, long);
 

@@ -11,6 +11,7 @@
 
 TreeNode _NIL = {NULL, NULL, 0, 0, NULL, NULL, NULL, BLACK};
 TreeNode *NIL = &_NIL;
+static char *RBT_DELETED_ITEM = "TOMBSTONE";
 
 
 int tnode_comp(TreeNode *a, TreeNode *b) {
@@ -18,14 +19,19 @@ int tnode_comp(TreeNode *a, TreeNode *b) {
 }
 
 
-/* Parameter 'key' should be null-terminated. */
+/* Parameter 'key' should be null-terminated.
+ * If parameter 'value_size' is 0, the value member will be set to NULL. If
+ * 'value_size' is positive, the value member will be allocated. */
 TreeNode *tnode_create(char *key, void *value, size_t value_size) {
     TreeNode *new = (TreeNode *) malloc_safe(sizeof(TreeNode));
     char key_size = strlen(key);
     new->key = (char *) malloc_safe(key_size + 1);
-    new->value = malloc_safe(value_size);
     strcpy(new->key, key);
-    memcpy(new->value, value, value_size);
+    new->value = NULL;
+    if (value_size > 0) {
+        new->value = malloc_safe(value_size);
+        memcpy(new->value, value, value_size);
+    }
     new->key_size = key_size;
     new->value_size = value_size;
     new->parent = NULL;
@@ -189,7 +195,7 @@ bool tree_delete(RBTree *tree, char *key) {
             tree->n--;
             tree->data_size -= cur->key_size + cur->value_size;
             free_safe(cur->value);
-            cur->value = NULL;
+            cur->value = RBT_DELETED_ITEM;
             cur->value_size = 0;
             return true;
         }
@@ -218,7 +224,7 @@ void tree_destroy_helper(TreeNode *node) {
 
 /* Parameter 'key' should be null-terminated. */
 void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
-    debug("in tree_insert");
+    debug("inserting key '%s' in RB tree", key);
     TreeNode *par = NIL;
     TreeNode *cur = tree->root;
     int cmp;
@@ -298,7 +304,14 @@ TreeNode *tree_search(char *key, RBTree *tree) {
     while (node != NIL) {
         cmp = strcmp(key, node->key);
         if (cmp == 0) {
-            return node->value != NULL ? node : NULL;
+            debug("match between query '%s' and node '%s'", key, node->key);
+            if (node->value == RBT_DELETED_ITEM) {
+                debug("node was deleted");
+                return NULL;
+            }
+            else
+                return node;
+            //return node->value != RBT_DELETED_ITEM ? node : NULL;
         }
         else if (cmp < 0) {
             node = node->left;

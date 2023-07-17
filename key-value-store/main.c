@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,10 +112,12 @@ int main(int argc, char *argv[]) {
     */
 
 
-    /* test open db handle and create namespace
+    /* test open db handle, create namespace, and use namespace
     Db *db = db_open("mykv.db");
-    namespace_create("users", db);
-    db_close(db);
+    char *key = "metallica";
+    namespace_create(key, db);
+    namespace_use(key, db);
+    db_close(key);
     */
 
     /* test search namespace
@@ -137,26 +140,62 @@ int main(int argc, char *argv[]) {
     /* test insert values in user namespace
     Db *db = db_open("mykv.db");
     namespace_create("users", db);
-    printf("master memtab after create 'users'\n");
-    tree_traverse_inorder(db->master_ns->memtab->root);
-    printf("\n");
     namespace_use("users", db);
-    printf("master memtab after use 'users'\n");
-    tree_traverse_inorder(db->master_ns->memtab->root);
-    printf("\n");
-    db_insert("hello", "world", 5, db);
-    printf("master memtab after insert 'hello' in 'users'\n");
-    tree_traverse_inorder(db->master_ns->memtab->root);
-    printf("\n");
-    db_insert("alice", "bob", 3, db);
-    printf("master memtab after insert 'alice' in 'users'\n");
-    tree_traverse_inorder(db->master_ns->memtab->root);
-    printf("\n");
-    db_insert("charlie", "parker", 6, db);
-    printf("master memtab after insert 'charlie' in 'users'\n");
-    tree_traverse_inorder(db->master_ns->memtab->root);
-    printf("\n");
+    db_insert("hello", "kitty", 5, db);
+    db_insert("alice", "saglisse", 8, db);
+    db_insert("charlie", "watts", 5, db);
+    db_insert("derek", "dominoes", 8, db);
     db_close(db);
+    */
+
+    /* test create new user namespace and add values
+    Db *db = db_open("mykv.db");
+    char *key = "metallica";
+    namespace_create(key, db);
+    namespace_use(key, db);
+    db_insert("james", "hetfield", 8, db);
+    db_insert("kirk", "hammett", 7, db);
+    db_insert("robert", "trujillo", 8, db);
+    db_insert("lars", "ulrich", 6, db);
+    db_close(db);
+    */
+
+    /* test search values in user namespace */
+    Db *db = db_open("mykv.db");
+    namespace_use("metallica", db);
+    char *keys[4] = {"hello", "james", "kirk", "dude"};
+    char *key;
+    char *value;
+    for (int i = 0; i < 4; i++) {
+        key = keys[i];
+        TreeNode *result = db_get(key, db);
+        if (result != NULL) {
+            value = malloc(result->value_size + 1);
+            memcpy(value, result->value, result->value_size);
+            value[(int)result->value_size] = '\0';
+            printf("value for key %s: '%s'\n", key, value);
+            free_safe(value);
+        }
+        else {
+            printf("key %s not found\n", key);
+        }
+    }
+    db_close(db);
+
+    /* test list append left
+    List *lst = list_create();
+    char *value1 = malloc_safe(6);
+    strcpy(value1, "hello");
+    char *value2 = malloc_safe(6);
+    strcpy(value2, "world");
+    list_append_left(lst, value1);
+    assert(strcmp((char*)lst->head->data, "hello") == 0);
+    assert(strcmp((char*)lst->tail->data, "hello") == 0);
+    list_append_left(lst, value2);
+    assert(strcmp((char*)lst->head->data, "world") == 0);
+    assert(strcmp((char*)lst->head->next->data, "hello") == 0);
+    assert(strcmp((char*)lst->tail->data, "hello") == 0);
+    list_destroy(lst);
     */
 
     return 0;

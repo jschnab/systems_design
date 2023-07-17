@@ -23,10 +23,13 @@ TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
         candidate_key[(int)key_size] = '\0';
         if (strcmp(candidate_key, key) == 0) {
             debug("found key: %s", key);
+            debug("key size: %d", key_size);
+            debug("record size: %d", record_size);
             value_size = record_size - RECORD_LEN_SZ - KEY_LEN_SZ - key_size;
             debug("value size: %ld", value_size);
             if (value_size > 0) {
                 value = malloc_safe(value_size);
+                debug("copy data from offset %ld", offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size);
                 memcpy(value, data + offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size, value_size);
             }
             TreeNode *ret = tnode_init();
@@ -46,11 +49,15 @@ TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
 SSTSegment *sstsegment_create(char *segment_path, bool build_index) {
     SSTSegment *new = (SSTSegment *) malloc_safe(sizeof(SSTSegment));
     new->path = segment_path;
-    FILE *seg = fopen(segment_path, "r");
     new->index = NULL;
     if (build_index) {
+        FILE *seg = fopen(segment_path, "r");
+        if (seg == NULL) {
+            log_err("could not open file '%s'", segment_path);
+            exit(1);
+        }
         new->index = index_build_from_file(seg);
+        fclose(seg);
     }
-    fclose(seg);
     return new;
 }

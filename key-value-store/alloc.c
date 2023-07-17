@@ -19,6 +19,7 @@ void *calloc_safe(size_t nmemb, size_t s) {
 void *malloc_safe(size_t s) {
     void *obj = malloc(s);
     check_mem(obj);
+    memset(obj, 0, s);
     return obj;
 
     error:

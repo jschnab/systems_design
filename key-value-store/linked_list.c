@@ -17,6 +17,19 @@ void list_append(List *list, void *data) {
 }
 
 
+void list_append_left(List *list, void *data) {
+    ListNode *node = lnode_create(data);
+    if (list->head != NULL) {
+        node->next = list->head;
+    }
+    else {
+        list->tail = node;
+    }
+    list->head = node;
+    list->n++;
+}
+
+
 List *list_create() {
     List *new = (List *) malloc_safe(sizeof(List));
     new->head = NULL;
@@ -27,14 +40,16 @@ List *list_create() {
 
 
 void list_destroy(List *list) {
-    ListNode *head = list->head;
-    ListNode *prev;
-    while (head != NULL) {
-        prev = head;
-        head = head->next;
-        lnode_destroy(prev);
+    if (list != NULL) {
+        ListNode *head = list->head;
+        ListNode *prev;
+        while (head != NULL) {
+            prev = head;
+            head = head->next;
+            lnode_destroy(prev);
+        }
+        free_safe(list);
     }
-    free_safe(list);
 }
 
 

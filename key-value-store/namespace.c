@@ -29,14 +29,14 @@ char *random_string(long len) {
 
 /* Writes the memtable to disk, truncates the WAL, and writes the path of the
  * new SST segment in the appropriate segment list of the Db object.
- * We return the segment set so that the caller can take steps to save the
+ * We return the segment list so that the caller can take steps to save the
  * segment paths:
  * - user SST segment paths are written to master SST
  * - master SST segment paths are written to root file
  *
  * The return value must be freed by caller.
  */
-HashSet *namespace_destroy(Namespace *ns) {
+List *namespace_destroy(Namespace *ns) {
     debug("destroying namespace '%s'", ns->name);
     debug("memtab has %ld items", ns->memtab->n);
     if (ns->memtab->n > 0) {
@@ -44,7 +44,7 @@ HashSet *namespace_destroy(Namespace *ns) {
         debug("writing memtable to %s", segment_path);
         write_segment_file(ns->memtab, segment_path);
         debug("adding segment path to segment set");
-        hs_add(ns->segment_set, segment_path);
+        list_append_left(ns->segment_list, sstsegment_create(segment_path, false));
     }
     tree_destroy(ns->memtab);
     fseek(ns->wal_fp, 0, SEEK_END);
@@ -55,8 +55,8 @@ HashSet *namespace_destroy(Namespace *ns) {
         log_warn("failed to truncated WAL %s", ns->wal_path);
     }
     fclose(ns->wal_fp);
-    list_destroy(ns->segment_list);
-    HashSet *ret = ns->segment_set;
+    hs_destroy(ns->segment_set);
+    List *ret = ns->segment_list;
     free_safe(ns);
     return ret;
 }
@@ -88,6 +88,8 @@ Namespace *namespace_init(
     ns->segment_list = list_create();
     ns->segment_set = hs_init();
     SSTSegment *seg;
+    /* Remember to organize SST segments by age (more recent before least
+     * recent). */
     for (long i = 0; i < n_segments; i++) {
         debug("reading SST segment #%ld: %s", i, segment_paths[i]);
         seg = sstsegment_create(segment_paths[i], true);

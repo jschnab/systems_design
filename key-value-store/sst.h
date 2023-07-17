@@ -17,7 +17,6 @@ typedef struct sstsegment {
 
 SSTSegment *sstsegment_create(char *, bool);
 
-
 TreeNode *sst_block_search(char *, void *, size_t);
 
 
