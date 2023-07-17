@@ -82,11 +82,10 @@ Namespace *namespace_init(
     ns->wal_fp = wal_fp;
     unsigned long wal_size = ftell(wal_fp);
     if (wal_size > 0) {
+        debug("restoring WAL: %s", wal_path);
         freopen(wal_path, "r+", wal_fp);
         ns->memtab = restore_wal(wal_fp, wal_size);
-        freopen(wal_path, "w", wal_fp);
-        /* For consistency, set mode to "a" whether WAL restoration happend or
-         * not. */
+        debug("finished restoring WAL: %s", wal_path);
         freopen(wal_path, "a", wal_fp);
     }
     else {

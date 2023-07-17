@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
-    /* test search values in user namespace */
+    /* test search values in user namespace
     Db *db = db_open("mykv.db");
     namespace_use("metallica", db);
     char *keys[4] = {"hello", "james", "kirk", "dude"};
@@ -181,6 +181,7 @@ int main(int argc, char *argv[]) {
         }
     }
     db_close(db);
+    */
 
     /* test list append left
     List *lst = list_create();
@@ -197,6 +198,38 @@ int main(int argc, char *argv[]) {
     assert(strcmp((char*)lst->tail->data, "hello") == 0);
     list_destroy(lst);
     */
+
+    /* Test restore WAL.
+     * First, we add record and not close the connection.
+    Db *db = db_open("mykv.db");
+    namespace_create("users", db);
+    namespace_use("users", db);
+    db_insert("hello", "kitty", 5, db);
+    db_insert("alice", "saglisse", 8, db);
+    db_insert("charlie", "watts", 5, db);
+    db_insert("derek", "dominoes", 8, db);
+    */
+    /* Then, we open and close, and check all records are saved. */
+    Db *db = db_open("mykv.db");
+    namespace_use("users", db);
+    char *keys[4] = {"hello", "james", "charlie", "dude"};
+    char *key;
+    char *value;
+    for (int i = 0; i < 4; i++) {
+        key = keys[i];
+        TreeNode *result = db_get(key, db);
+        if (result != NULL) {
+            value = malloc(result->value_size + 1);
+            memcpy(value, result->value, result->value_size);
+            value[(int)result->value_size] = '\0';
+            printf("value for key %s: '%s'\n", key, value);
+            free_safe(value);
+        }
+        else {
+            printf("key %s not found\n", key);
+        }
+    }
+    db_close(db);
 
     return 0;
 }

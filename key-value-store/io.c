@@ -89,7 +89,7 @@ void *read_sst_block(FILE *fp, long start, long end) {
 /* Reads a Write-Ahead Log into an RB tree, i.e. restores memtable from WAL. */
 RBTree *restore_wal(FILE *fp, unsigned long file_size) {
     unsigned long wal_data_size = file_size - VER_SZ;
-    debug("wal data size: %ld bytes\n", wal_data_size);
+    debug("wal data size: %ld bytes", wal_data_size);
     void *wal_data = malloc_safe(wal_data_size);
     long record_size = 0;
     char command = 0;
@@ -97,31 +97,39 @@ RBTree *restore_wal(FILE *fp, unsigned long file_size) {
     char *key = NULL;
     long value_size = 0;
     void *value = NULL;
-    unsigned long bytes_restored = wal_data_size;
     unsigned long off = 0;
     RBTree *memtab = tree_create();
     fseek(fp, VER_SZ, SEEK_SET);
     fread(wal_data, wal_data_size, 1, fp);
-    while (bytes_restored > 0) {
+    while (off < wal_data_size) {
         memcpy(&record_size, wal_data + off, RECORD_LEN_SZ);
+        debug("record size: %ld", record_size);
         off += RECORD_LEN_SZ;
         memcpy(&command, wal_data + off, WAL_CMD_SZ);
+        debug("command: %d", command);
         off += WAL_CMD_SZ;
         memcpy(&key_size, wal_data + off, KEY_LEN_SZ);
+        debug("key size: %d", key_size);
         off += KEY_LEN_SZ;
         key = (char *) malloc_safe(key_size + 1);
         memcpy(key, wal_data + off, key_size);
+        debug("key: %s", key);
         off += key_size;
         key[(int)key_size] = '\0';
         value_size = record_size - RECORD_LEN_SZ - WAL_CMD_SZ - KEY_LEN_SZ - key_size;
+        debug("value size: %ld", value_size);
         value = malloc_safe(value_size);
         memcpy(value, wal_data + off, value_size);
+        off += value_size;
         switch (command) {
             case INSERT:
+            case ADD_SST_SEG:
                 tree_insert(memtab, key, value, value_size);
                 break;
             case DELETE:
                 tree_delete(memtab, key);
+            case CREATE_NS:
+                tree_insert(memtab, key, NULL, 0);
         }
         free(key);
         free(value);
