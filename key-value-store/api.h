@@ -8,8 +8,6 @@
 #include "namespace.h"
 
 
-#define MASTER_NS_NAME "master"
-#define MASTER_WAL_PATH "master.wal"
 
 /* Root file offsets. */
 #define SEG_NUM_OFF VER_SZ

@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "alloc.h"
+#include "debug.h"
 #include "linked_list.h"
 
 
@@ -36,6 +37,31 @@ List *list_create() {
     new->tail = NULL;
     new->n = 0;
     return new;
+}
+
+
+/* Deletes a node at a given index. If the index is greater than the list
+ * length, no node is deleted. */
+void list_delete(List *list, int index) {
+    ListNode *prev = NULL;
+    ListNode *cur = list->head;
+    while (cur != NULL && index-- > 0) {
+        prev = cur;
+        cur = cur->next;
+    }
+    if (cur != NULL) {
+        if (prev != NULL) {
+            prev->next = cur->next;
+        }
+        else {
+            list->head = cur->next;
+        }
+        if (cur == list->tail) {
+            list->tail = prev;
+        }
+        free_safe(cur);
+        list->n--;
+    }
 }
 
 

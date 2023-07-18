@@ -215,6 +215,6 @@ directly to disk.
 
 Contrary to tables, which are segmented in separate files, there is a single
 database file. Partial writing to this file could irremediably corrupt the
-database, so we always write all master table paths to the the database WAL,
+database, so we always write all master table paths to the database WAL,
 and also back to the database file. This way, the full file containing all
 master table paths can be restored from the WAL.

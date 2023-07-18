@@ -20,6 +20,8 @@ void hs_add(HashSet *, char *);
 
 void hs_destroy(HashSet *);
 
+void hs_discard(HashSet *, char *);
+
 unsigned int hs_get_hash(char *, int, int);
 
 unsigned int hs_hash(char *, int, int);

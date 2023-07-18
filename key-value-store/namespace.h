@@ -20,7 +20,11 @@ typedef struct namesp {
 } Namespace;
 
 
-char *random_string(long);
+RBTree *merge_memtables(RBTree *, RBTree *, Namespace *);
+
+void merge_memtables_insert(TreeNode *, RBTree *, Namespace *);
+
+void namespace_compact(Namespace *);
 
 List *namespace_destroy(Namespace *);
 
@@ -29,5 +33,7 @@ Namespace *namespace_init(char *, char *, char **, long);
 void namespace_insert(char, char *, void *, size_t, Namespace *);
 
 TreeNode *namespace_search(char *, Namespace *);
+
+char *random_string(long);
 
 #endif

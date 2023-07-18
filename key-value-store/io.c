@@ -45,7 +45,7 @@ void *read_index_data(FILE *fp, size_t *data_size) {
 }
 
 
-/* Is this function still necessary? */
+/* Consider refactoring this function to take a file path as input. */
 RBTree *read_sst_segment(FILE *fp) {
     fseek(fp, DATA_START_OFFSET, SEEK_SET);
     long data_offset;

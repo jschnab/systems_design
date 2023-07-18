@@ -32,6 +32,8 @@
 #define DATA_START_SZ 8
 #define INDEX_OFFSET (DATA_START_OFFSET + DATA_START_SZ)
 
+#define MAX_SEG_SIZE 1000000
+
 /* Record offsets.  */
 #define RECORD_LEN_SZ 4
 #define KEY_LEN_SZ 1
@@ -48,6 +50,9 @@
 
 /* Write-Ahead Log offsets and sizes. */
 #define WAL_CMD_SZ 1
+
+#define MASTER_NS_NAME "master"
+#define MASTER_WAL_PATH "master.wal"
 
 
 TreeNode *master_record_from_segment_set(char *, HashSet *);

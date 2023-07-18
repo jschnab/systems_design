@@ -21,6 +21,8 @@ void list_append_left(List *, void *);
 
 List *list_create();
 
+void list_delete(List *, int);
+
 void list_destroy(List *);
 
 ListNode *lnode_create(void *);

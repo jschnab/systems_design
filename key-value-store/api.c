@@ -71,6 +71,7 @@ void db_close(Db *db) {
          * to master table. */
         char *user_ns_name = malloc_safe(strlen(db->user_ns->name) + 1);
         strcpy(user_ns_name, db->user_ns->name);
+        namespace_compact(db->user_ns);
         segments = namespace_destroy(db->user_ns);
         debug("user namespace has %ld segments", segments->n);
         if (segments->n > 0) {
@@ -110,6 +111,14 @@ void db_close(Db *db) {
         }
         list_destroy(segments);
     }
+
+    debug("master memtable before compaction:");
+    tree_traversal_inorder(db->master_ns->memtab);
+
+    namespace_compact(db->master_ns);
+
+    debug("master memtable after compaction:");
+    tree_traversal_inorder(db->master_ns->memtab);
 
     segments = namespace_destroy(db->master_ns);
     debug("master namespace has %ld segments", segments->n);

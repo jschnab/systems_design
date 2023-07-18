@@ -45,6 +45,25 @@ TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
 }
 
 
+/* Returns the size of a segment's data (excluding the header), in bytes. */
+long sstsegment_size(SSTSegment *segment) {
+    debug("calculating size of sst segment %s", segment->path);
+    FILE *fp = fopen(segment->path, "r");
+    if (!fp) {
+        log_err("could not open %s, exiting", segment->path);
+        exit(1);
+    }
+    long data_off;
+    fseek(fp, DATA_START_OFFSET, SEEK_SET);
+    fread(&data_off, DATA_START_SZ, 1, fp);
+    debug("read data offset: %ld", data_off);
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp) - data_off;
+    debug("read file size: %ld", size);
+    fclose(fp);
+    return size;
+}
+
 
 SSTSegment *sstsegment_create(char *segment_path, bool build_index) {
     SSTSegment *new = (SSTSegment *) malloc_safe(sizeof(SSTSegment));

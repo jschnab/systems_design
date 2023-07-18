@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
 
     /* test search values in user namespace
     Db *db = db_open("mykv.db");
-    namespace_use("metallica", db);
+    namespace_use("users", db);
     char *keys[4] = {"hello", "james", "kirk", "dude"};
     char *key;
     char *value;
@@ -209,7 +209,8 @@ int main(int argc, char *argv[]) {
     db_insert("charlie", "watts", 5, db);
     db_insert("derek", "dominoes", 8, db);
     */
-    /* Then, we open and close, and check all records are saved. */
+
+    /* Then, we open and close, and check all records are saved.
     Db *db = db_open("mykv.db");
     namespace_use("users", db);
     char *keys[4] = {"hello", "james", "charlie", "dude"};
@@ -229,6 +230,27 @@ int main(int argc, char *argv[]) {
             printf("key %s not found\n", key);
         }
     }
+    db_close(db);
+    */
+
+    /*
+    Db *db = db_open("mykv.db");
+    namespace_create("users", db);
+    namespace_use("users", db);
+    db_insert("james", "hetfield", 8, db);
+    db_insert("kirk", "hammett", 7, db);
+    db_insert("robert", "trujillo", 8, db);
+    db_insert("lars", "ulrich", 6, db);
+    db_close(db);
+    */
+
+    Db *db = db_open("mykv.db");
+    namespace_create("users", db);
+    namespace_use("users", db);
+    db_insert("hello", "kitty", 5, db);
+    db_insert("alice", "saglisse", 8, db);
+    db_insert("charlie", "watts", 5, db);
+    db_insert("derek", "dominoes", 8, db);
     db_close(db);
 
     return 0;

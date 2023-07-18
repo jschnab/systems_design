@@ -10,20 +10,100 @@
 #define RANDOM_STR_LEN 20
 
 
-char *random_string(long len) {
-    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    int key;
-    char *str = NULL;
-    if (len) {
-        str = malloc_safe(len + 1);
-        len--;
-        for (long i = 0; i < len; i++) {
-            key = rand() % (int) (sizeof charset - 1);
-            str[i] = charset[key];
+/* Merge two memtables in a new memtable and return it. If the two original
+ * memtables have a node with the same key, the node from t1 is used.
+ * We pass the namespace object to access the relevant WAL.
+ * The algorithm is the 'merge' of merge-sort. */
+RBTree* merge_memtables(RBTree *t1, RBTree *t2, Namespace *ns) {
+    RBTree *result = tree_create();
+    TreeNode *n1 = tree_leftmost_node(t1);
+    TreeNode *n2 = tree_leftmost_node(t2);
+    TreeNode *insert;  /* Points to the current node to insert. */
+    while (n1 != NIL && n2 != NIL) {
+        if (tnode_comp(n1, n2) <= 0) {
+            insert = n1;
+            n1 = tree_successor_node(n1);
+        }
+        else {
+            debug("inserting sst value for key '%s'", n2->key);
+            insert = n2;
+            n2 = tree_successor_node(n2);
+        }
+        merge_memtables_insert(insert, result, ns);
+    }
+    if (n1 != NIL) {
+        while (n1 != NIL) {
+            merge_memtables_insert(n1, result, ns);
+            n1 = tree_successor_node(n1);
         }
     }
-    str[len] = '\0';
-    return str;
+    else if (n2 != NIL) {
+        while (n2 != NIL) {
+            merge_memtables_insert(n2, result, ns);
+            n2 = tree_successor_node(n2);
+        }
+    }
+    return result;
+}
+
+
+/* Insert functionality of the function 'merge_memtables'. */
+void merge_memtables_insert(TreeNode *node, RBTree *tree, Namespace *ns) {
+    debug("inserting key '%s' in namespace '%s'", node->key, ns->name);
+    char cmd;
+    if (strcmp(ns->name, MASTER_NS_NAME) == 0) {
+        cmd = ADD_SST_SEG;
+    }
+    else {
+        cmd = INSERT;
+    }
+    write_wal_command(cmd, node->key, node->value, node->value_size, ns->wal_fp);
+    debug("wrote command '%d' to WAL", INSERT);
+    tree_insert(tree, node->key, node->value, node->value_size);
+    debug("inserted key '%s' in memtab", node->key);
+}
+
+
+void namespace_compact(Namespace *ns) {
+    debug("compacting namespace '%s'", ns->name);
+    ListNode *next_seg = ns->segment_list->head;
+    SSTSegment *sst;
+    if (next_seg != NULL) {
+        sst = (SSTSegment *)next_seg->data;
+    }
+    FILE *fp;
+    RBTree *next_memtab;
+    RBTree *merged;
+    long memtab_size = ns->memtab->data_size + ns->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
+    debug("current memtab size: %ld", memtab_size);
+    while (next_seg != NULL && memtab_size + sstsegment_size(sst) < MAX_SEG_SIZE) {
+        debug("reading segment: %s", sst->path);
+        fp = fopen(sst->path, "r");
+        next_memtab = read_sst_segment(fp);
+        fclose(fp);
+        debug("merging memtable with segment %s", sst->path);
+        merged = merge_memtables(ns->memtab, next_memtab, ns);
+        debug("merged memtable");
+        memtab_size = merged->data_size + ns->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
+        debug("new memtable size: %ld", memtab_size);
+        free_safe(ns->memtab);
+        debug("deallocated current memtable");
+        ns->memtab = merged;
+        free_safe(next_memtab);
+        debug("deallocated current sst segment memtable");
+        next_seg = next_seg->next;
+        debug("removing from segment set: %s", sst->path);
+        hs_discard(ns->segment_set, sst->path);
+        debug("removing from segment list: %s", sst->path);
+        list_delete(ns->segment_list, 0);
+        debug("removed from segment list");
+        if (next_seg != NULL) {
+            sst = (SSTSegment *)next_seg->data;
+        }
+        debug("deleting file: %s", sst->path);
+        remove(sst->path);
+    }
+    debug("finished compacting namespace '%s'", ns->name);
 }
 
 
@@ -47,7 +127,7 @@ List *namespace_destroy(Namespace *ns) {
         char *segment_path = random_string(RANDOM_STR_LEN + 1);
         debug("writing memtable to %s", segment_path);
         write_segment_file(ns->memtab, segment_path);
-        debug("adding segment path to segment set");
+        debug("adding segment path %s to segment list", segment_path);
         list_append_left(ns->segment_list, sstsegment_create(segment_path, false));
     }
     tree_destroy(ns->memtab);
@@ -153,4 +233,21 @@ TreeNode *namespace_search(char *key, Namespace *ns) {
         node = node->next;
     }
     return result;
+}
+
+
+char *random_string(long len) {
+    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    int key;
+    char *str = NULL;
+    if (len) {
+        str = malloc_safe(len + 1);
+        len--;
+        for (long i = 0; i < len; i++) {
+            key = rand() % (int) (sizeof charset - 1);
+            str[i] = charset[key];
+        }
+    }
+    str[len] = '\0';
+    return str;
 }
