@@ -106,6 +106,8 @@ TreeNode *tnode_leftmost_node(TreeNode *node) {
 }
 
 
+/* This function should accept an argument that is a pointer to a function to
+ * serialize the value. */
 void tnode_print(TreeNode *node) {
     printf(
         "Key=%s, Value=%s, Color=%s, Left=%s, Right=%s, Parent=%s\n",

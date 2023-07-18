@@ -19,13 +19,17 @@ RBTree* merge_memtables(RBTree *t1, RBTree *t2, Namespace *ns) {
     TreeNode *n1 = tree_leftmost_node(t1);
     TreeNode *n2 = tree_leftmost_node(t2);
     TreeNode *insert;  /* Points to the current node to insert. */
+    int cmp = 0;
     while (n1 != NIL && n2 != NIL) {
-        if (tnode_comp(n1, n2) <= 0) {
+        cmp = tnode_comp(n1, n2);
+        if (cmp <= 0) {
             insert = n1;
             n1 = tree_successor_node(n1);
+            if (cmp == 0) {
+                n2 = tree_successor_node(n2);
+            }
         }
         else {
-            debug("inserting sst value for key '%s'", n2->key);
             insert = n2;
             n2 = tree_successor_node(n2);
         }

@@ -233,17 +233,14 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
-    /*
     Db *db = db_open("mykv.db");
-    namespace_create("users", db);
-    namespace_use("users", db);
-    db_insert("james", "hetfield", 8, db);
-    db_insert("kirk", "hammett", 7, db);
-    db_insert("robert", "trujillo", 8, db);
-    db_insert("lars", "ulrich", 6, db);
+    namespace_create("metallica", db);
+    namespace_use("metallica", db);
+    db_insert("dave", "mustaine", 8, db);
+    db_insert("cliff", "burton", 6, db);
     db_close(db);
-    */
 
+    /*
     Db *db = db_open("mykv.db");
     namespace_create("users", db);
     namespace_use("users", db);
@@ -252,6 +249,7 @@ int main(int argc, char *argv[]) {
     db_insert("charlie", "watts", 5, db);
     db_insert("derek", "dominoes", 8, db);
     db_close(db);
+    */
 
     return 0;
 }
