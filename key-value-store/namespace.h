@@ -10,6 +10,13 @@
 #include "tree.h"
 
 
+/* Root file offsets. */
+#define SEG_NUM_OFF VER_SZ
+#define SEG_NUM_SZ 8
+#define SEG_LST_OFF (SEG_NUM_OFF + SEG_NUM_SZ)
+#define SEG_PATH_LEN_SZ 1
+
+
 typedef struct namesp {
     char *name;
     RBTree *memtab;
@@ -18,6 +25,13 @@ typedef struct namesp {
     List *segment_list;  /* Stores type SSTSegment. */
     HashSet *segment_set;  /* Stores segment paths. */
 } Namespace;
+
+typedef struct db {
+    char *path;
+    FILE *fp;
+    Namespace *user_ns;
+    Namespace *master_ns;
+} Db;
 
 
 RBTree *merge_memtables(RBTree *, RBTree *, Namespace *);
@@ -35,5 +49,7 @@ void namespace_insert(char, char *, void *, size_t, Namespace *);
 TreeNode *namespace_search(char *, Namespace *);
 
 char *random_string(long);
+
+void user_namespace_close(Db *);
 
 #endif

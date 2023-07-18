@@ -233,15 +233,14 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
+    /*
     Db *db = db_open("mykv.db");
     namespace_create("metallica", db);
     namespace_use("metallica", db);
     db_insert("dave", "mustaine", 8, db);
     db_insert("cliff", "burton", 6, db);
-    db_close(db);
 
-    /*
-    Db *db = db_open("mykv.db");
+    //Db *db = db_open("mykv.db");
     namespace_create("users", db);
     namespace_use("users", db);
     db_insert("hello", "kitty", 5, db);
@@ -250,6 +249,28 @@ int main(int argc, char *argv[]) {
     db_insert("derek", "dominoes", 8, db);
     db_close(db);
     */
+
+    Db *db = db_open("mykv.db");
+    namespace_use("metallica", db);
+    db_insert("bob", "rock", 4, db);
+    char *keys[4] = {"hello", "bob", "cliff", "dude"};
+    char *key;
+    char *value;
+    for (int i = 0; i < 4; i++) {
+        key = keys[i];
+        TreeNode *result = db_get(key, db);
+        if (result != NULL) {
+            value = malloc(result->value_size + 1);
+            memcpy(value, result->value, result->value_size);
+            value[(int)result->value_size] = '\0';
+            printf("value for key %s: '%s'\n", key, value);
+            free_safe(value);
+        }
+        else {
+            printf("key %s not found\n", key);
+        }
+    }
+    db_close(db);
 
     return 0;
 }
