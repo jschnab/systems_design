@@ -153,6 +153,17 @@ The following structures are searched in order:
 3. Upon an index hit, the relevant SST segment block is read from disk, and the
    value corresponding to the key is returned.
 
+### Delete request
+
+When a user wants to delete a record from a user table, we have to save the
+record with a special value. If we simply remove the record, and the record
+exists in an older SST segment, it will be found when the table is searched. To
+indicate that the record is deleted, we store the value `1` in the flag byte of
+the record, and store the record with no value. The value size of the record is
+set to 0.
+
+The process to delete a table, i.e. delete a record from the master table is
+the same, except that we first delete the files that contain user table data.
 
 ## Write-Ahead Log (WAL)
 

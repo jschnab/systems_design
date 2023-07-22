@@ -240,6 +240,8 @@ TreeNode *namespace_search(char *key, Namespace *ns) {
 }
 
 
+/* Returns a random string containing uppercase and lowercase english letters.
+ * The memory necessary to store the string is allocated by the function. */
 char *random_string(long len) {
     char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     int key;

@@ -14,6 +14,8 @@ void namespace_use(char *, Db *);
 
 void db_close(Db *);
 
+void db_delete(char *, Db *);
+
 TreeNode *db_get(char *, Db *);
 
 void db_insert(char *, void *, long, Db *);

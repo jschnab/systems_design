@@ -298,7 +298,6 @@ TreeNode *tree_search(char *key, RBTree *tree) {
             else {
                 return node;
             }
-            //return node->value != RBT_DELETED_ITEM ? node : NULL;
         }
         else if (cmp < 0) {
             node = node->left;

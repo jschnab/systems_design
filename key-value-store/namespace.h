@@ -40,6 +40,8 @@ void merge_memtables_insert(TreeNode *, RBTree *, Namespace *);
 
 void namespace_compact(Namespace *);
 
+void namespace_delete(char, char *, Namespace *);
+
 List *namespace_destroy(Namespace *);
 
 Namespace *namespace_init(char *, char *, char **, long);

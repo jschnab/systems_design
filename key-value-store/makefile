@@ -28,4 +28,4 @@ TREE_C = tree.c
 TREE = $(TREE_H) $(TREE_C)
 
 kv: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO) $(LIST) $(NAMESPACE) $(SET) $(SST) $(TREE) main.c
-	gcc -Wall -o kv $(ALLOC_C) $(API_C) $(INDEX_C) $(IO_C) $(LIST_C) $(NAMESPACE_C) $(SET_C) $(SST_C) $(TREE_C) main.c -lm
+	gcc -Wall -DNDEBUG -o kv $(ALLOC_C) $(API_C) $(INDEX_C) $(IO_C) $(LIST_C) $(NAMESPACE_C) $(SET_C) $(SST_C) $(TREE_C) main.c -lm

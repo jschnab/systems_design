@@ -92,6 +92,15 @@ void db_close(Db *db) {
 }
 
 
+void db_delete(char *key, Db *db) {
+    if (db->user_ns == NULL) {
+        log_warn("no active user namespace, aborting");
+        return;
+    }
+    namespace_delete(DELETE, key, db->user_ns);
+}
+
+
 TreeNode *db_get(char *key, Db *db) {
     if (db->user_ns == NULL) {
         log_warn("no active user namespace, aborting");

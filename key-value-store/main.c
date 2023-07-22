@@ -240,7 +240,7 @@ int main(int argc, char *argv[]) {
     db_insert("dave", "mustaine", 8, db);
     db_insert("cliff", "burton", 6, db);
 
-    //Db *db = db_open("mykv.db");
+    Db *db = db_open("mykv.db");
     namespace_create("users", db);
     namespace_use("users", db);
     db_insert("hello", "kitty", 5, db);
@@ -250,6 +250,7 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
+    /*
     Db *db = db_open("mykv.db");
     namespace_use("metallica", db);
     db_insert("bob", "rock", 4, db);
@@ -269,6 +270,21 @@ int main(int argc, char *argv[]) {
         else {
             printf("key %s not found\n", key);
         }
+    }
+    db_close(db);
+    */
+
+    Db *db = db_open("mykv.db");
+    namespace_create("users", db);
+    namespace_use("users", db);
+    char *k;
+    char *v;
+    for (int i = 0; i < 34000; i++) {
+        k = random_string(20);
+        v = random_string(1000);
+        db_insert(k, v, 1000, db);
+        free_safe(k);
+        free_safe(v);
     }
     db_close(db);
 
