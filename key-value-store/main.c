@@ -274,6 +274,7 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
+    /* measure write performance (this takes approx. 1 sec)
     Db *db = db_open("mykv.db");
     namespace_create("users", db);
     namespace_use("users", db);
@@ -287,6 +288,7 @@ int main(int argc, char *argv[]) {
         free_safe(v);
     }
     db_close(db);
+    */
 
     return 0;
 }

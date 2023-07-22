@@ -6,6 +6,8 @@
 static const char *VERSION = _VERSION;
 
 
+/* Merge this function with 'namespace_use'. If the namespace does not exist,
+ * we create it. */
 void namespace_create(char *name, Db *db) {
     if (namespace_search(name, db->master_ns) != NULL) {
         log_info("namespace already exists, won't be created");

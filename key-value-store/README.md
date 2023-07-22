@@ -229,3 +229,145 @@ database file. Partial writing to this file could irremediably corrupt the
 database, so we always write all master table paths to the database WAL,
 and also back to the database file. This way, the full file containing all
 master table paths can be restored from the WAL.
+
+
+## Refactor
+
+We should organize the code into the following modules, forming a hierarchical
+dependency tree. Higher level modules depend on lower level modules, without
+lower level modules having dependencies in higher level modules.
+
+Lower level modules serve more internal and abstract purposes, further away
+from user necessities. For example, the red-black tree module is rather low
+level, and the api module (where the user interface is defined) is probably the
+highest level.
+
+api -> table --> record -> tree
+             |-> list
+
+
+We need to remove direct dependencies from very high modules to very low
+modules.
+
+
+### Tree module
+
+The tree module implements the red-black tree and its interface. Tree nodes and
+the tree are modeled by `struct`s. The tree keeps track of how much data it is
+storing in keys and values, as well as the number of nodes it contains.
+
+There is functionality to create and destroy node and tree objects, compare two
+nodes, add a node to the tree, search for a node in the tree, mark a node as
+deleted.
+
+### List module
+
+The list module implements a linked list where nodes have a key and store
+arbitrary data.
+
+### Record module
+
+At the lowest level, records are stored in tree nodes, but the record module
+offers a more appropriate interface for higher level modules.
+
+The record module models records and provide function to work with them.
+
+A record stores the following attributes:
+
+* key (character string)
+* key size (integer)
+* value (byte string)
+* value size (integer)
+* flags
+
+The key is a character string of length 1 to 255, and made of any of the
+following characters: english lowercase, english uppercase, digits, underscore,
+dash, and dot. The key size is store in a single byte.
+
+The value is a byte string of length 0 to almost 2^32 (see below). The value
+size is stored in 4 bytes.
+
+To store key and value attributes are stored through a pointer to a tree node,
+to avoid redundant storage.
+
+Flags are stored in a single byte and encode various properties of a record,
+for example whether or not the record is deleted or not.
+
+Functions include necessary functions to create and delete records, as well as
+serialize and deserialize records to and from disk.
+
+Records work similarly between master table records and user table records.
+However, their values are structured differently and they may have specific
+properties.
+
+### API module
+
+The API module implements interface functions that allow the user to perform
+all public operations:
+
+* create a database
+* delete a database
+* open a database connection
+* close a database connection
+* create a table
+* delete a table
+* insert a record
+* search a record
+* delete a record
+
+To refactor this module, we should:
+
+* merge function to create and connect to user table
+* let functions from the 'table' module parse segment paths data
+* let functions from the 'table' module manage table WAL paths
+
+#### Steps to open a database connection
+
+Opening a database file that does not exist is equivalent to creating the
+database.
+
+1. If the database file does not exist, open a file and write the application
+   version number and go to step 3. Otherwise, go to step 4.
+2. Go to the file offset where the number of master table segments is stored
+   and read it, then go to step 3.
+3. For each master table segment, read the segment data, then go to step 4.
+4. Initialize the master table object by passing the table segments paths.
+5. Initialize the database object and return it to the user.
+
+The database file is structured as follows:
+
+|Section                    |Offset|Size (bytes)|
+|---------------------------|------|------------|
+|Version                    |0     |8           |
+|Master table segment number|8     |8           |
+|Master table segment paths |16    |variable    |
+
+Each master table segment path information is structured as follows (offsets
+are relative to the beginning of the segment info):
+
+|Section                     |Offset|Size (bytes)|
+|----------------------------|------|------------|
+|Number of characters in path|0     |8           |
+|Segment path                |1     |variable    |
+
+#### Steps to create a table
+
+There is a function with the dual purpose of connecting to a table, and
+creating the table if it does not exist.
+
+To differentiate tables where users insert records from the master table, we
+call these tables 'user tables'.
+
+To create a user table, we follow these steps:
+
+1. Check if the table exists. If it exists, do nothing, otherwise go to step 2.
+2. Insert a record for the user table in the master table. The key is the user
+   table name, and the value is NULL.
+
+To connect to a user table, the steps are:
+
+1. Close the current user table, if it exists, then go to step 2.
+2. Search for the user table in the master table and get the list of segment
+   paths for the user table. If the table does not exist, create it. Then, go
+   to step 3.
+3. Initialize the user table by passing the table segment paths.
