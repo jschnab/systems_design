@@ -38,19 +38,8 @@ void use(char *name, Db *db) {
         }
         tnode_destroy(found);
     }
-    /* table name +4 for .wal and + 1 for null termination. */
-    int len = strlen(name);
-    char *wal_path = malloc_safe(len + 5);
-    strcpy(wal_path, name);
-    strcpy(wal_path + len, ".wal");
-    wal_path[len + 4] = '\0';
     debug("initializing table '%s'", name);
-    db->user_tb = table_init(
-        name,
-        wal_path,
-        segments,
-        n_segments
-    );
+    db->user_tb = table_init(name, segments, n_segments);
     debug("finished initialization for table '%s'", name);
 }
 
@@ -138,12 +127,7 @@ Db *connect(char *path) {
         }
     }
 
-    Table *master = table_init(
-        MASTER_NS_NAME,
-        MASTER_WAL_PATH,
-        segments,
-        n_segments
-    );
+    Table *master = table_init(MASTER_TB_NAME, segments, n_segments);
 
     Db *db = (Db *) malloc_safe(sizeof(Db));
     db->path = path;

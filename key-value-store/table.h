@@ -10,6 +10,8 @@
 #include "tree.h"
 
 
+#define MASTER_TB_NAME "master"
+
 /* Root file offsets. */
 #define SEG_NUM_OFF VER_SZ
 #define SEG_NUM_SZ 8
@@ -44,7 +46,7 @@ void table_delete(char, char *, Table *);
 
 List *table_destroy(Table *);
 
-Table *table_init(char *, char *, char **, long);
+Table *table_init(char *, char **, long);
 
 void table_put(char, char *, void *, size_t, Table *);
 

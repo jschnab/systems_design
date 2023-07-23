@@ -51,8 +51,6 @@
 /* Write-Ahead Log offsets and sizes. */
 #define WAL_CMD_SZ 1
 
-#define MASTER_NS_NAME "master"
-#define MASTER_WAL_PATH "master.wal"
 
 
 TreeNode *master_record_from_segment_set(char *, HashSet *);

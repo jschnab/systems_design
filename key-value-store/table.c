@@ -55,7 +55,7 @@ RBTree* merge_memtables(RBTree *t1, RBTree *t2, Table *tb) {
 void merge_memtables_insert(TreeNode *node, RBTree *tree, Table *tb) {
     debug("inserting key '%s' in table '%s'", node->key, tb->name);
     char cmd;
-    if (strcmp(tb->name, MASTER_NS_NAME) == 0) {
+    if (strcmp(tb->name, MASTER_TB_NAME) == 0) {
         /* User INSERT */
         cmd = ADD_SST_SEG;
     }
@@ -151,17 +151,18 @@ List *table_destroy(Table *tb) {
 }
 
 
-Table *table_init(
-    char *name,
-    char *wal_path,
-    char **segment_paths,
-    long n_segments
-) {
+Table *table_init(char *name, char **segment_paths, long n_segments) {
     Table *tb = (Table *) malloc_safe(sizeof(Table));
     int len = strlen(name);
     tb->name = malloc_safe(len + 1);
     strcpy(tb->name, name);
     tb->name[len] = '\0';
+    /* WAL path length is table name length +4 for '.wal' and +1 for zero-
+     * termination. */
+    char *wal_path = malloc_safe(len + 5);
+    strcpy(wal_path, name);
+    strcpy(wal_path + len, ".wal");
+    wal_path[len + 4] = '\0';
     tb->wal_path = wal_path;
     FILE *wal_fp = fopen(wal_path, "a");
     tb->wal_fp = wal_fp;

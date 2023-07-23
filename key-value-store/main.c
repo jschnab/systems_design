@@ -197,23 +197,23 @@ int main(int argc, char *argv[]) {
 
     /* Test restore WAL.
      * First, we add record and not close the connection.
-    Db *db = db_open("mykv.db");
+    Db *db = connect("mykv.db");
     use("users", db);
-    db_insert("hello", "kitty", 5, db);
-    db_insert("alice", "saglisse", 8, db);
-    db_insert("charlie", "watts", 5, db);
-    db_insert("derek", "dominoes", 8, db);
+    put("hello", "kitty", 5, db);
+    put("alice", "saglisse", 8, db);
+    put("charlie", "watts", 5, db);
+    put("derek", "dominoes", 8, db);
     */
 
-    /* Then, we open and close, and check all records are saved.
-    Db *db = db_open("mykv.db");
+    /* Then, we connect and check all records are saved. */
+    Db *db = connect("mykv.db");
     use("users", db);
-    char *keys[4] = {"hello", "james", "charlie", "dude"};
+    char *keys[4] = {"hello", "alice", "charlie", "derek"};
     char *key;
     char *value;
     for (int i = 0; i < 4; i++) {
         key = keys[i];
-        TreeNode *result = db_get(key, db);
+        TreeNode *result = get(key, db);
         if (result != NULL) {
             value = malloc(result->value_size + 1);
             memcpy(value, result->value, result->value_size);
@@ -225,8 +225,7 @@ int main(int argc, char *argv[]) {
             printf("key %s not found\n", key);
         }
     }
-    db_close(db);
-    */
+    close(db);
 
     /*
     Db *db = connect("mykv.db");
