@@ -7,15 +7,15 @@ static const char *VERSION = _VERSION;
 
 
 void use(char *name, Db *db) {
-    if (db->user_ns) {
-        user_namespace_close(db);
+    if (db->user_tb) {
+        user_table_close(db);
     }
     long n_segments = 0;
     char **segments = NULL;
-    TreeNode *found = namespace_search(name, db->master_ns);
+    TreeNode *found = table_get(name, db->master_tb);
     if (found == NULL) {
         debug("user table '%s' not found, creating", name);
-        namespace_insert(CREATE_NS, name, NULL, 0, db->master_ns);
+        table_put(CREATE_NS, name, NULL, 0, db->master_tb);
         debug("finished creating user table '%s'", name);
 
     }
@@ -38,14 +38,14 @@ void use(char *name, Db *db) {
         }
         tnode_destroy(found);
     }
-    /* namespace name +4 for .wal and + 1 for null termination. */
+    /* table name +4 for .wal and + 1 for null termination. */
     int len = strlen(name);
     char *wal_path = malloc_safe(len + 5);
     strcpy(wal_path, name);
     strcpy(wal_path + len, ".wal");
     wal_path[len + 4] = '\0';
     debug("initializing table '%s'", name);
-    db->user_ns = namespace_init(
+    db->user_tb = table_init(
         name,
         wal_path,
         segments,
@@ -58,11 +58,11 @@ void use(char *name, Db *db) {
 void close(Db *db) {
     debug("closing db %s", db->path);
     List *segments = NULL;
-    if (db->user_ns != NULL) {
-        user_namespace_close(db);
+    if (db->user_tb != NULL) {
+        user_table_close(db);
     }
-    namespace_compact(db->master_ns);
-    segments = namespace_destroy(db->master_ns);
+    table_compact(db->master_tb);
+    segments = table_destroy(db->master_tb);
     debug("master table has %ld segments", segments->n);
     fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
     fwrite(&segments->n, SEG_NUM_SZ, 1, db->fp);
@@ -84,30 +84,30 @@ void close(Db *db) {
 
 
 void db_delete(char *key, Db *db) {
-    if (db->user_ns == NULL) {
+    if (db->user_tb == NULL) {
         log_warn("no active user table, aborting");
         return;
     }
-    namespace_delete(DELETE, key, db->user_ns);
+    table_delete(DELETE, key, db->user_tb);
 }
 
 
 /* This function should return a record object, TreeNode is too low level. */
 TreeNode *get(char *key, Db *db) {
-    if (db->user_ns == NULL) {
+    if (db->user_tb == NULL) {
         log_warn("no active user table, aborting");
         return NULL;
     }
-    return namespace_search(key, db->user_ns);
+    return table_get(key, db->user_tb);
 }
 
 
 void put(char *key, void *value, long value_size, Db *db) {
-    if (db->user_ns == NULL) {
+    if (db->user_tb == NULL) {
         log_warn("no active user table, aborting");
         return;
     }
-    namespace_insert(INSERT, key, value, value_size, db->user_ns);
+    table_put(INSERT, key, value, value_size, db->user_tb);
 }
 
 
@@ -138,7 +138,7 @@ Db *connect(char *path) {
         }
     }
 
-    Namespace *master = namespace_init(
+    Table *master = table_init(
         MASTER_NS_NAME,
         MASTER_WAL_PATH,
         segments,
@@ -148,8 +148,8 @@ Db *connect(char *path) {
     Db *db = (Db *) malloc_safe(sizeof(Db));
     db->path = path;
     db->fp = fp;
-    db->user_ns = NULL;
-    db->master_ns = master;
+    db->user_tb = NULL;
+    db->master_tb = master;
 
     return db;
 }

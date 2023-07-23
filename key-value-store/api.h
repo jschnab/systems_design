@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "io.h"
-#include "namespace.h"
+#include "table.h"
 
 
 void use(char *, Db *);

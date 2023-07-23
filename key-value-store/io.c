@@ -155,8 +155,8 @@ void write_segment_file(RBTree *tree, char *file_path) {
     TreeNode *node = tree_leftmost_node(tree);
     while (node != NIL) {
         /* We don't check if 'value' is NULL, because for the master table,
-         * this indicates that a user namespace has no segments, yet (e.g. the
-         * namespace was just created, but no records were added to it. */
+         * this indicates that a user table has no segments, yet (e.g. the
+         * table was just created, but no records were added to it). */
         write_record(node, fp);
         node = tree_successor_node(node);
     }

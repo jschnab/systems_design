@@ -14,9 +14,9 @@ IO = $(IO_H) $(IO_C)
 LIST_H = linked_list.h
 LIST_C = linked_list.c
 LIST = $(LIST_H) $(LIST_C)
-NAMESPACE_H = namespace.h
-NAMESPACE_C = namespace.c
-NAMESPACE = $(NAMESPACE_H) $(NAMESPACE_C)
+TABLE_H = table.h
+TABLE_C = table.c
+TABLE = $(TABLE_H) $(TABLE_C)
 SET_H = hashset.h
 SET_C = hashset.c
 SET = $(SET_H) $(SET_C)
@@ -27,5 +27,5 @@ TREE_H = tree.h
 TREE_C = tree.c
 TREE = $(TREE_H) $(TREE_C)
 
-kv: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO) $(LIST) $(NAMESPACE) $(SET) $(SST) $(TREE) main.c
-	gcc -Wall -o kv $(ALLOC_C) $(API_C) $(INDEX_C) $(IO_C) $(LIST_C) $(NAMESPACE_C) $(SET_C) $(SST_C) $(TREE_C) main.c -lm
+kv: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO) $(LIST) $(TABLE) $(SET) $(SST) $(TREE) main.c
+	gcc -Wall -o kv $(ALLOC_C) $(API_C) $(INDEX_C) $(IO_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SST_C) $(TREE_C) main.c -lm

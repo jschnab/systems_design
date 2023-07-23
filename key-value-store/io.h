@@ -15,10 +15,10 @@
 
 #define _VERSION "0.1.0\0\0\0"
 
-/* Interface command codes for user namespace WAL. */
+/* Interface command codes for user table WAL. */
 #define INSERT 1
 #define DELETE 2
-/* Interface command codes for master namespace WAL. */ 
+/* Interface command codes for master table WAL. */ 
 #define CREATE_NS 3
 #define ADD_SST_SEG 4 // Use INSERT instead of ADD_SST_SEG
 #define DELETE_SST_SEG 5

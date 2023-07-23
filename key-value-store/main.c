@@ -122,11 +122,11 @@ int main(int argc, char *argv[]) {
     /* test search table
     Db *db = db_open("mykv.db");
     char *key = "test";
-    TreeNode *found = namespace_search(key, db->master_ns);
+    TreeNode *found = table_get(key, db->master_tb);
     if (found != NULL)
-        printf("found namespace: %s\n", key);
+        printf("found table: %s\n", key);
     else
-        printf("namespace not found: %s\n", key);
+        printf("table not found: %s\n", key);
     db_close(db);
     */
 
@@ -198,8 +198,7 @@ int main(int argc, char *argv[]) {
     /* Test restore WAL.
      * First, we add record and not close the connection.
     Db *db = db_open("mykv.db");
-    namespace_create("users", db);
-    namespace_use("users", db);
+    use("users", db);
     db_insert("hello", "kitty", 5, db);
     db_insert("alice", "saglisse", 8, db);
     db_insert("charlie", "watts", 5, db);
@@ -208,7 +207,7 @@ int main(int argc, char *argv[]) {
 
     /* Then, we open and close, and check all records are saved.
     Db *db = db_open("mykv.db");
-    namespace_use("users", db);
+    use("users", db);
     char *keys[4] = {"hello", "james", "charlie", "dude"};
     char *key;
     char *value;
@@ -230,26 +229,24 @@ int main(int argc, char *argv[]) {
     */
 
     /*
-    Db *db = db_open("mykv.db");
-    namespace_create("metallica", db);
-    namespace_use("metallica", db);
-    db_insert("dave", "mustaine", 8, db);
-    db_insert("cliff", "burton", 6, db);
+    Db *db = connect("mykv.db");
+    use("metallica", db);
+    put("dave", "mustaine", 8, db);
+    put("cliff", "burton", 6, db);
 
     Db *db = db_open("mykv.db");
-    namespace_create("users", db);
-    namespace_use("users", db);
-    db_insert("hello", "kitty", 5, db);
-    db_insert("alice", "saglisse", 8, db);
-    db_insert("charlie", "watts", 5, db);
-    db_insert("derek", "dominoes", 8, db);
-    db_close(db);
+    use("users", db);
+    put("hello", "kitty", 5, db);
+    put("alice", "saglisse", 8, db);
+    put("charlie", "watts", 5, db);
+    put("derek", "dominoes", 8, db);
+    close(db);
     */
 
     /*
-    Db *db = db_open("mykv.db");
-    namespace_use("metallica", db);
-    db_insert("bob", "rock", 4, db);
+    Db *db = connect("mykv.db");
+    use("metallica", db);
+    put("bob", "rock", 4, db);
     char *keys[4] = {"hello", "bob", "cliff", "dude"};
     char *key;
     char *value;
@@ -271,19 +268,18 @@ int main(int argc, char *argv[]) {
     */
 
     /* measure write performance (this takes approx. 1 sec)
-    Db *db = db_open("mykv.db");
-    namespace_create("users", db);
-    namespace_use("users", db);
+    Db *db = connect("mykv.db");
+    use("users", db);
     char *k;
     char *v;
     for (int i = 0; i < 34000; i++) {
         k = random_string(20);
         v = random_string(1000);
-        db_insert(k, v, 1000, db);
+        put(k, v, 1000, db);
         free_safe(k);
         free_safe(v);
     }
-    db_close(db);
+    close(db);
     */
 
     return 0;

@@ -319,7 +319,7 @@ To refactor this module, we should:
 
 * let functions from the 'table' module parse segment paths data
 * let functions from the 'table' module manage table WAL paths
-* `get` functin returns record (TreeNode is too low level)
+* `get` function returns record (TreeNode is too low level)
 * functions are prfixed with database name to avoid collisions
 * (done) merge function to create and connect to user table
 * (done) give more user-friendly names to api functions
@@ -379,6 +379,6 @@ To connect to a user table, the steps are:
 
 To refactor this module, we should:
 
-* Use the word 'table' instead of namespace.
+* (done) Use the word 'table' instead of namespace.
 * Have the `table_insert` function not take a WAL command as a parameter, WAL
   commands should only be the concern of the table module.
