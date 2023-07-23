@@ -29,23 +29,25 @@ typedef struct table {
 } Table;
 
 
-RBTree *merge_memtables(RBTree *, RBTree *, Table *);
+void memtable_save(Table *);
 
-void merge_memtables_insert(TreeNode *, RBTree *, Table *);
+RBTree *memtables_merge(RBTree *, RBTree *, Table *);
+
+void memtables_merge_insert(TreeNode *, RBTree *, Table *);
+
+char *random_string(long);
 
 void table_compact(Table *);
 
 void table_delete(char, char *, Table *);
 
-List *table_destroy(Table *);
+void table_destroy(Table *);
 
 Table *table_init(char *, char **, long);
 
 void table_put(char, char *, void *, size_t, Table *);
 
 TreeNode *table_get(char *, Table *);
-
-char *random_string(long);
 
 void user_table_close(Table *, Table *);
 

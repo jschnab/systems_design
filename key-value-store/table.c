@@ -10,11 +10,25 @@
 #define RANDOM_STR_LEN 20
 
 
+/* Save the memtable as a new SST segment and append the segment path to the
+ * list and set of SST segments. */
+void memtable_save(Table *tb) {
+    if (tb->memtab->n > 0) {
+        char *segment_path = random_string(RANDOM_STR_LEN + 1);
+        debug("writing memtable to %s", segment_path);
+        write_segment_file(tb->memtab, segment_path);
+        debug("finished writing memtable to %s", segment_path);
+        debug("adding segment path %s to segment list", segment_path);
+        list_append_left(tb->segment_list, sstsegment_create(segment_path, false));
+        hs_add(tb->segment_set, segment_path);
+    }
+}
+
 /* Merge two memtables in a new memtable and return it. If the two original
  * memtables have a node with the same key, the node from t1 is used.
  * We pass the tabke object to access the relevant WAL.
  * The algorithm is the 'merge' of merge-sort. */
-RBTree* merge_memtables(RBTree *t1, RBTree *t2, Table *tb) {
+RBTree* memtables_merge(RBTree *t1, RBTree *t2, Table *tb) {
     RBTree *result = tree_create();
     TreeNode *n1 = tree_leftmost_node(t1);
     TreeNode *n2 = tree_leftmost_node(t2);
@@ -33,17 +47,17 @@ RBTree* merge_memtables(RBTree *t1, RBTree *t2, Table *tb) {
             insert = n2;
             n2 = tree_successor_node(n2);
         }
-        merge_memtables_insert(insert, result, tb);
+        memtables_merge_insert(insert, result, tb);
     }
     if (n1 != NIL) {
         while (n1 != NIL) {
-            merge_memtables_insert(n1, result, tb);
+            memtables_merge_insert(n1, result, tb);
             n1 = tree_successor_node(n1);
         }
     }
     else if (n2 != NIL) {
         while (n2 != NIL) {
-            merge_memtables_insert(n2, result, tb);
+            memtables_merge_insert(n2, result, tb);
             n2 = tree_successor_node(n2);
         }
     }
@@ -51,8 +65,8 @@ RBTree* merge_memtables(RBTree *t1, RBTree *t2, Table *tb) {
 }
 
 
-/* Insert functionality of the function 'merge_memtables'. */
-void merge_memtables_insert(TreeNode *node, RBTree *tree, Table *tb) {
+/* Insert functionality of the function 'memtables_merge'. */
+void memtables_merge_insert(TreeNode *node, RBTree *tree, Table *tb) {
     debug("inserting key '%s' in table '%s'", node->key, tb->name);
     char cmd;
     if (strcmp(tb->name, MASTER_TB_NAME) == 0) {
@@ -87,7 +101,7 @@ void table_compact(Table *tb) {
         next_memtab = read_sst_segment(fp);
         fclose(fp);
         debug("merging memtable with segment %s", sst->path);
-        merged = merge_memtables(tb->memtab, next_memtab, tb);
+        merged = memtables_merge(tb->memtab, next_memtab, tb);
         debug("merged memtable");
         memtab_size = merged->data_size + tb->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
         debug("new memtable size: %ld", memtab_size);
@@ -112,30 +126,9 @@ void table_compact(Table *tb) {
 }
 
 
-/* Writes the memtable to disk, truncates the WAL, and writes the path of the
- * new SST segment in the table segment list.
- * We return the segment list so that the caller can take steps to save the
- * segment paths:
- * - user SST segment paths are written to master SST
- * - master SST segment paths are written to root file
- *
- * The return value must be freed by caller.
- *
- * We should refactor this function to truncate the WAL after SST segment paths
- * have been written to the higher level WAL (e.g. master WAL in the case of a
- * user table. Otherwise, we won't know at which path SST segment path are
- * located. */
-List *table_destroy(Table *tb) {
+/* Truncates the WAL, then destroy and cleanup the table object. */
+void table_destroy(Table *tb) {
     debug("destroying table '%s'", tb->name);
-    debug("memtab has %ld items", tb->memtab->n);
-    if (tb->memtab->n > 0) {
-        char *segment_path = random_string(RANDOM_STR_LEN + 1);
-        debug("writing memtable to %s", segment_path);
-        write_segment_file(tb->memtab, segment_path);
-        debug("adding segment path %s to segment list", segment_path);
-        list_append_left(tb->segment_list, sstsegment_create(segment_path, false));
-    }
-    tree_destroy(tb->memtab);
     fseek(tb->wal_fp, 0, SEEK_END);
     debug("WAL %s has len %ld", tb->wal_path, ftell(tb->wal_fp));
     debug("truncating WAL: %s", tb->wal_path);
@@ -144,10 +137,10 @@ List *table_destroy(Table *tb) {
         log_warn("failed to truncated WAL %s", tb->wal_path);
     }
     fclose(tb->wal_fp);
+    tree_destroy(tb->memtab);
     hs_destroy(tb->segment_set);
-    List *ret = tb->segment_list;
+    list_destroy(tb->segment_list);
     free_safe(tb);
-    return ret;
 }
 
 
@@ -275,25 +268,25 @@ void user_table_close(Table *user_tb, Table *master_tb) {
     char *user_tb_name = malloc_safe(strlen(user_tb->name) + 1);
     strcpy(user_tb_name, user_tb->name);
     table_compact(user_tb);
-    List *segments = table_destroy(user_tb);
-    debug("user table has %ld segments", segments->n);
-    if (segments->n > 0) {
+    memtable_save(user_tb);
+    debug("user table has %ld segments", user_tb->segment_list->n);
+    if (user_tb->segment_list->n > 0) {
         debug("writing segments to master SST memtable");
         /* The key is the table name, and the value the list of SST segment
          * paths. First the number of paths is stored in 8 bytes, then for each
          * path we store its length in 1 byte, then the path string.
          * First we get the total value size. */
         long value_size = SEG_NUM_SZ;
-        for (ListNode *node = segments->head; node != NULL; node = node->next) {
+        ListNode *node;
+        for (node = user_tb->segment_list->head; node != NULL; node = node->next) {
             value_size += strlen(((SSTSegment *)node->data)->path) + SEG_PATH_LEN_SZ;
         }
         debug("value size: %ld", value_size);
         /* Now we can copy segment paths to the value. */
         void *value = malloc_safe(value_size);
-        long segment_count = (long) segments->n;
-        memcpy(value, &segment_count, SEG_NUM_SZ);
+        memcpy(value, &user_tb->segment_list->n, SEG_NUM_SZ);
         long off = SEG_NUM_SZ;
-        for (ListNode *node= segments->head; node != NULL; node = node->next) {
+        for (node = user_tb->segment_list->head; node != NULL; node = node->next) {
             SSTSegment *seg = (SSTSegment *)node->data;
             char path_len = strlen(seg->path);
             debug("segment %s has length %d", seg->path, path_len);
@@ -313,5 +306,5 @@ void user_table_close(Table *user_tb, Table *master_tb) {
         );
         free_safe(user_tb_name);
     }
-    list_destroy(segments);
+    table_destroy(user_tb);
 }

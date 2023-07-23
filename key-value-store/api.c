@@ -47,19 +47,19 @@ void use(char *name, Db *db) {
 
 void close(Db *db) {
     debug("closing db %s", db->path);
-    List *segments = NULL;
     if (db->user_tb != NULL) {
         user_table_close(db->user_tb, db->master_tb);
         db->user_tb = NULL;
     }
     table_compact(db->master_tb);
-    segments = table_destroy(db->master_tb);
-    debug("master table has %ld segments", segments->n);
+    memtable_save(db->master_tb);
+    debug("master table has %ld segments", db->master_tb->segment_list->n);
     fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
-    fwrite(&segments->n, SEG_NUM_SZ, 1, db->fp);
-    if (segments->n > 0) {
+    fwrite(&db->master_tb->segment_list->n, SEG_NUM_SZ, 1, db->fp);
+    if (db->master_tb->segment_list->n > 0) {
         debug("writing segments to root file");
-        for (ListNode *node = segments->head; node != NULL; node = node->next) {
+        ListNode *node;
+        for (node = db->master_tb->segment_list->head; node != NULL; node = node->next) {
             SSTSegment *seg = (SSTSegment *)node->data;
             debug("writing master SST segment path %s", seg->path);
             char path_len = strlen(seg->path);
@@ -67,7 +67,7 @@ void close(Db *db) {
             fwrite(seg->path, path_len, 1, db->fp);
         }
     }
-    list_destroy(segments);
+    table_destroy(db->master_tb);
     fclose(db->fp);
     free_safe(db);
     log_info("closed db");

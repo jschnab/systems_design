@@ -233,7 +233,10 @@ int main(int argc, char *argv[]) {
     use("metallica", db);
     put("dave", "mustaine", 8, db);
     put("cliff", "burton", 6, db);
+    close(db);
+    */
 
+    /*
     Db *db = db_open("mykv.db");
     use("users", db);
     put("hello", "kitty", 5, db);

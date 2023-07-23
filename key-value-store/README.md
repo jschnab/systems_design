@@ -376,8 +376,49 @@ To connect to a user table, the steps are:
 
 ### Table module
 
+The table module takes care of master table and user table operations:
+
+* Initialize a table object.
+* Close a table object.
+* Destroy a table object (cleanup memory).
+* Put a record into a table.
+* Get a record from a table.
+* Delete a record from a table.
+
 To refactor this module, we should:
 
+* (done) Truncated WAL after higher level WAL is updated.
 * (done) Use the word 'table' instead of namespace.
-* (done) Have the `table_insert` function not take a WAL command as a parameter, WAL
-  commands should only be the concern of the table module.
+* (done) Have the `table_insert` function not take a WAL command as a parameter,
+  table WAL commands should only be the concern of the table module.
+
+#### Steps to close a user table
+
+Closing the user table ensures that all in-memory data has been saved to disk,
+either on SST segments (for key-value pairs) or on the WAL of the master table
+(for SST segment paths).
+
+The following steps take place:
+
+1. Compact the table by merging older segments into the current memtable, as
+   long as the current segment would not exceed the maximum segment size.
+2. Save the memtable as a new SST segment.
+3. Truncate the WAL.
+4. Delete the user table object.
+5. Put the list of SST segment paths into the master table.
+
+These steps are currently taken care of by the function `user_table_close`,
+which delegates steps 2, 3, and 4 to the function `table_destroy`. The problem
+with this implementation is that the user table WAL is truncated before user
+SST segment paths are saved to the master table. Instead, we should follow this
+order:
+
+1. Compact the table by merging older segments into the current memtable, as
+   long as the current segment would not exceed the maximum segment size.
+2. Save the memtable as a new SST segment.
+3. Put the list of SST segment paths into the master table.
+4. Truncate the WAL.
+5. Delete the user table object.
+
+For this we could create a new function named `save_memtable` that takes care
+of step 2.
