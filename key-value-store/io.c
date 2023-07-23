@@ -123,6 +123,7 @@ RBTree *restore_wal(FILE *fp, unsigned long file_size) {
         off += value_size;
         switch (command) {
             case INSERT:
+            /* Use INSERT for both master and user tables. */
             case ADD_SST_SEG:
                 tree_insert(memtab, key, value, value_size);
                 break;

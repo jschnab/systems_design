@@ -317,9 +317,12 @@ all public operations:
 
 To refactor this module, we should:
 
-* merge function to create and connect to user table
 * let functions from the 'table' module parse segment paths data
 * let functions from the 'table' module manage table WAL paths
+* `get` functin returns record (TreeNode is too low level)
+* functions are prfixed with database name to avoid collisions
+* (done) merge function to create and connect to user table
+* (done) give more user-friendly names to api functions
 
 #### Steps to open a database connection
 
@@ -371,3 +374,11 @@ To connect to a user table, the steps are:
    paths for the user table. If the table does not exist, create it. Then, go
    to step 3.
 3. Initialize the user table by passing the table segment paths.
+
+### Table module
+
+To refactor this module, we should:
+
+* Use the word 'table' instead of namespace.
+* Have the `table_insert` function not take a WAL command as a parameter, WAL
+  commands should only be the concern of the table module.

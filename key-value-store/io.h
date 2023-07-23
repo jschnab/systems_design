@@ -20,7 +20,7 @@
 #define DELETE 2
 /* Interface command codes for master namespace WAL. */ 
 #define CREATE_NS 3
-#define ADD_SST_SEG 4
+#define ADD_SST_SEG 4 // Use INSERT instead of ADD_SST_SEG
 #define DELETE_SST_SEG 5
 
 /* Segment file header offsets. */

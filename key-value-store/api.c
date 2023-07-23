@@ -6,19 +6,7 @@
 static const char *VERSION = _VERSION;
 
 
-/* Merge this function with 'namespace_use'. If the namespace does not exist,
- * we create it. */
-void namespace_create(char *name, Db *db) {
-    if (namespace_search(name, db->master_ns) != NULL) {
-        log_info("namespace already exists, won't be created");
-        return;
-    }
-    log_info("inserting namespace '%s' in master table", name);
-    namespace_insert(CREATE_NS, name, NULL, 0, db->master_ns);
-}
-
-
-void namespace_use(char *name, Db *db) {
+void use(char *name, Db *db) {
     if (db->user_ns) {
         user_namespace_close(db);
     }
@@ -26,12 +14,13 @@ void namespace_use(char *name, Db *db) {
     char **segments = NULL;
     TreeNode *found = namespace_search(name, db->master_ns);
     if (found == NULL) {
-        log_info("user namespace not found: %s", name);
-        return;
+        debug("user table '%s' not found, creating", name);
+        namespace_insert(CREATE_NS, name, NULL, 0, db->master_ns);
+        debug("finished creating user table '%s'", name);
+
     }
-    /* If there are SST segments for this namespace. */
-    debug("user namespace exists: %s", name);
-    if (found->value != NULL) {
+    else if (found->value != NULL) {
+        debug("user table '%s' exists", name);
         memcpy(&n_segments, found->value, SEG_NUM_SZ);
         debug("number of segments: %ld", n_segments);
         segments = calloc_safe(n_segments, sizeof(char *));
@@ -47,26 +36,26 @@ void namespace_use(char *name, Db *db) {
             debug("segment #%ld path: %s", i, segments[i]);
             off += len;
         }
+        tnode_destroy(found);
     }
-    tnode_destroy(found);
     /* namespace name +4 for .wal and + 1 for null termination. */
     int len = strlen(name);
     char *wal_path = malloc_safe(len + 5);
     strcpy(wal_path, name);
     strcpy(wal_path + len, ".wal");
     wal_path[len + 4] = '\0';
-    debug("initializing namespace object '%s'", name);
+    debug("initializing table '%s'", name);
     db->user_ns = namespace_init(
         name,
         wal_path,
         segments,
         n_segments
     );
-    debug("finished initialization for namespace '%s'", name);
+    debug("finished initialization for table '%s'", name);
 }
 
 
-void db_close(Db *db) {
+void close(Db *db) {
     debug("closing db %s", db->path);
     List *segments = NULL;
     if (db->user_ns != NULL) {
@@ -74,7 +63,7 @@ void db_close(Db *db) {
     }
     namespace_compact(db->master_ns);
     segments = namespace_destroy(db->master_ns);
-    debug("master namespace has %ld segments", segments->n);
+    debug("master table has %ld segments", segments->n);
     fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
     fwrite(&segments->n, SEG_NUM_SZ, 1, db->fp);
     if (segments->n > 0) {
@@ -96,32 +85,33 @@ void db_close(Db *db) {
 
 void db_delete(char *key, Db *db) {
     if (db->user_ns == NULL) {
-        log_warn("no active user namespace, aborting");
+        log_warn("no active user table, aborting");
         return;
     }
     namespace_delete(DELETE, key, db->user_ns);
 }
 
 
-TreeNode *db_get(char *key, Db *db) {
+/* This function should return a record object, TreeNode is too low level. */
+TreeNode *get(char *key, Db *db) {
     if (db->user_ns == NULL) {
-        log_warn("no active user namespace, aborting");
+        log_warn("no active user table, aborting");
         return NULL;
     }
     return namespace_search(key, db->user_ns);
 }
 
 
-void db_insert(char *key, void *value, long value_size, Db *db) {
+void put(char *key, void *value, long value_size, Db *db) {
     if (db->user_ns == NULL) {
-        log_warn("no active user namespace, aborting");
+        log_warn("no active user table, aborting");
         return;
     }
     namespace_insert(INSERT, key, value, value_size, db->user_ns);
 }
 
 
-Db *db_open(char *path) {
+Db *connect(char *path) {
     debug("opening database %s", path);
     FILE *fp;
     long n_segments = 0;

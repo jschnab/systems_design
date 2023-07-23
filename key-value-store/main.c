@@ -112,15 +112,14 @@ int main(int argc, char *argv[]) {
     */
 
 
-    /* test open db handle, create namespace, and use namespace
-    Db *db = db_open("mykv.db");
+    /* test open db handle, create table, and use table
+    Db *db = connect("mykv.db");
     char *key = "metallica";
-    namespace_create(key, db);
-    namespace_use(key, db);
-    db_close(key);
+    use(key, db);
+    close(db);
     */
 
-    /* test search namespace
+    /* test search table
     Db *db = db_open("mykv.db");
     char *key = "test";
     TreeNode *found = namespace_search(key, db->master_ns);
@@ -131,44 +130,41 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
-    /* test use namespace
-    Db *db = db_open("mykv.db");
-    namespace_use("users", db);
-    db_close(db);
+    /* test use table
+    Db *db = connect("mykv.db");
+    use("users", db);
+    close(db);
     */
 
-    /* test insert values in user namespace
-    Db *db = db_open("mykv.db");
-    namespace_create("users", db);
-    namespace_use("users", db);
-    db_insert("hello", "kitty", 5, db);
-    db_insert("alice", "saglisse", 8, db);
-    db_insert("charlie", "watts", 5, db);
-    db_insert("derek", "dominoes", 8, db);
-    db_close(db);
+    /* test put values in user table
+    Db *db = connect("mykv.db");
+    use("users", db);
+    put("hello", "kitty", 5, db);
+    put("alice", "saglisse", 8, db);
+    put("charlie", "watts", 5, db);
+    put("derek", "dominoes", 8, db);
+    close(db);
     */
 
-    /* test create new user namespace and add values
-    Db *db = db_open("mykv.db");
-    char *key = "metallica";
-    namespace_create(key, db);
-    namespace_use(key, db);
-    db_insert("james", "hetfield", 8, db);
-    db_insert("kirk", "hammett", 7, db);
-    db_insert("robert", "trujillo", 8, db);
-    db_insert("lars", "ulrich", 6, db);
-    db_close(db);
+    /* test create new user table and add values
+    Db *db = connect("mykv.db");
+    use("metallica", db);
+    put("james", "hetfield", 8, db);
+    put("kirk", "hammett", 7, db);
+    put("robert", "trujillo", 8, db);
+    put("lars", "ulrich", 6, db);
+    close(db);
     */
 
-    /* test search values in user namespace
-    Db *db = db_open("mykv.db");
-    namespace_use("users", db);
+    /* test search values in user table
+    Db *db = connect("mykv.db");
+    use("metallica", db);
     char *keys[4] = {"hello", "james", "kirk", "dude"};
     char *key;
     char *value;
     for (int i = 0; i < 4; i++) {
         key = keys[i];
-        TreeNode *result = db_get(key, db);
+        TreeNode *result = get(key, db);
         if (result != NULL) {
             value = malloc(result->value_size + 1);
             memcpy(value, result->value, result->value_size);
@@ -180,7 +176,7 @@ int main(int argc, char *argv[]) {
             printf("key %s not found\n", key);
         }
     }
-    db_close(db);
+    close(db);
     */
 
     /* test list append left

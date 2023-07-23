@@ -8,19 +8,17 @@
 #include "namespace.h"
 
 
-void namespace_create(char *, Db *);
+void use(char *, Db *);
 
-void namespace_use(char *, Db *);
-
-void db_close(Db *);
+void close(Db *);
 
 void db_delete(char *, Db *);
 
-TreeNode *db_get(char *, Db *);
+TreeNode *get(char *, Db *);
 
-void db_insert(char *, void *, long, Db *);
+void put(char *, void *, long, Db *);
 
-Db *db_open(char *);
+Db *connect(char *);
 
 
 #endif

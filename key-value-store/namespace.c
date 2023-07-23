@@ -56,6 +56,7 @@ void merge_memtables_insert(TreeNode *node, RBTree *tree, Namespace *ns) {
     debug("inserting key '%s' in namespace '%s'", node->key, ns->name);
     char cmd;
     if (strcmp(ns->name, MASTER_NS_NAME) == 0) {
+        /* User INSERT */
         cmd = ADD_SST_SEG;
     }
     else {
@@ -295,6 +296,7 @@ void user_namespace_close(Db *db) {
         }
         /* Insert the user namespace paths in the master memtable. */
         namespace_insert(
+            /* Use INSERT */
             ADD_SST_SEG,
             user_ns_name,
             value,
