@@ -28,13 +28,6 @@ typedef struct table {
     HashSet *segment_set;  /* Stores segment paths. */
 } Table;
 
-typedef struct db {
-    char *path;
-    FILE *fp;
-    Table *user_tb;
-    Table *master_tb;
-} Db;
-
 
 RBTree *merge_memtables(RBTree *, RBTree *, Table *);
 
@@ -54,6 +47,6 @@ TreeNode *table_get(char *, Table *);
 
 char *random_string(long);
 
-void user_table_close(Db *);
+void user_table_close(Table *, Table *);
 
 #endif

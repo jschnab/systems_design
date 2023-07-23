@@ -8,6 +8,14 @@
 #include "table.h"
 
 
+typedef struct db {
+    char *path;
+    FILE *fp;
+    Table *user_tb;
+    Table *master_tb;
+} Db;
+
+
 void use(char *, Db *);
 
 void close(Db *);

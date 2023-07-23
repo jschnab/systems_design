@@ -379,5 +379,5 @@ To connect to a user table, the steps are:
 To refactor this module, we should:
 
 * (done) Use the word 'table' instead of namespace.
-* Have the `table_insert` function not take a WAL command as a parameter, WAL
+* (done) Have the `table_insert` function not take a WAL command as a parameter, WAL
   commands should only be the concern of the table module.

@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
     put("derek", "dominoes", 8, db);
     */
 
-    /* Then, we connect and check all records are saved. */
+    /* Then, we connect and check all records are saved.
     Db *db = connect("mykv.db");
     use("users", db);
     char *keys[4] = {"hello", "alice", "charlie", "derek"};
@@ -226,6 +226,7 @@ int main(int argc, char *argv[]) {
         }
     }
     close(db);
+    */
 
     /*
     Db *db = connect("mykv.db");

@@ -8,7 +8,8 @@ static const char *VERSION = _VERSION;
 
 void use(char *name, Db *db) {
     if (db->user_tb) {
-        user_table_close(db);
+        user_table_close(db->user_tb, db->master_tb);
+        db->user_tb = NULL;
     }
     long n_segments = 0;
     char **segments = NULL;
@@ -48,7 +49,8 @@ void close(Db *db) {
     debug("closing db %s", db->path);
     List *segments = NULL;
     if (db->user_tb != NULL) {
-        user_table_close(db);
+        user_table_close(db->user_tb, db->master_tb);
+        db->user_tb = NULL;
     }
     table_compact(db->master_tb);
     segments = table_destroy(db->master_tb);

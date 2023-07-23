@@ -113,7 +113,7 @@ void table_compact(Table *tb) {
 
 
 /* Writes the memtable to disk, truncates the WAL, and writes the path of the
- * new SST segment in the appropriate segment list of the Db object.
+ * new SST segment in the table segment list.
  * We return the segment list so that the caller can take steps to save the
  * segment paths:
  * - user SST segment paths are written to master SST
@@ -262,14 +262,20 @@ char *random_string(long len) {
 }
 
 
-void user_table_close(Db *db) {
+void user_table_close(Table *user_tb, Table *master_tb) {
+    if (strcmp(master_tb->name, MASTER_TB_NAME) != 0) {
+        log_err(
+            "Argument #2 of `user_table_close` should be master table, "
+            "got table named '%s'", master_tb->name
+        );
+        exit(1);
+    }
     /* Copy user table name for later use, when adding segments paths
      * to master table. */
-    char *user_tb_name = malloc_safe(strlen(db->user_tb->name) + 1);
-    strcpy(user_tb_name, db->user_tb->name);
-    table_compact(db->user_tb);
-    List *segments = table_destroy(db->user_tb);
-    db->user_tb = NULL;
+    char *user_tb_name = malloc_safe(strlen(user_tb->name) + 1);
+    strcpy(user_tb_name, user_tb->name);
+    table_compact(user_tb);
+    List *segments = table_destroy(user_tb);
     debug("user table has %ld segments", segments->n);
     if (segments->n > 0) {
         debug("writing segments to master SST memtable");
@@ -303,7 +309,7 @@ void user_table_close(Db *db) {
             user_tb_name,
             value,
             value_size,
-            db->master_tb
+            master_tb
         );
         free_safe(user_tb_name);
     }
