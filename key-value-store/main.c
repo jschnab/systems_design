@@ -156,13 +156,13 @@ int main(int argc, char *argv[]) {
     close(db);
     */
 
-    /* test search values in user table
+    /* test search values in user table */
     Db *db = connect("mykv.db");
-    use("metallica", db);
-    char *keys[4] = {"hello", "james", "kirk", "dude"};
+    use("users", db);
+    char *keys[5] = {"hello", "james", "kirk", "dude", "derek"};
     char *key;
     char *value;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         key = keys[i];
         TreeNode *result = get(key, db);
         if (result != NULL) {
@@ -177,7 +177,6 @@ int main(int argc, char *argv[]) {
         }
     }
     close(db);
-    */
 
     /* test list append left
     List *lst = list_create();

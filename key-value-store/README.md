@@ -403,22 +403,12 @@ The following steps take place:
 1. Compact the table by merging older segments into the current memtable, as
    long as the current segment would not exceed the maximum segment size.
 2. Save the memtable as a new SST segment.
-3. Truncate the WAL.
-4. Delete the user table object.
-5. Put the list of SST segment paths into the master table.
-
-These steps are currently taken care of by the function `user_table_close`,
-which delegates steps 2, 3, and 4 to the function `table_destroy`. The problem
-with this implementation is that the user table WAL is truncated before user
-SST segment paths are saved to the master table. Instead, we should follow this
-order:
-
-1. Compact the table by merging older segments into the current memtable, as
-   long as the current segment would not exceed the maximum segment size.
-2. Save the memtable as a new SST segment.
 3. Put the list of SST segment paths into the master table.
 4. Truncate the WAL.
 5. Delete the user table object.
 
-For this we could create a new function named `save_memtable` that takes care
-of step 2.
+### String module
+
+We should have a string module that defines common string operations, e.g.
+allocate memory to store a string an properly zero-terminate it, generate a
+random string, etc.

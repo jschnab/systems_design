@@ -64,5 +64,6 @@ IndexItem *index_item_deserialize(void *);
 
 void index_item_destroy(IndexItem *);
 
+void *read_index_data(FILE *);
 
 #endif

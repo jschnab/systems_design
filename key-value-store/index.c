@@ -7,8 +7,7 @@
 
 Index *index_build_from_file(FILE *fp) {
     Index *index = index_create();
-    size_t data_size;
-    void *data = read_index_data(fp, &data_size);
+    void *data = read_index_data(fp);
     int length;
     IndexItem *item;
     long offset = INDEX_LEN_SZ;
@@ -198,4 +197,17 @@ void index_item_destroy(IndexItem *item) {
     free_safe(item->end_key);
     item->end_key = NULL;
     free_safe(item);
+}
+
+
+/* Reads the segment file region containing the index and returns it as an void
+ * pointer. */
+void *read_index_data(FILE *fp) {
+    fseek(fp, DATA_START_OFFSET, SEEK_SET);
+    long data_offset;
+    fread(&data_offset, DATA_START_SZ, 1, fp);
+    void *index_data = malloc_safe(data_offset - INDEX_OFFSET);
+    fseek(fp, INDEX_OFFSET, SEEK_SET);
+    fread(index_data, data_offset - INDEX_OFFSET, 1, fp);
+    return index_data;
 }

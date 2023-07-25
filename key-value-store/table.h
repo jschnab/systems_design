@@ -8,6 +8,7 @@
 #include "linked_list.h"
 #include "sst.h"
 #include "tree.h"
+#include "wal.h"
 
 
 #define MASTER_TB_NAME "master"
@@ -15,7 +16,6 @@
 /* Root file offsets. */
 #define SEG_NUM_OFF VER_SZ
 #define SEG_NUM_SZ 8
-#define SEG_LST_OFF (SEG_NUM_OFF + SEG_NUM_SZ)
 #define SEG_PATH_LEN_SZ 1
 
 
