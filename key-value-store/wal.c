@@ -45,14 +45,17 @@ RBTree *restore_wal(FILE *fp, unsigned long file_size) {
         off += value_size;
         switch (command) {
             case INSERT:
-            /* Use INSERT for both master and user tables. */
-            case ADD_SST_SEG:
                 tree_insert(memtab, key, value, value_size);
                 break;
             case DELETE:
                 tree_delete(memtab, key);
+                break;
             case CREATE_NS:
                 tree_insert(memtab, key, NULL, 0);
+                break;
+            default:
+                debug("unrecognized WAL command: %d", command);
+                exit(1);
         }
         free(key);
         free(value);
@@ -61,6 +64,19 @@ RBTree *restore_wal(FILE *fp, unsigned long file_size) {
     return memtab;
 }
 
+
+
+/* Truncate a WAL and returns a new file pointer to it. */
+FILE *truncate_wal(char *path, FILE *fp) {
+    debug("truncating WAL: %s", path);
+    fseek(fp, 0, SEEK_END);
+    debug("WAL %s has len %ld", path, ftell(fp));
+    FILE *ret = freopen(path, "w", fp);
+    if (!ret) {
+        log_warn("failed to truncated WAL %s", path);
+    }
+    return ret;
+}
 
 
 void write_wal_command(

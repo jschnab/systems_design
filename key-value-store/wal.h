@@ -26,19 +26,19 @@
 */
 
 
-/* Interface command codes for user table WAL. */
+/* Interface command codes for WAL. */
 #define INSERT 1
 #define DELETE 2
-/* Interface command codes for master table WAL. */ 
+/* Interface command codes specific to master table WAL. */ 
 #define CREATE_NS 3
-#define ADD_SST_SEG 4 // Use INSERT instead of ADD_SST_SEG
-#define DELETE_SST_SEG 5
 
 /* Write-Ahead Log offsets and sizes. */
 #define WAL_CMD_SZ 1
 
 
 RBTree *restore_wal(FILE *, unsigned long);
+
+FILE *truncate_wal(char *, FILE *);
 
 void write_wal_command(char, char *, void *, long, FILE *);
 

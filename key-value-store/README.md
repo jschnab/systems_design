@@ -211,7 +211,7 @@ actions:
 To replay `CREATE_NS`, we put a record to the master memtable that has the
 namespace name as the key, `NULL` as the value, and 0 as the value size.
 
-To replay `ADD_SST_SEG`, we put a record to the master memtable that has the
+To replay `INSERT`, we put a record to the master memtable that has the
 namespace name as the key, and serialized SST segment paths (all paths to be
 added) as the value. The WAL stores the full value.
 

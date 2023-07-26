@@ -68,15 +68,7 @@ RBTree* memtables_merge(RBTree *t1, RBTree *t2, Table *tb) {
 /* Insert functionality of the function 'memtables_merge'. */
 void memtables_merge_insert(TreeNode *node, RBTree *tree, Table *tb) {
     debug("inserting key '%s' in table '%s'", node->key, tb->name);
-    char cmd;
-    if (strcmp(tb->name, MASTER_TB_NAME) == 0) {
-        /* User INSERT */
-        cmd = ADD_SST_SEG;
-    }
-    else {
-        cmd = INSERT;
-    }
-    write_wal_command(cmd, node->key, node->value, node->value_size, tb->wal_fp);
+    write_wal_command(INSERT, node->key, node->value, node->value_size, tb->wal_fp);
     debug("wrote command '%d' to WAL", INSERT);
     tree_insert(tree, node->key, node->value, node->value_size);
     debug("inserted key '%s' in memtab", node->key);
@@ -131,11 +123,7 @@ void table_destroy(Table *tb) {
     debug("destroying table '%s'", tb->name);
     fseek(tb->wal_fp, 0, SEEK_END);
     debug("WAL %s has len %ld", tb->wal_path, ftell(tb->wal_fp));
-    debug("truncating WAL: %s", tb->wal_path);
-    FILE *fp = freopen(tb->wal_path, "w", tb->wal_fp);
-    if (fp == NULL) {
-        log_warn("failed to truncated WAL %s", tb->wal_path);
-    }
+    tb->wal_fp = truncate_wal(tb->wal_path, tb->wal_fp);
     fclose(tb->wal_fp);
     tree_destroy(tb->memtab);
     hs_destroy(tb->segment_set);
@@ -224,7 +212,12 @@ TreeNode *table_get(char *key, Table *tb) {
         debug("searching segment path %s", segment->path);
         index_search(key, segment->index, &start, &end);
         if (start != -1) {
-            debug("found key '%s' between offsets %ld and %ld", key, start, end);
+            debug(
+                "found candidate index block for key '%s' between offsets %ld and %ld",
+                key,
+                start,
+                end
+            );
             FILE *fp = fopen(segment->path, "r");
             void *data = read_sst_block(fp, start, end);
             result = sst_block_search(key, data, end - start);
@@ -271,7 +264,7 @@ void user_table_close(Table *user_tb, Table *master_tb) {
     memtable_save(user_tb);
     debug("user table has %ld segments", user_tb->segment_list->n);
     if (user_tb->segment_list->n > 0) {
-        debug("writing segments to master SST memtable");
+        debug("writing user table segments to master memtable");
         /* The key is the table name, and the value the list of SST segment
          * paths. First the number of paths is stored in 8 bytes, then for each
          * path we store its length in 1 byte, then the path string.
@@ -297,8 +290,7 @@ void user_table_close(Table *user_tb, Table *master_tb) {
         }
         /* Put the user table paths in the master memtable. */
         table_put(
-            /* Use INSERT */
-            ADD_SST_SEG,
+            INSERT,
             user_tb_name,
             value,
             value_size,

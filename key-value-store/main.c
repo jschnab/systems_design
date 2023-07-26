@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 
     /* test create new user table and add values
     Db *db = connect("mykv.db");
-    use("metallica", db);
+    use("users", db);
     put("james", "hetfield", 8, db);
     put("kirk", "hammett", 7, db);
     put("robert", "trujillo", 8, db);
