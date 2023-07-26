@@ -10,6 +10,24 @@
 #define RANDOM_STR_LEN 20
 
 
+void master_table_segments_to_root(Table *tb, FILE *root) {
+    debug("master table has %ld segments", tb->segment_list->n);
+    fseek(root, SEG_NUM_OFF, SEEK_SET);
+    fwrite(&tb->segment_list->n, SEG_NUM_SZ, 1, root);
+    if (tb->segment_list->n > 0) {
+        debug("writing segments to root file");
+        ListNode *node;
+        for (node = tb->segment_list->head; node != NULL; node = node->next) {
+            SSTSegment *seg = (SSTSegment *)node->data;
+            debug("writing master SST segment path %s", seg->path);
+            char path_len = strlen(seg->path);
+            fwrite(&path_len, SEG_PATH_LEN_SZ, 1, root);
+            fwrite(seg->path, path_len, 1, root);
+        }
+    }
+}
+
+
 /* Save the memtable as a new SST segment and append the segment path to the
  * list and set of SST segments. */
 void memtable_save(Table *tb) {
@@ -87,7 +105,7 @@ void table_compact(Table *tb) {
     RBTree *merged;
     long memtab_size = tb->memtab->data_size + tb->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
     debug("current memtab size: %ld", memtab_size);
-    while (next_seg != NULL && memtab_size + sstsegment_size(sst) < MAX_SEG_SIZE) {
+    while (next_seg != NULL && memtab_size + sstsegment_size(sst) < MAX_SEG_SZ) {
         debug("reading segment: %s", sst->path);
         fp = fopen(sst->path, "r");
         next_memtab = read_sst_segment(fp);
@@ -118,6 +136,16 @@ void table_compact(Table *tb) {
 }
 
 
+/* Delete the record with the specified key from a table. */
+void table_delete(char cmd, char *key, Table *tb) {
+    debug("deleting key '%s' from table '%s'", key, tb->name);
+    write_wal_command(cmd, key, NULL, 0, tb->wal_fp);
+    debug("wrote command '%d' to WAL", cmd);
+    tree_delete(tb->memtab, key);
+    debug("deleted key '%s' from memtab", key);
+}
+
+
 /* Truncates the WAL, then destroy and cleanup the table object. */
 void table_destroy(Table *tb) {
     debug("destroying table '%s'", tb->name);
@@ -129,6 +157,42 @@ void table_destroy(Table *tb) {
     hs_destroy(tb->segment_set);
     list_destroy(tb->segment_list);
     free_safe(tb);
+}
+
+
+/* Searches a key in a table (memtables, then SST segments) and returns a
+ * new TreeNode object containing the corresponding value. If the key is not
+ * found, returns NULL. */
+TreeNode *table_get(char *key, Table *tb) {
+    TreeNode *found = tree_search(key, tb->memtab);
+    if (found != NULL) {
+        debug("key '%s' found in memtable", key);
+        return tnode_create(found->key, found->value, found->value_size);
+    }
+    debug("key '%s' not found in memtable, searching SST segments", key);
+    TreeNode *result = NULL;
+    long start;
+    long end;
+    ListNode *node = tb->segment_list->head;
+    while (node != NULL) {
+        SSTSegment *segment = (SSTSegment *) node->data;
+        debug("searching segment path %s", segment->path);
+        index_search(key, segment->index, &start, &end);
+        if (start != -1) {
+            debug(
+                "found candidate index block for key '%s' between offsets %ld and %ld",
+                key,
+                start,
+                end
+            );
+            FILE *fp = fopen(segment->path, "r");
+            void *data = read_sst_block(fp, start, end);
+            result = sst_block_search(key, data, end - start);
+            break;
+        }
+        node = node->next;
+    }
+    return result;
 }
 
 
@@ -174,58 +238,45 @@ Table *table_init(char *name, char **segment_paths, long n_segments) {
 }
 
 
-void table_put(char cmd, char *key, void *value, size_t value_size, Table *tb) {
-    debug("inserting key '%s' in table '%s'", key, tb->name);
-    write_wal_command(cmd, key, value, value_size, tb->wal_fp);
-    debug("wrote command '%d' to WAL", cmd);
-    tree_insert(tb->memtab, key, value, value_size);
-    debug("inserted key '%s' in memtab", key);
-}
-
-
-/* Delete the record with the specified key from a table. */
-void table_delete(char cmd, char *key, Table *tb) {
-    debug("deleting key '%s' from table '%s'", key, tb->name);
-    write_wal_command(cmd, key, NULL, 0, tb->wal_fp);
-    debug("wrote command '%d' to WAL", cmd);
-    tree_delete(tb->memtab, key);
-    debug("deleted key '%s' from memtab", key);
-}
-
-
-/* Searches a key in a table (memtables, then SST segments) and returns a
- * new TreeNode object containing the corresponding value. If the key is not
- * found, returns NULL. */
-TreeNode *table_get(char *key, Table *tb) {
-    TreeNode *found = tree_search(key, tb->memtab);
-    if (found != NULL) {
-        debug("key '%s' found in memtable", key);
-        return tnode_create(found->key, found->value, found->value_size);
+/* Put a record (insert or update) into a table.
+ *
+ * Required parameters are 'key', 'value', 'value_size', and 'target_tb'.
+ * If the target table is a user table, pass a value for 'master_tb' and NULL
+ * for root.
+ * If the target table is the master table, pass NULL for 'master_tb' and a
+ * file pointer to the root file for 'root'.
+ */
+void table_put(
+    char *key,
+    void *value,
+    size_t value_size,
+    Table *target_tb,
+    Table *master_tb,
+    FILE *root
+) {
+    char cmd;
+    if (strcmp(target_tb->name, MASTER_TB_NAME) == 0 && !value) {
+        cmd = CREATE_NS;
     }
-    debug("key '%s' not found in memtable, searching SST segments", key);
-    TreeNode *result = NULL;
-    long start;
-    long end;
-    ListNode *node = tb->segment_list->head;
-    while (node != NULL) {
-        SSTSegment *segment = (SSTSegment *) node->data;
-        debug("searching segment path %s", segment->path);
-        index_search(key, segment->index, &start, &end);
-        if (start != -1) {
-            debug(
-                "found candidate index block for key '%s' between offsets %ld and %ld",
-                key,
-                start,
-                end
-            );
-            FILE *fp = fopen(segment->path, "r");
-            void *data = read_sst_block(fp, start, end);
-            result = sst_block_search(key, data, end - start);
-            break;
+    else {
+        cmd = INSERT;
+    }
+    debug("inserting key '%s' in table '%s'", key, target_tb->name);
+    write_wal_command(cmd, key, value, value_size, target_tb->wal_fp);
+    debug("wrote command '%d' to WAL", cmd);
+    if (target_tb->memtab->data_size + target_tb->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ) > MAX_SEG_SZ) {
+        memtable_save(target_tb);
+        if (strcmp(target_tb->name, MASTER_TB_NAME) == 0) {
+            master_table_segments_to_root(target_tb, root);
         }
-        node = node->next;
+        else {
+            user_table_segments_to_master(target_tb, master_tb, root);
+        }
+        target_tb->wal_fp = truncate_wal(target_tb->wal_path, target_tb->wal_fp);
+        target_tb->memtab = tree_create();
     }
-    return result;
+    tree_insert(target_tb->memtab, key, value, value_size);
+    debug("finished inserting key '%s' in memtab", key);
 }
 
 
@@ -248,7 +299,7 @@ char *random_string(long len) {
 }
 
 
-void user_table_close(Table *user_tb, Table *master_tb) {
+void user_table_close(Table *user_tb, Table *master_tb, FILE *root) {
     if (strcmp(master_tb->name, MASTER_TB_NAME) != 0) {
         log_err(
             "Argument #2 of `user_table_close` should be master table, "
@@ -259,15 +310,15 @@ void user_table_close(Table *user_tb, Table *master_tb) {
     table_compact(user_tb);
     memtable_save(user_tb);
     debug("user table has %ld segments", user_tb->segment_list->n);
-    user_table_segments_to_master(user_tb, master_tb);
+    user_table_segments_to_master(user_tb, master_tb, root);
     table_destroy(user_tb);
 }
 
 
 /* Put a record in the master table with the name of the user table as key and
  * the list of user table segments as value. */
-void user_table_segments_to_master(Table *user_tb, Table *master_tb) {
-    if (user_tb->segment_list->n < 1) {
+void user_table_segments_to_master(Table *user_tb, Table *master_tb, FILE *root) {
+    if (user_tb->segment_list->n == 0) {
         return;
     }
     debug("writing user table segments to master memtable");
@@ -301,11 +352,12 @@ void user_table_segments_to_master(Table *user_tb, Table *master_tb) {
     }
     /* Put the user table paths in the master memtable. */
     table_put(
-        INSERT,
         user_tb_name,
         value,
         value_size,
-        master_tb
+        master_tb,
+        NULL,
+        root
     );
     free_safe(user_tb_name);
 }

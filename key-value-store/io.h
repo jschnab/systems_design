@@ -15,7 +15,7 @@
 #define DATA_START_SZ 8
 #define INDEX_OFFSET (DATA_START_OFFSET + DATA_START_SZ)
 
-#define MAX_SEG_SIZE 1000000
+#define MAX_SEG_SZ 1000000
 
 /* Record offsets.  */
 #define RECORD_LEN_SZ 4

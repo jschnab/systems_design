@@ -29,6 +29,8 @@ typedef struct table {
 } Table;
 
 
+void master_table_segments_to_root(Table *, FILE *);
+
 void memtable_save(Table *);
 
 RBTree *memtables_merge(RBTree *, RBTree *, Table *);
@@ -45,13 +47,13 @@ void table_destroy(Table *);
 
 Table *table_init(char *, char **, long);
 
-void table_put(char, char *, void *, size_t, Table *);
-
 TreeNode *table_get(char *, Table *);
 
-void user_table_close(Table *, Table *);
+void table_put(char *, void *, size_t, Table *, Table *, FILE *);
 
-void user_table_segments_to_master(Table *, Table *);
+void user_table_close(Table *, Table *, FILE *);
+
+void user_table_segments_to_master(Table *, Table *, FILE *);
 
 
 #endif

@@ -26,10 +26,10 @@
 */
 
 
-/* Interface command codes for WAL. */
+/* General WAL commands. */
 #define INSERT 1
 #define DELETE 2
-/* Interface command codes specific to master table WAL. */ 
+/* Master table-specific WAL commands. */ 
 #define CREATE_NS 3
 
 /* Write-Ahead Log offsets and sizes. */

@@ -8,7 +8,7 @@ static const char *VERSION = _VERSION;
 
 void use(char *name, Db *db) {
     if (db->user_tb) {
-        user_table_close(db->user_tb, db->master_tb);
+        user_table_close(db->user_tb, db->master_tb, db->fp);
         db->user_tb = NULL;
     }
     long n_segments = 0;
@@ -16,7 +16,7 @@ void use(char *name, Db *db) {
     TreeNode *found = table_get(name, db->master_tb);
     if (found == NULL) {
         debug("user table '%s' not found, creating", name);
-        table_put(CREATE_NS, name, NULL, 0, db->master_tb);
+        table_put(name, NULL, 0, db->master_tb, NULL, db->fp);
         debug("finished creating user table '%s'", name);
 
     }
@@ -48,25 +48,12 @@ void use(char *name, Db *db) {
 void close(Db *db) {
     debug("closing db %s", db->path);
     if (db->user_tb != NULL) {
-        user_table_close(db->user_tb, db->master_tb);
+        user_table_close(db->user_tb, db->master_tb, db->fp);
         db->user_tb = NULL;
     }
     table_compact(db->master_tb);
     memtable_save(db->master_tb);
-    debug("master table has %ld segments", db->master_tb->segment_list->n);
-    fseek(db->fp, SEG_NUM_OFF, SEEK_SET);
-    fwrite(&db->master_tb->segment_list->n, SEG_NUM_SZ, 1, db->fp);
-    if (db->master_tb->segment_list->n > 0) {
-        debug("writing segments to root file");
-        ListNode *node;
-        for (node = db->master_tb->segment_list->head; node != NULL; node = node->next) {
-            SSTSegment *seg = (SSTSegment *)node->data;
-            debug("writing master SST segment path %s", seg->path);
-            char path_len = strlen(seg->path);
-            fwrite(&path_len, SEG_PATH_LEN_SZ, 1, db->fp);
-            fwrite(seg->path, path_len, 1, db->fp);
-        }
-    }
+    master_table_segments_to_root(db->master_tb, db->fp);
     table_destroy(db->master_tb);
     fclose(db->fp);
     free_safe(db);
@@ -98,7 +85,7 @@ void put(char *key, void *value, long value_size, Db *db) {
         log_warn("no active user table, aborting");
         return;
     }
-    table_put(INSERT, key, value, value_size, db->user_tb);
+    table_put(key, value, value_size, db->user_tb, db->master_tb, NULL);
 }
 
 
