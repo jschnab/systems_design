@@ -51,4 +51,7 @@ TreeNode *table_get(char *, Table *);
 
 void user_table_close(Table *, Table *);
 
+void user_table_segments_to_master(Table *, Table *);
+
+
 #endif

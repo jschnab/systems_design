@@ -256,47 +256,56 @@ void user_table_close(Table *user_tb, Table *master_tb) {
         );
         exit(1);
     }
+    table_compact(user_tb);
+    memtable_save(user_tb);
+    debug("user table has %ld segments", user_tb->segment_list->n);
+    user_table_segments_to_master(user_tb, master_tb);
+    table_destroy(user_tb);
+}
+
+
+/* Put a record in the master table with the name of the user table as key and
+ * the list of user table segments as value. */
+void user_table_segments_to_master(Table *user_tb, Table *master_tb) {
+    if (user_tb->segment_list->n < 1) {
+        return;
+    }
+    debug("writing user table segments to master memtable");
     /* Copy user table name for later use, when adding segments paths
      * to master table. */
     char *user_tb_name = malloc_safe(strlen(user_tb->name) + 1);
     strcpy(user_tb_name, user_tb->name);
-    table_compact(user_tb);
-    memtable_save(user_tb);
-    debug("user table has %ld segments", user_tb->segment_list->n);
-    if (user_tb->segment_list->n > 0) {
-        debug("writing user table segments to master memtable");
-        /* The key is the table name, and the value the list of SST segment
-         * paths. First the number of paths is stored in 8 bytes, then for each
-         * path we store its length in 1 byte, then the path string.
-         * First we get the total value size. */
-        long value_size = SEG_NUM_SZ;
-        ListNode *node;
-        for (node = user_tb->segment_list->head; node != NULL; node = node->next) {
-            value_size += strlen(((SSTSegment *)node->data)->path) + SEG_PATH_LEN_SZ;
-        }
-        debug("value size: %ld", value_size);
-        /* Now we can copy segment paths to the value. */
-        void *value = malloc_safe(value_size);
-        memcpy(value, &user_tb->segment_list->n, SEG_NUM_SZ);
-        long off = SEG_NUM_SZ;
-        for (node = user_tb->segment_list->head; node != NULL; node = node->next) {
-            SSTSegment *seg = (SSTSegment *)node->data;
-            char path_len = strlen(seg->path);
-            debug("segment %s has length %d", seg->path, path_len);
-            memcpy(value + off, &path_len, SEG_PATH_LEN_SZ);
-            off += SEG_PATH_LEN_SZ;
-            memcpy(value + off, seg->path, path_len);
-            off += path_len;
-        }
-        /* Put the user table paths in the master memtable. */
-        table_put(
-            INSERT,
-            user_tb_name,
-            value,
-            value_size,
-            master_tb
-        );
-        free_safe(user_tb_name);
+
+    /* The key is the table name, and the value the list of SST segment
+     * paths. First the number of paths is stored in 8 bytes, then for each
+     * path we store its length in 1 byte, then the path string.
+     * First we get the total value size. */
+    long value_size = SEG_NUM_SZ;
+    ListNode *node;
+    for (node = user_tb->segment_list->head; node != NULL; node = node->next) {
+        value_size += strlen(((SSTSegment *)node->data)->path) + SEG_PATH_LEN_SZ;
     }
-    table_destroy(user_tb);
+    debug("value size: %ld", value_size);
+    /* Now we can copy segment paths to the value. */
+    void *value = malloc_safe(value_size);
+    memcpy(value, &user_tb->segment_list->n, SEG_NUM_SZ);
+    long off = SEG_NUM_SZ;
+    for (node = user_tb->segment_list->head; node != NULL; node = node->next) {
+        SSTSegment *seg = (SSTSegment *)node->data;
+        char path_len = strlen(seg->path);
+        debug("segment %s has length %d", seg->path, path_len);
+        memcpy(value + off, &path_len, SEG_PATH_LEN_SZ);
+        off += SEG_PATH_LEN_SZ;
+        memcpy(value + off, seg->path, path_len);
+        off += path_len;
+    }
+    /* Put the user table paths in the master memtable. */
+    table_put(
+        INSERT,
+        user_tb_name,
+        value,
+        value_size,
+        master_tb
+    );
+    free_safe(user_tb_name);
 }
