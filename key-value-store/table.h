@@ -6,7 +6,7 @@
 
 #include "hashset.h"
 #include "linked_list.h"
-#include "sst.h"
+#include "segment.h"
 #include "tree.h"
 #include "wal.h"
 
