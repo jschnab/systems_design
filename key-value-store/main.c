@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
     close(db);
     */
 
-    /* test search values in user table */
+    /* test search values in user table
     Db *db = connect("mykv.db");
     use("users", db);
     char *keys[5] = {"hello", "james", "kirk", "dude", "derek"};
@@ -177,6 +177,7 @@ int main(int argc, char *argv[]) {
         }
     }
     close(db);
+    */
 
     /* test list append left
     List *lst = list_create();
@@ -269,7 +270,7 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
-    /* measure write performance (this takes approx. 1 sec)
+    /* measure write performance (this takes approx. 1 sec) */
     Db *db = connect("mykv.db");
     use("users", db);
     char *k;
@@ -282,7 +283,6 @@ int main(int argc, char *argv[]) {
         free_safe(v);
     }
     close(db);
-    */
 
     return 0;
 }
