@@ -29,7 +29,11 @@ WAL_C = wal.c
 WAL = $(WAL_H) $(WAL_C)
 
 kv: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO_H) $(LIST) $(TABLE) $(SET) $(SEG) $(TREE) $(WAL) main.c
-	gcc -Wall -o kv $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SEG_C) $(TREE_C) $(WAL_C) main.c -lm
+	gcc -Wall -O3 -o kv $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SEG_C) $(TREE_C) $(WAL_C) main.c -lm
 
 timing: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO_H) $(LIST) $(TABLE) $(SET) $(SEG) $(TREE) $(WAL) timing.c
-	gcc -Wall -DNDEBUG -o timing $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SEG_C) $(TREE_C) $(WAL_C) timing.c -lm
+	gcc -Wall -O3 -DNDEBUG -o timing $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SEG_C) $(TREE_C) $(WAL_C) timing.c -lm
+
+
+timing_search: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO_H) $(LIST) $(TABLE) $(SET) $(SEG) $(TREE) $(WAL) timing_search.c
+	gcc -Wall -O3 -DNDEBUG -o timing_search $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SEG_C) $(TREE_C) $(WAL_C) timing_search.c -lm

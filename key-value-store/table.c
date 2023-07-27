@@ -94,6 +94,9 @@ void memtables_merge_insert(TreeNode *node, RBTree *tree, Table *tb) {
 
 
 void table_compact(Table *tb) {
+    if (tb->memtab->data_size == 0) {
+        return;
+    }
     debug("compacting table '%s'", tb->name);
     ListNode *next_seg = tb->segment_list->head;
     SSTSegment *sst;
