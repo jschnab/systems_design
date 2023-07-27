@@ -113,7 +113,7 @@ void table_compact(Table *tb) {
         debug("merging memtable with segment %s", sst->path);
         merged = memtables_merge(tb->memtab, next_memtab, tb);
         debug("merged memtable");
-        memtab_size = merged->data_size + tb->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
+        memtab_size = merged->data_size + merged->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
         debug("new memtable size: %ld", memtab_size);
         free_safe(tb->memtab);
         debug("deallocated current memtable");
@@ -125,12 +125,12 @@ void table_compact(Table *tb) {
         hs_discard(tb->segment_set, sst->path);
         debug("removing from segment list: %s", sst->path);
         list_delete(tb->segment_list, 0);
+        debug("deleting file: %s", sst->path);
+        remove(sst->path);
         debug("removed from segment list");
         if (next_seg != NULL) {
             sst = (SSTSegment *)next_seg->data;
         }
-        debug("deleting file: %s", sst->path);
-        remove(sst->path);
     }
     debug("finished compacting table '%s'", tb->name);
 }
