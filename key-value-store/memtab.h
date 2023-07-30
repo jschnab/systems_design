@@ -7,10 +7,14 @@
 #define RED true
 #define BLACK false
 
+#define NOFLAGS 0
+#define DELETED 1
+
 
 typedef struct record {
     char *key;
     void *value;
+    char flags;
     char key_size;
     size_t value_size;
     struct record *parent;
@@ -51,13 +55,13 @@ void record_rotate_right(Memtable *, Record *);
 
 Memtable *memtable_create();
 
-bool memtable_delete(Memtable *, char *);
+void memtable_delete(Memtable *, char *);
 
 void memtable_destroy(Memtable *);
 
 void memtable_destroy_helper(Record *);
 
-void memtable_insert(Memtable *, char *, void *, size_t);
+void memtable_insert(Memtable *, char *, void *, size_t, char);
 
 Record *memtable_leftmost_record(Memtable *);
 

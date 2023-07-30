@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 
     /* test create new user table and add values
     Db *db = connect("mykv.db");
-    use("users", db);
+    use("metallica", db);
     put("james", "hetfield", 8, db);
     put("kirk", "hammett", 7, db);
     put("robert", "trujillo", 8, db);
@@ -156,10 +156,58 @@ int main(int argc, char *argv[]) {
     close(db);
     */
 
-    /* test search values in user table */
+    /* test delete record */
     Db *db = connect("mykv.db");
     use("users", db);
-    char *keys[5] = {"hello", "james", "kirk", "dude", "derek"};
+    put("hello", "kitty", 5, db);
+    /*
+    put("alice", "saglisse", 8, db);
+    put("charlie", "watts", 5, db);
+    put("derek", "dominoes", 8, db);
+    */
+
+    char *keys[5] = {"hello", "james", "charlie", "alice", "derek"};
+    char *key;
+    char *value;
+    for (int i = 0; i < 5; i++) {
+        key = keys[i];
+        Record *result = get(key, db);
+        if (result != NULL) {
+            value = malloc(result->value_size + 1);
+            memcpy(value, result->value, result->value_size);
+            value[(int)result->value_size] = '\0';
+            printf("value for key %s: '%s'\n", key, value);
+            free_safe(value);
+        }
+        else {
+            printf("key %s not found\n", key);
+        }
+    }
+    /*
+    delete("charlie", db);
+
+    for (int i = 0; i < 5; i++) {
+        key = keys[i];
+        Record *result = get(key, db);
+        if (result != NULL) {
+            value = malloc(result->value_size + 1);
+            memcpy(value, result->value, result->value_size);
+            value[(int)result->value_size] = '\0';
+            printf("value for key %s: '%s'\n", key, value);
+            free_safe(value);
+        }
+        else {
+            printf("key %s not found\n", key);
+        }
+    }
+    */
+
+    close(db);
+
+    /* test search values in user table
+    Db *db = connect("mykv.db");
+    use("metallica", db);
+    char *keys[5] = {"lars", "james", "kirk", "rolon", "robert"};
     char *key;
     char *value;
     for (int i = 0; i < 5; i++) {
@@ -177,6 +225,7 @@ int main(int argc, char *argv[]) {
         }
     }
     close(db);
+    */
 
     /* test list append left
     List *lst = list_create();

@@ -84,8 +84,8 @@ the value as a variable length byte string.
 The tree that stores the memtable is append and update only, nodes are never
 deleted, except when the whole tree is destroyed. When an already
 existing key is added to the tree, the value of the node with the matching key
-is updated. When a key is deleted, its value is set to null (tombstone) and it
-is skipped when the memtable is written to disk.
+is updated. When a key is deleted, the value is truncated to keep only flags
+(1 byte) and the 'delete' bit is set.
 
 ## Master table
 
@@ -160,7 +160,7 @@ record with a special value. If we simply remove the record, and the record
 exists in an older SST segment, it will be found when the table is searched. To
 indicate that the record is deleted, we store the value `1` in the flag byte of
 the record, and store the record with no value. The value size of the record is
-set to 0.
+set to 1.
 
 The process to delete a table, i.e. delete a record from the master table is
 the same, except that we first delete the files that contain user table data.
@@ -249,27 +249,15 @@ api -> table --> record -> tree
 We need to remove direct dependencies from very high modules to very low
 modules.
 
-### Tree module
+### Memtable module
 
-The tree module implements the red-black tree and its interface. Tree nodes and
-the tree are modeled by `struct`s. The tree keeps track of how much data it is
-storing in keys and values, as well as the number of nodes it contains.
+The memtable module implements the memtable (as red-black tree) and its
+interface. The memtable keeps track of how much data it is storing in keys
+and values, as well as the number of records it contains.
 
-There is functionality to create and destroy node and tree objects, compare two
-nodes, add a node to the tree, search for a node in the tree, mark a node as
-deleted.
-
-### List module
-
-The list module implements a linked list where nodes have a key and store
-arbitrary data.
-
-### Record module
-
-At the lowest level, records are stored in tree nodes, but the record module
-offers a more appropriate interface for higher level modules.
-
-The record module models records and provide function to work with them.
+There is functionality to create and destroy record and memtable objects,
+compare two records, add a record to the memtable, search for a record, mark a
+record as deleted.
 
 A record stores the following attributes:
 
@@ -286,18 +274,19 @@ dash, and dot. The key size is store in a single byte.
 The value is a byte string of length 0 to almost 2^32 (see below). The value
 size is stored in 4 bytes.
 
-To store key and value attributes are stored through a pointer to a tree node,
-to avoid redundant storage.
-
 Flags are stored in a single byte and encode various properties of a record,
 for example whether or not the record is deleted or not.
-
-Functions include necessary functions to create and delete records, as well as
-serialize and deserialize records to and from disk.
 
 Records work similarly between master table records and user table records.
 However, their values are structured differently and they may have specific
 properties.
+
+When written to disk, the flags byte is written between the key and the value.
+
+### List module
+
+The list module implements a linked list where nodes have a key and store
+arbitrary data.
 
 ### API module
 

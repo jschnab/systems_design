@@ -31,7 +31,8 @@ Memtable *read_sst_segment(FILE *fp) {
     Memtable *memtab = memtable_create();
     long record_size = 0;
     char key_size = 0;
-    char *key = NULL;
+    char key[KEY_MAX_LEN] = {0};
+    char flags = NOFLAGS;
     long value_size;
     void *value = NULL;
     size_t bytes_read = 0;
@@ -41,14 +42,13 @@ Memtable *read_sst_segment(FILE *fp) {
             break;
         }
         fread(&key_size, KEY_LEN_SZ, 1, fp);
-        key = malloc_safe(key_size + 1);
         fread(key, key_size, 1, fp);
         key[(int)key_size] = '\0';
-        value_size = record_size - RECORD_LEN_SZ - KEY_LEN_SZ - key_size;
+        fread(&flags, RECORD_FLAGS_SZ, 1, fp);
+        value_size = record_size - RECORD_CST_SZ - key_size;
         value = malloc_safe(value_size);
         fread(value, value_size, 1, fp);
-        memtable_insert(memtab, key, value, value_size);
-        free_safe(key);
+        memtable_insert(memtab, key, value, value_size, flags);
         free_safe(value);
     }
     return memtab;
@@ -62,6 +62,7 @@ Record *sst_block_search(char *key, void *data, size_t data_size) {
     int record_size = 0;
     char key_size = 0;
     char candidate_key[KEY_MAX_LEN] = {0};
+    char flags = NOFLAGS;
     void *value = NULL;
     long value_size = 0;
     size_t offset = 0;
@@ -70,22 +71,20 @@ Record *sst_block_search(char *key, void *data, size_t data_size) {
         memcpy(&key_size, data + offset + RECORD_LEN_SZ, KEY_LEN_SZ);
         memcpy(candidate_key, data + offset + RECORD_LEN_SZ + KEY_LEN_SZ, key_size);
         candidate_key[(int)key_size] = '\0';
+        memcpy(&flags, data + offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size, RECORD_FLAGS_SZ);
         if (strcmp(candidate_key, key) == 0) {
             debug("found key: %s", key);
-            debug("key size: %d", key_size);
-            debug("record size: %d", record_size);
-            value_size = record_size - RECORD_LEN_SZ - KEY_LEN_SZ - key_size;
-            debug("value size: %ld", value_size);
+            value_size = record_size - RECORD_CST_SZ - key_size;
             if (value_size > 0) {
                 value = malloc_safe(value_size);
-                debug("copy data from offset %ld", offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size);
-                memcpy(value, data + offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size, value_size);
+                memcpy(value, data + offset + RECORD_CST_SZ + key_size, value_size);
             }
             Record *ret = record_init();
             ret->key = key;
             ret->key_size = key_size;
             ret->value = value;
             ret->value_size = value_size;
+            ret->flags = flags;
             return ret;
         }
         offset += record_size;
@@ -133,10 +132,11 @@ SSTSegment *sstsegment_create(char *segment_path, bool build_index) {
 
 /* Writes a single memtable record to a segment file. */
 void write_record(Record *record, FILE *fp) {
-    int total_size = RECORD_LEN_SZ + KEY_LEN_SZ + record->key_size + record->value_size;
+    int total_size = RECORD_CST_SZ + record->key_size + record->value_size;
     fwrite(&total_size, RECORD_LEN_SZ, 1, fp);
     fwrite(&record->key_size, KEY_LEN_SZ, 1, fp);
     fwrite(record->key, record->key_size, 1, fp);
+    fwrite(&record->flags, RECORD_FLAGS_SZ, 1, fp);
     fwrite(record->value, record->value_size, 1, fp);
 }
 

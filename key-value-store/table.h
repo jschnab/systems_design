@@ -41,7 +41,7 @@ char *random_string(long);
 
 void table_compact(Table *);
 
-void table_delete(char, char *, Table *);
+void table_delete(char *, Table *);
 
 void table_destroy(Table *);
 

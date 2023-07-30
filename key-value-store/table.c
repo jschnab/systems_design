@@ -87,7 +87,7 @@ void memtables_merge_insert(Record *record, Memtable *memtab, Table *tb) {
     debug("inserting key '%s' in table '%s'", record->key, tb->name);
     write_wal_command(INSERT, record->key, record->value, record->value_size, tb->wal_fp);
     debug("wrote command '%d' to WAL", INSERT);
-    memtable_insert(memtab, record->key, record->value, record->value_size);
+    memtable_insert(memtab, record->key, record->value, record->value_size, record->flags);
     debug("inserted key '%s' in memtab", record->key);
 }
 
@@ -105,7 +105,7 @@ void table_compact(Table *tb) {
     FILE *fp;
     Memtable *next_memtab;
     Memtable *merged;
-    long memtab_size = tb->memtab->data_size + tb->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
+    long memtab_size = tb->memtab->data_size + tb->memtab->n * RECORD_CST_SZ;
     debug("current memtab size: %ld", memtab_size);
     while (next_seg != NULL && memtab_size + sstsegment_size(sst) < MAX_SEG_SZ) {
         debug("reading segment: %s", sst->path);
@@ -115,7 +115,7 @@ void table_compact(Table *tb) {
         debug("merging memtable with segment %s", sst->path);
         merged = memtables_merge(tb->memtab, next_memtab, tb);
         debug("merged memtable");
-        memtab_size = merged->data_size + merged->n * (RECORD_LEN_SZ + KEY_LEN_SZ);
+        memtab_size = merged->data_size + merged->n * RECORD_CST_SZ;
         debug("new memtable size: %ld", memtab_size);
         free_safe(tb->memtab);
         debug("deallocated current memtable");
@@ -139,10 +139,10 @@ void table_compact(Table *tb) {
 
 
 /* Delete the record with the specified key from a table. */
-void table_delete(char cmd, char *key, Table *tb) {
+void table_delete(char *key, Table *tb) {
     debug("deleting key '%s' from table '%s'", key, tb->name);
-    write_wal_command(cmd, key, NULL, 0, tb->wal_fp);
-    debug("wrote command '%d' to WAL", cmd);
+    write_wal_command(DELETE, key, NULL, 0, tb->wal_fp);
+    debug("wrote command 'DELETE' to WAL");
     memtable_delete(tb->memtab, key);
     debug("deleted key '%s' from memtab", key);
 }
@@ -168,6 +168,10 @@ void table_destroy(Table *tb) {
 Record *table_get(char *key, Table *tb) {
     Record *found = memtable_search(key, tb->memtab);
     if (found != NULL) {
+        if (found->flags & DELETED) {
+            debug("key '%s' has a tombstone", key);
+            return NULL;
+        }
         debug("key '%s' found in memtable", key);
         return record_create(found->key, found->value, found->value_size);
     }
@@ -193,6 +197,10 @@ Record *table_get(char *key, Table *tb) {
             break;
         }
         record = record->next;
+    }
+    if (result && result->flags & DELETED) {
+        debug("key '%s' has a tombstone", key);
+        return NULL;
     }
     return result;
 }
@@ -223,8 +231,8 @@ Table *table_init(char *name, char **segment_paths, long n_segments) {
     }
     else {
         tb->memtab = memtable_create();
+        write_wal_header(tb->wal_fp);
     }
-    write_wal_header(tb->wal_fp);
     tb->segment_list = list_create();
     tb->segment_set = hs_init();
     SSTSegment *seg;
@@ -266,7 +274,7 @@ void table_put(
     debug("inserting key '%s' in table '%s'", key, target_tb->name);
     write_wal_command(cmd, key, value, value_size, target_tb->wal_fp);
     debug("wrote command '%d' to WAL", cmd);
-    if (target_tb->memtab->data_size + target_tb->memtab->n * (RECORD_LEN_SZ + KEY_LEN_SZ) > MAX_SEG_SZ) {
+    if (target_tb->memtab->data_size + target_tb->memtab->n * RECORD_CST_SZ > MAX_SEG_SZ) {
         memtable_save(target_tb);
         if (strcmp(target_tb->name, MASTER_TB_NAME) == 0) {
             master_table_segments_to_root(target_tb, root);
@@ -277,7 +285,7 @@ void table_put(
         target_tb->wal_fp = truncate_wal(target_tb->wal_path, target_tb->wal_fp);
         target_tb->memtab = memtable_create();
     }
-    memtable_insert(target_tb->memtab, key, value, value_size);
+    memtable_insert(target_tb->memtab, key, value, value_size, NOFLAGS);
     debug("finished inserting key '%s' in memtab", key);
 }
 

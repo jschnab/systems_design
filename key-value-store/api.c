@@ -20,24 +20,27 @@ void use(char *name, Db *db) {
         debug("finished creating user table '%s'", name);
 
     }
-    else if (found->value != NULL) {
+    else {
         debug("user table '%s' exists", name);
-        memcpy(&n_segments, found->value, SEG_NUM_SZ);
-        debug("number of segments: %ld", n_segments);
-        segments = calloc_safe(n_segments, sizeof(char *));
-        long off = SEG_NUM_SZ;
-        char len;
-        for (long i = 0; i < n_segments; i++) {
-            memcpy(&len, found->value + off, SEG_PATH_LEN_SZ);
-            debug("segment #%ld len: %d", i, len);
-            off += SEG_PATH_LEN_SZ;
-            segments[i] = malloc_safe(len + 1);
-            memcpy(segments[i], found->value + off, len);
-            segments[i][(int)len] = '\0';
-            debug("segment #%ld path: %s", i, segments[i]);
-            off += len;
+        /* The user table may exist but not contain any segments, yet. */
+        if (found->value) {
+            memcpy(&n_segments, found->value, SEG_NUM_SZ);
+            debug("number of segments: %ld", n_segments);
+            segments = calloc_safe(n_segments, sizeof(char *));
+            long off = SEG_NUM_SZ;
+            char len;
+            for (long i = 0; i < n_segments; i++) {
+                memcpy(&len, found->value + off, SEG_PATH_LEN_SZ);
+                debug("segment #%ld len: %d", i, len);
+                off += SEG_PATH_LEN_SZ;
+                segments[i] = malloc_safe(len + 1);
+                memcpy(segments[i], found->value + off, len);
+                segments[i][(int)len] = '\0';
+                debug("segment #%ld path: %s", i, segments[i]);
+                off += len;
+            }
+            record_destroy(found);
         }
-        record_destroy(found);
     }
     debug("initializing table '%s'", name);
     db->user_tb = table_init(name, segments, n_segments);
@@ -61,12 +64,12 @@ void close(Db *db) {
 }
 
 
-void db_delete(char *key, Db *db) {
+void delete(char *key, Db *db) {
     if (db->user_tb == NULL) {
         log_warn("no active user table, aborting");
         return;
     }
-    table_delete(DELETE, key, db->user_tb);
+    table_delete(key, db->user_tb);
 }
 
 

@@ -34,14 +34,10 @@ Index *index_build_from_memtab(Memtable *memtab) {
     char *end_key = record->key;
     char end_key_sz = record->key_size;
     long start_offset = 0;
-    long end_offset = RECORD_LEN_SZ + KEY_LEN_SZ + record->key_size + record->value_size;
+    long end_offset = RECORD_CST_SZ + record->key_size + record->value_size;
     record = memtable_successor_record(record);
 
     for (long i = 1; record != NIL; record = memtable_successor_record(record), i++) {
-        if (record->value == NULL) {
-            i--;
-            continue;
-        }
         if (i % INDEX_INTERVAL == 0) {
             item = index_item_create(
                 start_key_sz,
@@ -56,7 +52,7 @@ Index *index_build_from_memtab(Memtable *memtab) {
             start_key = record->key;
             start_offset = end_offset;
         }
-        end_offset += RECORD_LEN_SZ + KEY_LEN_SZ + record->key_size + record->value_size;
+        end_offset += RECORD_CST_SZ + record->key_size + record->value_size;
         end_key_sz = record->key_size;
         end_key = record->key;
     }
@@ -139,10 +135,10 @@ IndexItem *index_item_create(
 ) {
     IndexItem *new = (IndexItem *) malloc_safe(sizeof(IndexItem));
     new->start_key_size = start_key_size;
-    new->start_key = (char *) malloc_safe(start_key_size + 1);
+    new->start_key = malloc_safe(start_key_size + 1);
     strcpy(new->start_key, start_key);
     new->end_key_size = end_key_size;
-    new->end_key = (char *) malloc_safe(end_key_size + 1);
+    new->end_key = malloc_safe(end_key_size + 1);
     strcpy(new->end_key, end_key);
     new->start_offset = start_offset;
     new->end_offset = end_offset;
@@ -153,13 +149,13 @@ IndexItem *index_item_create(
 IndexItem *index_item_deserialize(void *data) {
     char start_key_size;
     memcpy(&start_key_size, data, sizeof(char));
-    char *start_key = (char *) malloc_safe(start_key_size + 1);
+    char *start_key = malloc_safe(start_key_size + 1);
     memcpy(start_key, data + sizeof(char), start_key_size);
     start_key[(int)start_key_size] = '\0';
 
     char end_key_size;
     memcpy(&end_key_size, data + sizeof(char) + start_key_size, sizeof(char));
-    char *end_key = (char *) malloc_safe(end_key_size + 1);
+    char *end_key = malloc_safe(end_key_size + 1);
     memcpy(end_key, data + 2 * sizeof(char) + start_key_size, end_key_size);
     end_key[(int)end_key_size] = '\0';
 

@@ -32,8 +32,8 @@ kv: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO_H) $(LIST) $(MEMTAB) $(TABLE) $(SET
 	gcc -Wall -O3 -o kv $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(MEMTAB) $(TABLE_C) $(SET_C) $(SEG_C) $(WAL_C) main.c -lm
 
 timing: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO_H) $(LIST) $(TABLE) $(SET) $(SEG) $(WAL) timing.c
-	gcc -Wall -O3 -DNDEBUG -o timing $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SEG_C) $(WAL_C) timing.c -lm
+	gcc -Wall -O3 -DNDEBUG -o timing $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(MEMTAB) $(TABLE_C) $(SET_C) $(SEG_C) $(WAL_C) timing.c -lm
 
 
 timing_search: $(ALLOC) $(API) $(DEBUG_H) $(INDEX) $(IO_H) $(LIST) $(TABLE) $(SET) $(SEG) $(WAL) timing_search.c
-	gcc -Wall -O3 -DNDEBUG -o timing_search $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(TABLE_C) $(SET_C) $(SEG_C) $(WAL_C) timing_search.c -lm
+	gcc -Wall -O3 -DNDEBUG -o timing_search $(ALLOC_C) $(API_C) $(INDEX_C) $(LIST_C) $(MEMTAB) $(TABLE_C) $(SET_C) $(SEG_C) $(WAL_C) timing_search.c -lm

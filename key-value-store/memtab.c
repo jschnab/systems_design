@@ -8,9 +8,8 @@
 #include "memtab.h"
 
 
-Record _NIL = {NULL, NULL, 0, 0, NULL, NULL, NULL, BLACK};
+Record _NIL = {NULL, NULL, NOFLAGS, 0, 0, NULL, NULL, NULL, BLACK};
 Record *NIL = &_NIL;
-static char *RBT_DELETED_ITEM = "TOMBSTONE";
 
 
 int record_comp(Record *a, Record *b) {
@@ -31,6 +30,7 @@ Record *record_create(char *key, void *value, size_t value_size) {
         new->value = malloc_safe(value_size);
         memcpy(new->value, value, value_size);
     }
+    new->flags = NOFLAGS;
     new->key_size = key_size;
     new->value_size = value_size;
     new->parent = NULL;
@@ -42,7 +42,9 @@ Record *record_create(char *key, void *value, size_t value_size) {
 
 void record_destroy(Record *record) {
     if (record != NULL && record != NIL) {
-        free_safe(record->value);
+        if (record->value != NULL) {
+            free_safe(record->value);
+        }
         free_safe(record);
     }
 }
@@ -181,7 +183,12 @@ Memtable *memtable_create() {
 }
 
 
-bool memtable_delete(Memtable *memtab, char *key) {
+/* Deletes a record from a memtable.
+ * To delete a record, we set the 'delete' bit in the record flags, delete the
+ * value, and set the value size to 0.
+ * We do not decrement the number of records, because we still need to store
+ * deleted records. */
+void memtable_delete(Memtable *memtab, char *key) {
     Record *cur = memtab->root;
     int cmp;
     while (cur != NIL) {
@@ -193,15 +200,19 @@ bool memtable_delete(Memtable *memtab, char *key) {
             cur = cur->right;
         }
         else {
-            memtab->n--;
-            memtab->data_size -= cur->key_size + cur->value_size;
+            memtab->data_size -= cur->value_size;
             free_safe(cur->value);
-            cur->value = RBT_DELETED_ITEM;
+            cur->value = NULL;
             cur->value_size = 0;
-            return true;
+            cur->flags |= DELETED;
+            return;
         }
     }
-    return false;
+    /* If we got there, it means the record to delete is not in the memtable.
+     * Because it could be in an SST segment, we need to store a tombstone for
+     * this record to avoid subsequently returning this record on a 'get'
+     * query. */
+    memtable_insert(memtab, key, NULL, 0, DELETED);
 }
 
 
@@ -224,7 +235,13 @@ void memtable_destroy_helper(Record *record) {
 
 
 /* Parameter 'key' should be null-terminated. */
-void memtable_insert(Memtable *memtab, char *key, void *value, size_t value_size) {
+void memtable_insert(
+    Memtable *memtab,
+    char *key,
+    void *value,
+    size_t value_size,
+    char flags
+) {
     Record *par = NIL;
     Record *cur = memtab->root;
     int cmp;
@@ -236,7 +253,7 @@ void memtable_insert(Memtable *memtab, char *key, void *value, size_t value_size
         if (cmp == 0) {
 
             /* We resurect a previously deleted record. */
-            if (cur->value == NULL) {
+            if (cur->flags & DELETED) {
                 memtab->n++;
             }
 
@@ -268,6 +285,7 @@ void memtable_insert(Memtable *memtab, char *key, void *value, size_t value_size
     else {
         par->right = record;
     }
+    record->flags = flags;
     record->left = NIL;
     record->right = NIL;
     record->color = RED;
@@ -292,12 +310,7 @@ Record *memtable_search(char *key, Memtable *memtab) {
     while (record != NIL) {
         cmp = strcmp(key, record->key);
         if (cmp == 0) {
-            if (record->value == RBT_DELETED_ITEM) {
-                return NULL;
-            }
-            else {
-                return record;
-            }
+            return record;
         }
         else if (cmp < 0) {
             record = record->left;

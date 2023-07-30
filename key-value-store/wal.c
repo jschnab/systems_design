@@ -45,13 +45,13 @@ Memtable *restore_wal(FILE *fp, unsigned long file_size) {
         off += value_size;
         switch (command) {
             case INSERT:
-                memtable_insert(memtab, key, value, value_size);
+                memtable_insert(memtab, key, value, value_size, NOFLAGS);
                 break;
             case DELETE:
                 memtable_delete(memtab, key);
                 break;
             case CREATE_NS:
-                memtable_insert(memtab, key, NULL, 0);
+                memtable_insert(memtab, key, NULL, 0, NOFLAGS);
                 break;
             default:
                 debug("unrecognized WAL command: %d", command);
@@ -70,7 +70,6 @@ Memtable *restore_wal(FILE *fp, unsigned long file_size) {
 FILE *truncate_wal(char *path, FILE *fp) {
     debug("truncating WAL: %s", path);
     fseek(fp, 0, SEEK_END);
-    debug("WAL %s has len %ld", path, ftell(fp));
     FILE *ret = freopen(path, "w", fp);
     if (!ret) {
         log_warn("failed to truncated WAL %s", path);

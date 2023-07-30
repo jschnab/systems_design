@@ -20,7 +20,7 @@ void use(char *, Db *);
 
 void close(Db *);
 
-void db_delete(char *, Db *);
+void delete(char *, Db *);
 
 Record *get(char *, Db *);
 

@@ -21,7 +21,8 @@
 #define RECORD_LEN_SZ 4
 #define KEY_LEN_SZ 1
 #define KEY_MAX_LEN 256
-#define RECORD_CST_SZ (RECORD_LEN_SZ + KEY_LEN_SZ)
+#define RECORD_FLAGS_SZ 1
+#define RECORD_CST_SZ (RECORD_LEN_SZ + KEY_LEN_SZ + RECORD_FLAGS_SZ)
 
 /* Index region offsets (relative to the start of the index region). */
 #define INDEX_LEN_SZ 4
