@@ -19,7 +19,7 @@ int main() {
     };
 
     for (int i = 0; i < 3; i++) {
-        TreeNode *result = get(keys[i], db);
+        Record *result = get(keys[i], db);
         if (result != NULL) {
             char *value = malloc(result->value_size + 1);
             memcpy(value, result->value, result->value_size);

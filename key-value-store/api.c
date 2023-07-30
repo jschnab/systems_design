@@ -1,6 +1,6 @@
 #include "api.h"
 #include "debug.h"
-#include "tree.h"
+#include "memtab.h"
 
 
 static const char *VERSION = _VERSION;
@@ -13,7 +13,7 @@ void use(char *name, Db *db) {
     }
     long n_segments = 0;
     char **segments = NULL;
-    TreeNode *found = table_get(name, db->master_tb);
+    Record *found = table_get(name, db->master_tb);
     if (found == NULL) {
         debug("user table '%s' not found, creating", name);
         table_put(name, NULL, 0, db->master_tb, NULL, db->fp);
@@ -37,7 +37,7 @@ void use(char *name, Db *db) {
             debug("segment #%ld path: %s", i, segments[i]);
             off += len;
         }
-        tnode_destroy(found);
+        record_destroy(found);
     }
     debug("initializing table '%s'", name);
     db->user_tb = table_init(name, segments, n_segments);
@@ -70,8 +70,8 @@ void db_delete(char *key, Db *db) {
 }
 
 
-/* This function should return a record object, TreeNode is too low level. */
-TreeNode *get(char *key, Db *db) {
+/* This function should return a record object, Record is too low level. */
+Record *get(char *key, Db *db) {
     if (db->user_tb == NULL) {
         log_warn("no active user table, aborting");
         return NULL;

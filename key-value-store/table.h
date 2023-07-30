@@ -7,7 +7,7 @@
 #include "hashset.h"
 #include "linked_list.h"
 #include "segment.h"
-#include "tree.h"
+#include "memtab.h"
 #include "wal.h"
 
 
@@ -21,7 +21,7 @@
 
 typedef struct table {
     char *name;
-    RBTree *memtab;
+    Memtable *memtab;
     char *wal_path;
     FILE *wal_fp;
     List *segment_list;  /* Stores type SSTSegment. */
@@ -33,9 +33,9 @@ void master_table_segments_to_root(Table *, FILE *);
 
 void memtable_save(Table *);
 
-RBTree *memtables_merge(RBTree *, RBTree *, Table *);
+Memtable *memtables_merge(Memtable *, Memtable *, Table *);
 
-void memtables_merge_insert(TreeNode *, RBTree *, Table *);
+void memtables_merge_insert(Record *, Memtable *, Table *);
 
 char *random_string(long);
 
@@ -47,7 +47,7 @@ void table_destroy(Table *);
 
 Table *table_init(char *, char **, long);
 
-TreeNode *table_get(char *, Table *);
+Record *table_get(char *, Table *);
 
 void table_put(char *, void *, size_t, Table *, Table *, FILE *);
 

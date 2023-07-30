@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include "alloc.h"
-#include "tree.h"
+#include "memtab.h"
 
 
 /*
@@ -36,7 +36,7 @@
 #define WAL_CMD_SZ 1
 
 
-RBTree *restore_wal(FILE *, unsigned long);
+Memtable *restore_wal(FILE *, unsigned long);
 
 FILE *truncate_wal(char *, FILE *);
 

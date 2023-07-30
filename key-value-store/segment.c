@@ -23,12 +23,12 @@ void *read_sst_block(FILE *fp, long start, long end) {
  * memtable, and returns the memtable.
  * Consider refactoring this function to take a file path as input.
  * Consider putting record deserialization in its own function. */
-RBTree *read_sst_segment(FILE *fp) {
+Memtable *read_sst_segment(FILE *fp) {
     fseek(fp, DATA_START_OFFSET, SEEK_SET);
     long data_offset;
     fread(&data_offset, DATA_START_SZ, 1, fp);
     fseek(fp, data_offset, SEEK_SET);
-    RBTree *memtab = tree_create();
+    Memtable *memtab = memtable_create();
     long record_size = 0;
     char key_size = 0;
     char *key = NULL;
@@ -47,7 +47,7 @@ RBTree *read_sst_segment(FILE *fp) {
         value_size = record_size - RECORD_LEN_SZ - KEY_LEN_SZ - key_size;
         value = malloc_safe(value_size);
         fread(value, value_size, 1, fp);
-        tree_insert(memtab, key, value, value_size);
+        memtable_insert(memtab, key, value, value_size);
         free_safe(key);
         free_safe(value);
     }
@@ -56,8 +56,8 @@ RBTree *read_sst_segment(FILE *fp) {
 
 
 /* Searches a key in a block of records read from disk. If a record is found,
- * de-serialize it as a new RB tree node, else return NULL */
-TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
+ * de-serialize it as a new record, else return NULL */
+Record *sst_block_search(char *key, void *data, size_t data_size) {
     debug("searching SST block for key: %s", key);
     int record_size = 0;
     char key_size = 0;
@@ -81,7 +81,7 @@ TreeNode *sst_block_search(char *key, void *data, size_t data_size) {
                 debug("copy data from offset %ld", offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size);
                 memcpy(value, data + offset + RECORD_LEN_SZ + KEY_LEN_SZ + key_size, value_size);
             }
-            TreeNode *ret = tnode_init();
+            Record *ret = record_init();
             ret->key = key;
             ret->key_size = key_size;
             ret->value = value;
@@ -132,26 +132,26 @@ SSTSegment *sstsegment_create(char *segment_path, bool build_index) {
 
 
 /* Writes a single memtable record to a segment file. */
-void write_record(TreeNode *node, FILE *fp) {
-    int total_size = RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
+void write_record(Record *record, FILE *fp) {
+    int total_size = RECORD_LEN_SZ + KEY_LEN_SZ + record->key_size + record->value_size;
     fwrite(&total_size, RECORD_LEN_SZ, 1, fp);
-    fwrite(&node->key_size, KEY_LEN_SZ, 1, fp);
-    fwrite(node->key, node->key_size, 1, fp);
-    fwrite(node->value, node->value_size, 1, fp);
+    fwrite(&record->key_size, KEY_LEN_SZ, 1, fp);
+    fwrite(record->key, record->key_size, 1, fp);
+    fwrite(record->value, record->value_size, 1, fp);
 }
 
 
 /* Writes the whole memtable to a segment file. */
-void write_segment_file(RBTree *tree, char *file_path) {
+void write_segment_file(Memtable *memtab, char *file_path) {
     FILE *fp = fopen(file_path, "w");
-    write_segment_header(tree, fp);
-    TreeNode *node = tree_leftmost_node(tree);
-    while (node != NIL) {
+    write_segment_header(memtab, fp);
+    Record *record = memtable_leftmost_record(memtab);
+    while (record != NIL) {
         /* We don't check if 'value' is NULL, because for the master table,
          * this indicates that a user table has no segments, yet (e.g. the
          * table was just created, but no records were added to it). */
-        write_record(node, fp);
-        node = tree_successor_node(node);
+        write_record(record, fp);
+        record = memtable_successor_record(record);
     }
     fclose(fp);
 }
@@ -159,14 +159,14 @@ void write_segment_file(RBTree *tree, char *file_path) {
 
 /* Writes the segment header, i.e. everything that is not records: version,
  * number of records, 1st record offset, then index. */
-void write_segment_header(RBTree *tree, FILE *fp) {
-    Index *index = index_build_from_memtab(tree);
+void write_segment_header(Memtable *memtab, FILE *fp) {
+    Index *index = index_build_from_memtab(memtab);
 
     /* version number */
     fwrite(VERSION, VER_SZ, 1, fp);
 
     /* number of records */
-    fwrite(&tree->n, NUM_REC_SZ, 1, fp);
+    fwrite(&memtab->n, NUM_REC_SZ, 1, fp);
 
     /* 1st record offset */
     long first_rec_offset = INDEX_ITEMS_OFFSET + index->size;

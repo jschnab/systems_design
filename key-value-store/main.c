@@ -9,40 +9,40 @@
 #include "api.h"
 #include "index.h"
 #include "io.h"
+#include "memtab.h"
 #include "segment.h"
-#include "tree.h"
 
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
     /* test build memtable and write segment file
-    RBTree *tree = tree_create();
+    Memtable *memtab = memtable_create();
 
-    tree_insert(tree, "hello", "world", 5);
-    tree_insert(tree, "alice", "bob", 3);
-    tree_insert(tree, "charlie", "derek", 5);
-    tree_insert(tree, "eric", "filip", 5);
-    tree_insert(tree, "greg", "hector", 6);
-    tree_insert(tree, "charlie", "ida", 3);
-    tree_insert(tree, "greg", "juliet", 6);
-    tree_delete(tree, "charlie");
-    tree_insert(tree, "charlie", "karl", 4);
+    memtable_insert(memtab, "hello", "world", 5);
+    memtable_insert(memtab, "alice", "bob", 3);
+    memtable_insert(memtab, "charlie", "derek", 5);
+    memtable_insert(memtab, "eric", "filip", 5);
+    memtable_insert(memtab, "greg", "hector", 6);
+    memtable_insert(memtab, "charlie", "ida", 3);
+    memtable_insert(memtab, "greg", "juliet", 6);
+    memtable_delete(memtab, "charlie");
+    memtable_insert(memtab, "charlie", "karl", 4);
 
     char *key = "greg";
-    TreeNode *result = tree_search(key, tree);
+    Record *result = memtable_search(key, memtab);
     printf("searching key: %s, found value: %s\n", key, (char *)result->value);
 
-    write_segment_file(tree, "test.db");
+    write_segment_file(memtab, "test.db");
 
-    tree_destroy(tree);
+    memtable_destroy(memtab);
     */
 
     /* test build memtable from segment file
     FILE *fp = fopen("test.db", "r");
-    RBTree *memtab = read_sst_segment(fp);
-    tree_traverse_inorder(memtab->root);
-    tree_destroy(memtab);
+    Memtable *memtab = read_sst_segment(fp);
+    memtable_traverse_inorder(memtab->root);
+    memtable_destroy(memtab);
     fclose(fp);
     */
 
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 
     if (start != -1) {
         void *data = read_sst_block(fp, start, end);
-        TreeNode *found = sst_block_search(key, data, end - start);
+        Record *found = sst_block_search(key, data, end - start);
         char *value = NULL;
         if (found != NULL) {
             value = malloc(found->value_size);
@@ -86,14 +86,14 @@ int main(int argc, char *argv[]) {
     write_wal_command(DELETE, "charlie", NULL, 0, wal);
     write_wal_command(INSERT, "charlie", "karl", 4, wal);
 
-    RBTree *memtab = restore_wal(wal);
-    printf("restored memtab has %ld nodes\n", memtab->n);
-    TreeNode *cur = tree_leftmost_node(memtab);
+    Memtable *memtab = restore_wal(wal);
+    printf("restored memtab has %ld records\n", memtab->n);
+    Record *cur = memtable_leftmost_record(memtab);
     if (cur == NULL) {
-        printf("rb tree root is null\n");
+        printf("rb memtable root is null\n");
     }
     else if (cur == NIL) {
-        printf("rb tree root is nil\n");
+        printf("rb memtable root is nil\n");
     }
     char value[20];
     while (cur != NIL) {
@@ -104,10 +104,10 @@ int main(int argc, char *argv[]) {
         else {
             strcpy(value, "null");
         }
-        printf("node: key=%s, value=%s\n", cur->key, value);
-        cur = tree_successor_node(cur);
+        printf("record: key=%s, value=%s\n", cur->key, value);
+        cur = memtable_successor_record(cur);
     }
-    tree_destroy(memtab);
+    memtable_destroy(memtab);
     fclose(wal);
     */
 
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
     /* test search table
     Db *db = db_open("mykv.db");
     char *key = "test";
-    TreeNode *found = table_get(key, db->master_tb);
+    Record *found = table_get(key, db->master_tb);
     if (found != NULL)
         printf("found table: %s\n", key);
     else
@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
     close(db);
     */
 
-    /* test search values in user table
+    /* test search values in user table */
     Db *db = connect("mykv.db");
     use("users", db);
     char *keys[5] = {"hello", "james", "kirk", "dude", "derek"};
@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
     char *value;
     for (int i = 0; i < 5; i++) {
         key = keys[i];
-        TreeNode *result = get(key, db);
+        Record *result = get(key, db);
         if (result != NULL) {
             value = malloc(result->value_size + 1);
             memcpy(value, result->value, result->value_size);
@@ -177,7 +177,6 @@ int main(int argc, char *argv[]) {
         }
     }
     close(db);
-    */
 
     /* test list append left
     List *lst = list_create();
@@ -213,7 +212,7 @@ int main(int argc, char *argv[]) {
     char *value;
     for (int i = 0; i < 4; i++) {
         key = keys[i];
-        TreeNode *result = get(key, db);
+        Record *result = get(key, db);
         if (result != NULL) {
             value = malloc(result->value_size + 1);
             memcpy(value, result->value, result->value_size);
@@ -255,7 +254,7 @@ int main(int argc, char *argv[]) {
     char *value;
     for (int i = 0; i < 4; i++) {
         key = keys[i];
-        TreeNode *result = db_get(key, db);
+        Record *result = db_get(key, db);
         if (result != NULL) {
             value = malloc(result->value_size + 1);
             memcpy(value, result->value, result->value_size);
@@ -270,7 +269,7 @@ int main(int argc, char *argv[]) {
     db_close(db);
     */
 
-    /* measure write performance (this takes approx. 1 sec) */
+    /* measure write performance (this takes approx. 1 sec)
     Db *db = connect("mykv.db");
     use("users", db);
     char *k;
@@ -283,6 +282,7 @@ int main(int argc, char *argv[]) {
         free_safe(v);
     }
     close(db);
+    */
 
     return 0;
 }

@@ -317,7 +317,6 @@ all public operations:
 To refactor this module, we should:
 
 * let functions from the 'table' module parse segment paths data
-* `get` function returns record (TreeNode is too low level)
 * functions are prfixed with database name to avoid collisions
 * (done) merge function to create and connect to user table
 * (done) give more user-friendly names to api functions

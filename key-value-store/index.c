@@ -21,24 +21,24 @@ Index *index_build_from_file(FILE *fp) {
 }
 
 
-Index *index_build_from_memtab(RBTree *tree) {
+Index *index_build_from_memtab(Memtable *memtab) {
     Index *index = index_create();
-    if (tree->n == 0) {
+    if (memtab->n == 0) {
         return index;
     }
 
     IndexItem *item;
-    TreeNode *node = tree_leftmost_node(tree);
-    char *start_key = node->key;
-    char start_key_sz = node->key_size;
-    char *end_key = node->key;
-    char end_key_sz = node->key_size;
+    Record *record = memtable_leftmost_record(memtab);
+    char *start_key = record->key;
+    char start_key_sz = record->key_size;
+    char *end_key = record->key;
+    char end_key_sz = record->key_size;
     long start_offset = 0;
-    long end_offset = RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
-    node = tree_successor_node(node);
+    long end_offset = RECORD_LEN_SZ + KEY_LEN_SZ + record->key_size + record->value_size;
+    record = memtable_successor_record(record);
 
-    for (long i = 1; node != NIL; node = tree_successor_node(node), i++) {
-        if (node->value == NULL) {
+    for (long i = 1; record != NIL; record = memtable_successor_record(record), i++) {
+        if (record->value == NULL) {
             i--;
             continue;
         }
@@ -52,13 +52,13 @@ Index *index_build_from_memtab(RBTree *tree) {
                 end_offset
             );
             index_put_item(item, index);
-            start_key_sz = node->key_size;
-            start_key = node->key;
+            start_key_sz = record->key_size;
+            start_key = record->key;
             start_offset = end_offset;
         }
-        end_offset += RECORD_LEN_SZ + KEY_LEN_SZ + node->key_size + node->value_size;
-        end_key_sz = node->key_size;
-        end_key = node->key;
+        end_offset += RECORD_LEN_SZ + KEY_LEN_SZ + record->key_size + record->value_size;
+        end_key_sz = record->key_size;
+        end_key = record->key;
     }
 
     item = index_item_create(
@@ -112,19 +112,19 @@ void index_put_item(IndexItem *item, Index *index) {
 void index_search(char *key, Index *index, long *start, long *end) {
     *start = -1;
     *end = -1;
-    ListNode *node = index->list->head;
+    ListNode *record = index->list->head;
     while (
-        node != NULL
-        && strcmp(key, ((IndexItem *)node->data)->end_key) > 0
+        record != NULL
+        && strcmp(key, ((IndexItem *)record->data)->end_key) > 0
     ) {
-        node = node->next;
+        record = record->next;
     }
     if (
-        node != NULL
-        && strcmp(key, ((IndexItem *)node->data)->start_key) >= 0
+        record != NULL
+        && strcmp(key, ((IndexItem *)record->data)->start_key) >= 0
     ) {
-        *start = ((IndexItem *)node->data)->start_offset;
-        *end = ((IndexItem *)node->data)->end_offset;
+        *start = ((IndexItem *)record->data)->start_offset;
+        *end = ((IndexItem *)record->data)->end_offset;
     }
 }
 

@@ -8,8 +8,8 @@
 static const char *VERSION = _VERSION;
 
 
-/* Reads a Write-Ahead Log into an RB tree, i.e. restores memtable from WAL. */
-RBTree *restore_wal(FILE *fp, unsigned long file_size) {
+/* Reads a Write-Ahead Log into an RB memtable, i.e. restores memtable from WAL. */
+Memtable *restore_wal(FILE *fp, unsigned long file_size) {
     unsigned long wal_data_size = file_size - VER_SZ;
     debug("wal data size: %ld bytes", wal_data_size);
     void *wal_data = malloc_safe(wal_data_size);
@@ -20,7 +20,7 @@ RBTree *restore_wal(FILE *fp, unsigned long file_size) {
     long value_size = 0;
     void *value = NULL;
     unsigned long off = 0;
-    RBTree *memtab = tree_create();
+    Memtable *memtab = memtable_create();
     fseek(fp, VER_SZ, SEEK_SET);
     fread(wal_data, wal_data_size, 1, fp);
     while (off < wal_data_size) {
@@ -45,13 +45,13 @@ RBTree *restore_wal(FILE *fp, unsigned long file_size) {
         off += value_size;
         switch (command) {
             case INSERT:
-                tree_insert(memtab, key, value, value_size);
+                memtable_insert(memtab, key, value, value_size);
                 break;
             case DELETE:
-                tree_delete(memtab, key);
+                memtable_delete(memtab, key);
                 break;
             case CREATE_NS:
-                tree_insert(memtab, key, NULL, 0);
+                memtable_insert(memtab, key, NULL, 0);
                 break;
             default:
                 debug("unrecognized WAL command: %d", command);

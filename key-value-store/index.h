@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #include "linked_list.h"
-#include "tree.h"
+#include "memtab.h"
 
 
 /* Index is a used temporarily to write the index to disk */
@@ -46,9 +46,9 @@ typedef struct indexitem {
 
 Index *index_build_from_file(FILE *);
 
-Index *index_build_from_memtab(RBTree *);
+Index *index_build_from_memtab(Memtable *);
 
-IndexItem *index_item_from_memtab(TreeNode *);
+IndexItem *index_item_from_memtab(Record *);
 
 Index *index_create();
 

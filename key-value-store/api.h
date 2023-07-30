@@ -22,7 +22,7 @@ void close(Db *);
 
 void db_delete(char *, Db *);
 
-TreeNode *get(char *, Db *);
+Record *get(char *, Db *);
 
 void put(char *, void *, long, Db *);
 

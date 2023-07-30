@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #include "index.h"
-#include "tree.h"
+#include "memtab.h"
 
 
 typedef struct sstsegment {
@@ -17,18 +17,18 @@ typedef struct sstsegment {
 
 void *read_sst_block(FILE *, long, long);
 
-RBTree *read_sst_segment(FILE *);
+Memtable *read_sst_segment(FILE *);
 
 SSTSegment *sstsegment_create(char *, bool);
 
 long sstsegment_size(SSTSegment *);
 
-TreeNode *sst_block_search(char *, void *, size_t);
+Record *sst_block_search(char *, void *, size_t);
 
-void write_record(TreeNode *, FILE *);
+void write_record(Record *, FILE *);
 
-void write_segment_file(RBTree *, char *);
+void write_segment_file(Memtable *, char *);
 
-void write_segment_header(RBTree *, FILE *);
+void write_segment_header(Memtable *, FILE *);
 
 #endif

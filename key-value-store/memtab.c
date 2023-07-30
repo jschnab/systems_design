@@ -5,15 +5,15 @@
 #include <string.h>
 
 #include "alloc.h"
-#include "tree.h"
+#include "memtab.h"
 
 
-TreeNode _NIL = {NULL, NULL, 0, 0, NULL, NULL, NULL, BLACK};
-TreeNode *NIL = &_NIL;
+Record _NIL = {NULL, NULL, 0, 0, NULL, NULL, NULL, BLACK};
+Record *NIL = &_NIL;
 static char *RBT_DELETED_ITEM = "TOMBSTONE";
 
 
-int tnode_comp(TreeNode *a, TreeNode *b) {
+int record_comp(Record *a, Record *b) {
     return strcmp(a->key, b->key);
 }
 
@@ -21,8 +21,8 @@ int tnode_comp(TreeNode *a, TreeNode *b) {
 /* Parameter 'key' should be null-terminated.
  * If parameter 'value_size' is 0, the value member will be set to NULL. If
  * 'value_size' is positive, the value member will be allocated. */
-TreeNode *tnode_create(char *key, void *value, size_t value_size) {
-    TreeNode *new = (TreeNode *) malloc_safe(sizeof(TreeNode));
+Record *record_create(char *key, void *value, size_t value_size) {
+    Record *new = (Record *) malloc_safe(sizeof(Record));
     char key_size = strlen(key);
     new->key = (char *) malloc_safe(key_size + 1);
     strcpy(new->key, key);
@@ -40,16 +40,16 @@ TreeNode *tnode_create(char *key, void *value, size_t value_size) {
 }
 
 
-void tnode_destroy(TreeNode *node) {
-    if (node != NULL && node != NIL) {
-        free_safe(node->value);
-        free_safe(node);
+void record_destroy(Record *record) {
+    if (record != NULL && record != NIL) {
+        free_safe(record->value);
+        free_safe(record);
     }
 }
 
 
-void tnode_insert_fixup(RBTree *tree, TreeNode *z) {
-    TreeNode *y;
+void record_insert_fixup(Memtable *memtab, Record *z) {
+    Record *y;
     while (z->parent->color == RED) {
         if (z->parent == z->parent->parent->left) {
             y = z->parent->parent->right;
@@ -62,11 +62,11 @@ void tnode_insert_fixup(RBTree *tree, TreeNode *z) {
             else {
                 if (z == z->parent->right) {
                     z = z->parent;
-                    tnode_rotate_left(tree, z);
+                    record_rotate_left(memtab, z);
                 }
                 z->parent->color = BLACK;
                 z->parent->parent->color = RED;
-                tnode_rotate_right(tree, z->parent->parent);
+                record_rotate_right(memtab, z->parent->parent);
             }
         }
         else {
@@ -80,43 +80,43 @@ void tnode_insert_fixup(RBTree *tree, TreeNode *z) {
             else {
                 if (z == z->parent->left) {
                     z = z->parent;
-                    tnode_rotate_right(tree, z);
+                    record_rotate_right(memtab, z);
                 }
                 z->parent->color = BLACK;
                 z->parent->parent->color = RED;
-                tnode_rotate_left(tree, z->parent->parent);
+                record_rotate_left(memtab, z->parent->parent);
             }
         }
     }
-    tree->root->color = BLACK;
+    memtab->root->color = BLACK;
 }
 
 
-TreeNode *tnode_init() {
-    return (TreeNode *) malloc_safe(sizeof(TreeNode));
+Record *record_init() {
+    return (Record *) malloc_safe(sizeof(Record));
 
 }
 
 
-TreeNode *tnode_leftmost_node(TreeNode *node) {
-    while (node != NIL && node->left != NIL) {
-        node = node->left;
+Record *record_leftmost(Record *record) {
+    while (record != NIL && record->left != NIL) {
+        record = record->left;
     }
-    return node;
+    return record;
 }
 
 
 /* This function should accept an argument that is a pointer to a function to
  * serialize the value. */
-void tnode_print(TreeNode *node) {
+void record_print(Record *record) {
     printf(
         "Key=%s, Value=%s, Color=%s, Left=%s, Right=%s, Parent=%s\n",
-        node->key,
-        (char *) node->value,
-        node->color == RED ? "red" : "black",
-        node->left != NIL ? node->left->key : "NIL",
-        node->right != NIL ? node->right->key : "NIL",
-        node->parent != NIL ? node->parent->key : "NIL"
+        record->key,
+        (char *) record->value,
+        record->color == RED ? "red" : "black",
+        record->left != NIL ? record->left->key : "NIL",
+        record->right != NIL ? record->right->key : "NIL",
+        record->parent != NIL ? record->parent->key : "NIL"
     );
 }
 
@@ -130,15 +130,15 @@ void tnode_print(TreeNode *node) {
  a   b     rotate right     b   c
 
 */
-void tnode_rotate_left(RBTree *tree, TreeNode *x) {
-    TreeNode *y = x->right;
+void record_rotate_left(Memtable *memtab, Record *x) {
+    Record *y = x->right;
     x->right = y->left;
     if (y->left != NIL) {
         y->left->parent = x;
     }
     y->parent = x->parent;
     if (x->parent == NIL) {
-        tree->root = y;
+        memtab->root = y;
     }
     else if (x == x->parent->left) {
         x->parent->left = y;
@@ -151,15 +151,15 @@ void tnode_rotate_left(RBTree *tree, TreeNode *x) {
 }
 
 
-void tnode_rotate_right(RBTree *tree, TreeNode *y) {
-    TreeNode *x = y->left;
+void record_rotate_right(Memtable *memtab, Record *y) {
+    Record *x = y->left;
     y->left = x->right;
     if (x->right != NIL) {
         x->right->parent = y;
     }
     x->parent = y->parent;
     if (x->parent == NIL) {
-        tree->root = x;
+        memtab->root = x;
     }
     else if (y == y->parent->right) {
         y->parent->right = x;
@@ -172,8 +172,8 @@ void tnode_rotate_right(RBTree *tree, TreeNode *y) {
 }
 
 
-RBTree *tree_create() {
-    RBTree *new = (RBTree *) malloc_safe(sizeof(RBTree));
+Memtable *memtable_create() {
+    Memtable *new = (Memtable *) malloc_safe(sizeof(Memtable));
     new->root = NIL;
     new->n = 0;
     new->data_size = 0;
@@ -181,8 +181,8 @@ RBTree *tree_create() {
 }
 
 
-bool tree_delete(RBTree *tree, char *key) {
-    TreeNode *cur = tree->root;
+bool memtable_delete(Memtable *memtab, char *key) {
+    Record *cur = memtab->root;
     int cmp;
     while (cur != NIL) {
         cmp = strcmp(key, cur->key);
@@ -193,8 +193,8 @@ bool tree_delete(RBTree *tree, char *key) {
             cur = cur->right;
         }
         else {
-            tree->n--;
-            tree->data_size -= cur->key_size + cur->value_size;
+            memtab->n--;
+            memtab->data_size -= cur->key_size + cur->value_size;
             free_safe(cur->value);
             cur->value = RBT_DELETED_ITEM;
             cur->value_size = 0;
@@ -205,28 +205,28 @@ bool tree_delete(RBTree *tree, char *key) {
 }
 
 
-void tree_destroy(RBTree *tree) {
-    if (tree->root != NIL) {
-        tree_destroy_helper(tree->root);
+void memtable_destroy(Memtable *memtab) {
+    if (memtab->root != NIL) {
+        memtable_destroy_helper(memtab->root);
     }
 }
 
 
-void tree_destroy_helper(TreeNode *node) {
-    if (node->left != NIL) {
-        tree_destroy_helper(node->left);
+void memtable_destroy_helper(Record *record) {
+    if (record->left != NIL) {
+        memtable_destroy_helper(record->left);
     }
-    if (node->right != NIL) {
-        tree_destroy_helper(node->right);
+    if (record->right != NIL) {
+        memtable_destroy_helper(record->right);
     }
-    tnode_destroy(node);
+    record_destroy(record);
 }
 
 
 /* Parameter 'key' should be null-terminated. */
-void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
-    TreeNode *par = NIL;
-    TreeNode *cur = tree->root;
+void memtable_insert(Memtable *memtab, char *key, void *value, size_t value_size) {
+    Record *par = NIL;
+    Record *cur = memtab->root;
     int cmp;
     while (cur != NIL) {
         par = cur;
@@ -237,7 +237,7 @@ void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
 
             /* We resurect a previously deleted record. */
             if (cur->value == NULL) {
-                tree->n++;
+                memtab->n++;
             }
 
             /* Old and new value sizes do not match, we re-allocate the value. */
@@ -257,81 +257,81 @@ void tree_insert(RBTree *tree, char *key, void *value, size_t value_size) {
             cur = cur->right;
         }
     }
-    TreeNode *node = tnode_create(key, value, value_size);
-    node->parent = par;
+    Record *record = record_create(key, value, value_size);
+    record->parent = par;
     if (par == NIL) {
-        tree->root = node;
+        memtab->root = record;
     }
-    else if (tnode_comp(node, par) < 0) {
-        par->left = node;
+    else if (record_comp(record, par) < 0) {
+        par->left = record;
     }
     else {
-        par->right = node;
+        par->right = record;
     }
-    node->left = NIL;
-    node->right = NIL;
-    node->color = RED;
-    tnode_insert_fixup(tree, node);
-    tree->n++;
-    tree->data_size += node->key_size + node->value_size;
+    record->left = NIL;
+    record->right = NIL;
+    record->color = RED;
+    record_insert_fixup(memtab, record);
+    memtab->n++;
+    memtab->data_size += record->key_size + record->value_size;
 }
 
 
-TreeNode *tree_leftmost_node(RBTree *tree) {
-    TreeNode *node = tree->root;
-    while (node != NIL && node->left != NIL) {
-        node = node->left;
+Record *memtable_leftmost_record(Memtable *memtab) {
+    Record *record = memtab->root;
+    while (record != NIL && record->left != NIL) {
+        record = record->left;
     }
-    return node;
+    return record;
 }
 
 
-TreeNode *tree_search(char *key, RBTree *tree) {
-    TreeNode *node = tree->root;
+Record *memtable_search(char *key, Memtable *memtab) {
+    Record *record = memtab->root;
     int cmp;
-    while (node != NIL) {
-        cmp = strcmp(key, node->key);
+    while (record != NIL) {
+        cmp = strcmp(key, record->key);
         if (cmp == 0) {
-            if (node->value == RBT_DELETED_ITEM) {
+            if (record->value == RBT_DELETED_ITEM) {
                 return NULL;
             }
             else {
-                return node;
+                return record;
             }
         }
         else if (cmp < 0) {
-            node = node->left;
+            record = record->left;
         }
         else {
-            node = node->right;
+            record = record->right;
         }
     }
     return NULL;
 }
 
 
-TreeNode *tree_successor_node(TreeNode *node) {
-    if (node == NIL) {
+Record *memtable_successor_record(Record *record) {
+    if (record == NIL) {
         return NIL;
     }
-    if (node->right != NIL) {
-        return tnode_leftmost_node(node->right);
+    if (record->right != NIL) {
+        return record_leftmost(record->right);
     }
-    TreeNode *par = node->parent;
-    while (par != NIL && node == par->right) {
+    Record *par = record->parent;
+    while (par != NIL && record == par->right) {
         par = par->parent;
-        node = node->parent;
+        record = record->parent;
     }
     return par;
 }
 
 
-void tree_traverse_inorder(TreeNode *node) {
-    if (node->left != NIL) {
-        tree_traverse_inorder(node->left);
+void memtable_traverse_inorder(Record *record) {
+    if (record->left != NIL) {
+        memtable_traverse_inorder(record->left);
     }
-    tnode_print(node);
-    if (node->right != NIL) {
-        tree_traverse_inorder(node->right);
+    record_print(record);
+    if (record->right != NIL) {
+        memtable_traverse_inorder(record->right);
     }
 }
