@@ -167,7 +167,7 @@ Users and texts tables totalize 10^10 bytes (tens of GB), a modest size for a
 database. In terms of throughput, we expect a few hundreds of requests per
 second (mostly reads).
 
-A relational database such as PostgreSQL would fulfill our requirements.
+A relational database such as MariaDB would fulfill our requirements.
 
 #### 5.3.3. Text storage
 
@@ -576,33 +576,53 @@ performs a specific step of the application workflow. For example, the function
 from . import sql_queries
 from .config import config
 
-import psycopg2
+import mysql.connector
 
 DB_CONFIG = {
     "host": config["database"]["host"],
     "port": config["database"]["port"],
-    "dbname": config["database"]["database"],
+    "database": config["database"]["database"],
     "user": config["database"]["user"],
     "password": config["database"]["password"],
 }
+
+con_pool = mysql.connector.pooling.MySQLConnectionPool(
+    pool_name="pastebin",
+    pool_size=config["database"]["pool_size"],
+    **DB_CONFIG,
+)
+
+
+@contextmanager
+def connect(dictionary=False):
+    con = con_pool.get_connection()
+    cur = con.cursor(dictionary=dictionary)
+    try:
+        yield cur
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        cur.close()
+        con.close()
 
 
 def put_text_metadata(
     text_id, user_id, user_ip, creation_timestamp, expiration_timestamp,
 ):
-    with psycopg2.connect(**DB_CONFIG) as con:
-        with con.cursor() as cur:
-            cur.execute(
-                sql_queries.INSERT_TEXT,
-                (
-                    text_id,
-                    f"{config['text_storage']['s3_bucket']}/{text_id}",
-                    user_id,
-                    user_ip,
-                    creation_timestamp,
-                    expiration_timestamp,
-                ),
-            )
+    with connect() as cur:
+        cur.execute(
+            sql_queries.INSERT_TEXT,
+            (
+                text_id,
+                f"{config['text_storage']['s3_bucket']}/{text_id}",
+                user_id,
+                user_ip,
+                creation_timestamp,
+                expiration_timestamp,
+            ),
+        )
 ```
 
 We store SQL queries in a separate module to help with code readability, as SQL
@@ -634,7 +654,7 @@ additional counter and timestamp, only a simple aggregation query:
 
 ```
 SELECT COUNT(*) AS quota FROM texts
-WHERE user_id = %s AND creation > NOW() - INTERVAL '1 day';
+WHERE user_id = %s AND creation > NOW() - INTERVAL 1 day;
 ```
 
 We can improve the query performance by creating indexes on the texts table on
@@ -653,7 +673,7 @@ ID collision.
 
 #### 6.2.2. Infrastructure and costs
 
-[AWS RDS](https://aws.amazon.com/rds/) supports PostgreSQL and has a feature
+[AWS RDS](https://aws.amazon.com/rds/) supports MariaDB and has a feature
 named [Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) that allows
 synchronous data replication on a secondary server in a different availability
 zone (same geographical area but different data center).
@@ -790,8 +810,11 @@ The following Redis configuration parameters are used:
 
 ```
 maxmemory 16gb
-maxmemory-policy allkeys-lru
+maxmemory-policy volatile-lru
 ```
+
+We use `volatile-lru` to allow use-cases where some keys should be kept forever
+(e.g. storing a counter for a rate-limiter).
 
 For access control, we use Redis [Access Control List](https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/) and create an
 application user with the following permissions:
@@ -838,43 +861,4 @@ all functions by storing it in global variables.
 
 ## 7. How to run locally
 
-Install the following components:
-
-* [Python](https://www.python.org/) (we used Python 3.8)
-* [NGINX](https://www.nginx.com/) (we used NGINX 1.14)
-* [PostgreSQL](https://www.postgresql.org/) (we used PostgreSQL 12)
-* [Redis](https://redis.io/) (we used Redis 7)
-
-Create a Python [virtual
-environment](https://docs.python.org/3/library/venv.html#creating-virtual-environments)
-named `venv`, then activate it, and then install third-party Python libraries
-listed in `requirements.txt`.
-
-Signup for an [AWS](https://aws.amazon.com/) account, create an S3 bucket, and
-setup AWS
-[credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html).
-
-Create a file named `config.sh` that has the following contents and place it in
-the `pastebin` folder of this repository:
-
-```
-export MYPASTEBIN_S3_BUCKET=
-export MYPASTEBIN_TEXT_ENCODING=
-
-export MYPASTEBIN_DB_HOST=
-export MYPASTEBIN_DB_PORT=
-export MYPASTEBIN_DB_DATABASE=
-export MYPASTEBIN_DB_USER=
-export MYPASTEBIN_DB_PASSWORD=
-
-export MYPASTEBIN_CACHE_HOST=
-export MYPASTEBIN_CACHE_PORT=
-export MYPASTEBIN_CACHE_PW=
-export MYPASTEBIN_CACHE_ENCODING=
-
-export MYPASTEBIN_URL=
-
-export FLASK_APP=src
-```
-
-Go to the `pastebin` folder of this repository and execute the file `run_wsgi`.
+In progress.
