@@ -1,0 +1,30 @@
+# Put this file in /var/lib/rancher/k3s/server/manifests on the K3S server.
+
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    hostNetwork: true
+    logs:
+      access:
+        enabled:
+          true
+    entryPoints:
+      web:
+        address: ":80"
+        forwardedHeaders:
+          trustedIPs:
+            - "192.168.1.0/24"
+        http:
+          redirections:
+            entryPoint:
+              to: "websecure"
+              scheme: "https"
+      websecure:
+        address: ":443"
+        forwardedHeaders:
+          trustedIPs:
+            - "192.168.1.0/24"

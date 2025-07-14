@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from . import cache
 from . import database
 from . import object_store
+from .log import get_logger
 
-CACHE_TEXT_KEY = "text:{text_id}"
 TTL_TO_HOURS = {
     "1h": 1,
     "1d": 24,
@@ -13,6 +13,8 @@ TTL_TO_HOURS = {
     "1m": 24 * 30,
     "1y": 24 * 365,
 }
+
+LOGGER = get_logger()
 
 
 def put_text(text_body, user_id, user_ip, ttl):
@@ -32,11 +34,13 @@ def put_text(text_body, user_id, user_ip, ttl):
 
 
 def get_text(text_id):
-    text_body = cache.get(CACHE_TEXT_KEY.format(text_id=text_id))
+    text_body = cache.get(text_id)
     if text_body is not None:
+        LOGGER.info(f"Cache hit for text ID '{text_id}'")
         return text_body
     text_body = object_store.get_text(text_id)
-    cache.put(CACHE_TEXT_KEY.format(text_id=text_id), text_body)
+    LOGGER.info(f"Cache miss for text ID '{text_id}'")
+    cache.put(text_id, text_body)
     return text_body
 
 
@@ -47,4 +51,4 @@ def delete_text(text_id, deletion_timestamp):
     database.mark_text_for_deletion(text_id)
     object_store.delete_text(text_id)
     database.mark_text_deleted(text_id, deletion_timestamp)
-    cache.delete(CACHE_TEXT_KEY.format(text_id=text_id))
+    cache.delete(text_id)
