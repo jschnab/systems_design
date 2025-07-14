@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-replication-config
+  labels:
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: database
+data:
+  replication.cnf: |
+    [mariadb]
+    log_bin=mariadb-bin
+    log_bin_compress=1
+    log_bin_trust_function_creators=1
+    binlog_format=row
+    binlog_legacy_event_pos=1

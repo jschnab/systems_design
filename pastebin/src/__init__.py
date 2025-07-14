@@ -1,6 +1,5 @@
 import os
 import secrets
-import sys
 from datetime import datetime
 
 from flask import (
@@ -19,9 +18,10 @@ from . import auth
 from . import database
 from .config import config
 
-APP_URL = config['app']['url']
+APP_URL = config["app"]["url"]
 DEFAULT_USER = config["app"]["default_user"]
-TEXT_MAX_SIZE = 512000 + sys.getsizeof("")
+TEXT_MIN_CHAR = 110
+TEXT_MAX_CHAR = 512000
 TEXTS_QUOTA_ANONYMOUS = config["app"]["texts_quota_anonymous"]
 TEXTS_QUOTA_USER = config["app"]["texts_quota_user"]
 
@@ -38,15 +38,22 @@ def create_app(test_config=None):
     @app.route("/", methods=("GET", "POST"))
     def index():
         if request.method == "GET":
-            return render_template("index.html", msg=None)
+            return render_template("index.html")
 
-        if sys.getsizeof(request.form["text-body"]) > TEXT_MAX_SIZE:
-            return render_template("index.html", msg="Text is too large")
+        if len(request.form["text-body"]) < TEXT_MIN_CHAR:
+            return render_template(
+                "index.html",
+                message=f"Text should be at least {TEXT_MIN_CHAR} characters",
+            )
+
+        if len(request.form["text-body"]) > TEXT_MAX_CHAR:
+            return render_template(
+                "index.html",
+                message=f"Text should be less than {TEXT_MAX_CHAR} characters",
+            )
 
         user_id = session.get("user_id", DEFAULT_USER)
-        user_ip = request.environ.get(
-            "HTTP_X_REAL_IP", request.remote_addr
-        )
+        user_ip = request.environ.get("HTTP_X_REAL_IP", request.remote_addr)
         count_texts = database.count_recent_texts_by_user(
             user_id=user_id, user_ip=user_ip,
         )

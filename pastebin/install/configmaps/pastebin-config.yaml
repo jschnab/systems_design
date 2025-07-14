@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pastebin-config
+  labels:
+    app.kubernetes.io/name: pastebin
+    app.kubernetes.io/component: backend
+data:
+  s3_bucket: 
+  text_encoding: utf-8
+  db_host: mariadb-service
+  db_port: "3306"
+  db_database: pastebin
+  cache_host: redis-service
+  cache_port: "6379"
+  cache_encoding: utf-8
+  flask_app: src
+  app_url: 
+  default_user: anonymous
+  texts_quota_anonymous: "10"
+  texts_quota_user: "100"

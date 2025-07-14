@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+  labels:
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: database
+spec:
+  ports:
+  - port: 3306
+    name: mariadb-port
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: mariadb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mariadb-sts
+  labels:
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: database
+spec:
+  serviceName: mariadb-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mariadb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/version: "11.4"
+        app.kubernetes.io/component: database
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:11.4-ubi
+        ports:
+        - containerPort: 3306
+          name: mariadb-port
+        env:
+        - name: MARIADB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-root-credentials
+              key: root-password
+        volumeMounts:
+        - name: datadir
+          mountPath: /var/lib/mysql/
+        - name: replication-config-volume
+          mountPath: /etc/mysql/mariadb.conf.d/
+        resources:
+          requests:
+            memory: 1Gi
+      volumes:
+      - name: replication-config-volume
+        configMap:
+          name: mariadb-replication-config
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: sc-mariadb-data
+      resources:
+        requests:
+          storage: 10Gi

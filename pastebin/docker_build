@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -ex
+
+# To build arm64 image on amd64 system:
+# 1. Install QEMU packages (do this once)
+# apt-get install qemu binfmt-support qemu-user-static
+# 2. Configure QEMU to handle ARM64 binaries (every time you restart your
+#    machine)
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+IMAGE_NAME=pastebin
+IMAGE_TAG=prod
+REPO_NAME=jschnab
+
+DOCKER_BUILDKIT=1 docker build --platform=linux/arm64 -t ${IMAGE_NAME}:${IMAGE_TAG} .
+docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}
+docker push ${REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}

@@ -793,6 +793,12 @@ maxmemory 16gb
 maxmemory-policy allkeys-lru
 ```
 
+For access control, we use Redis [Access Control List](https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/) and create an
+application user with the following permissions:
+
+* can perform the operations GET, SET, and DEL
+* can access keys prefixed with the application name (e.g. 'pastebin')
+
 #### 6.4.2. Infrastructure costs
 
 Based on capacity estimations, we can deploy caching on memory-optimized EC2

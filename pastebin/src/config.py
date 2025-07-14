@@ -1,7 +1,5 @@
 import os
 
-IGNORE_NONE = ("cache.password",)
-
 
 def get_config():
     # Should be a dictionary where keys are strings and values are dictionaries
@@ -13,10 +11,11 @@ def get_config():
         },
         "database": {
             "host": os.getenv("MYPASTEBIN_DB_HOST", "localhost"),
-            "port": os.getenv("MYPASTEBIN_DB_PORT", 5432),
+            "port": os.getenv("MYPASTEBIN_DB_PORT"),
             "database": os.getenv("MYPASTEBIN_DB_DATABASE"),
             "user": os.getenv("MYPASTEBIN_DB_USER"),
             "password": os.getenv("MYPASTEBIN_DB_PASSWORD"),
+            "pool_size": os.getenv("MYPASTEBIN_DB_CON_POOL_SIZE", 10),
         },
         "app": {
             "url": os.getenv("MYPASTEBIN_URL", "localhost"),
@@ -25,12 +24,19 @@ def get_config():
                 "MYPASTEBIN_TEXTS_QUOTA_ANONYMOUS", 10
             ),
             "texts_quota_user": os.getenv("MYPASTEBIN_TEXTS_QUOTA_USER", 100),
+            "log_level": os.getenv("MYPASTEBIN_LOG_LEVEL", "info"),
         },
         "cache": {
             "host": os.getenv("MYPASTEBIN_CACHE_HOST", "localhost"),
             "port": os.getenv("MYPASTEBIN_CACHE_PORT", 6379),
-            "password": os.getenv("MYPASTEBIN_CACHE_PW"),
+            "username": os.getenv("MYPASTEBIN_CACHE_USER"),
+            "password": os.getenv("MYPASTEBIN_CACHE_PASSWORD"),
             "encoding": os.getenv("MYPASTEBIN_CACHE_ENCODING", "utf-8"),
+            "pool_size": os.getenv("MYPASTEBIN_CACHE_CON_POOL_SIZE", 10),
+            "key_prefix": os.getenv(
+                "MYPASTEBIN_CACHE_KEY_PREFIX",
+                "pastebin:"
+            ),
         },
     }
 
@@ -47,7 +53,7 @@ def check_config(cnf):
                 )
             else:
                 full_key = f"{parent}.{k}"
-                if v is None and full_key not in IGNORE_NONE:
+                if v is None:
                     null_values.append(full_key)
     if null_values != []:
         raise ValueError(

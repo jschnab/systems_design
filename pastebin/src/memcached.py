@@ -3,11 +3,14 @@ import functools
 from pymemcache.client.base import Client
 
 from .config import config
+from .log import get_logger
 
 CACHE_CLIENT = Client(
     config["cache"]["host"],
     encoding=config["cache"]["encoding"],
 )
+
+LOGGER = get_logger()
 
 
 def manage_exceptions(func):
@@ -16,7 +19,7 @@ def manage_exceptions(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            print(f"{e.__class__.__name__} when calling '{func}': {e}")
+            LOGGER.error(f"{e.__class__.__name__} when calling '{func}': {e}")
     return wrapper
 
 

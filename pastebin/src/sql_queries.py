@@ -67,6 +67,7 @@ MARK_TEXT_DELETED = "UPDATE texts SET deletion = %s WHERE text_id = %s;"
 GET_TEXTS_BY_USER = """
 SELECT text_id, creation, expiration FROM texts
 WHERE user_id = %s AND (deletion IS NULL AND to_be_deleted IS NOT TRUE)
+ORDER BY creation
 ;"""
 
 GET_USER_BY_TEXT = "SELECT user_id FROM texts WHERE text_id = %s;"
@@ -84,12 +85,12 @@ UPDATE users SET last_connection = %s WHERE user_id = %s
 
 COUNT_TEXTS_ANONYMOUS = """
 SELECT COUNT(*) AS quota FROM texts
-WHERE user_ip = %s AND creation > NOW() - INTERVAL '1 DAY'
+WHERE user_ip = %s AND creation > NOW() - INTERVAL 1 DAY
 ;"""
 
 COUNT_TEXTS_USER = """
 SELECT COUNT(*) AS quota FROM texts
-WHERE user_id = %s AND creation > NOW() - INTERVAL '1 DAY'
+WHERE user_id = %s AND creation > NOW() - INTERVAL 1 DAY
 ;"""
 
 RECORD_USER_CONNECT = """
@@ -99,6 +100,6 @@ VALUES (%s, %s, NOW(), %s)
 
 GET_RECENT_USER_CONNECTIONS = """
 SELECT ts, success FROM user_connections
-WHERE user_id = %s AND ts >= NOW() - INTERVAL '15 MINUTES'
+WHERE user_id = %s AND ts >= NOW() - INTERVAL 15 MINUTE
 ORDER BY ts DESC
 ;"""
