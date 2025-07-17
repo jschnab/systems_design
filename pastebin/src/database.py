@@ -29,7 +29,7 @@ connection_pool = None
 def init_connection_pool():
     global connection_pool
     if connection_pool is None:
-        LOGGER.info("Creating connection pool")
+        LOGGER.info("Creating database connection pool")
         connection_pool = mysql.connector.pooling.MySQLConnectionPool(
             pool_name="pastebin",
             pool_size=config["database"]["pool_size"],
@@ -43,7 +43,7 @@ thread_pool = None
 def init_thread_pool():
     global thread_pool
     if thread_pool is None:
-        LOGGER.info("Creating thread pool")
+        LOGGER.info("Creating database thread pool")
         thread_pool = ThreadPoolExecutor()
 
 

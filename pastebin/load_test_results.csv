@@ -1,0 +1,17 @@
+application_type,url,number_requests,time_seconds,cache
+synchronous,/,10000,22.58,false
+synchronous,/,10000,23.83,false
+synchronous,/,10000,24.76,false
+synchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,41.92,true
+synchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,42.43,true
+synchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,44.24,true
+synchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,758.70,false
+asynchronous,/,10000,25.59,false
+asynchronous,/,10000,25.01,false
+asynchronous,/,10000,31.02,false
+asynchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,52.77,true
+asynchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,52.60,true
+asynchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,52.40,true
+asynchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,347.82,false
+asynchronous,/text/f198d69a-6966-4070-83d3-04a4e0bea940,10000,344.26,false
+

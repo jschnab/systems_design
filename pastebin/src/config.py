@@ -15,7 +15,7 @@ def get_config():
             "database": os.getenv("MYPASTEBIN_DB_DATABASE"),
             "user": os.getenv("MYPASTEBIN_DB_USER"),
             "password": os.getenv("MYPASTEBIN_DB_PASSWORD"),
-            "pool_size": os.getenv("MYPASTEBIN_DB_CON_POOL_SIZE", 10),
+            "pool_size": os.getenv("MYPASTEBIN_DB_CON_POOL_SIZE", 32),
         },
         "app": {
             "url": os.getenv("MYPASTEBIN_URL", "localhost"),
