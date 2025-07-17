@@ -1,5 +1,5 @@
 config.sh
-venv*
+.venv*
 __pycache__
 todo.txt
 install/debug/*
@@ -11,3 +11,4 @@ install/ingress/*
 *.crt
 *.csr
 *.key
+docker-env

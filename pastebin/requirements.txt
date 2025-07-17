@@ -1,5 +1,6 @@
-boto3==1.38.*
-flask==3.1.*
+aioboto3==15.0.*
 gunicorn==23.0.*
 mysql-connector-python==9.3.*
+Quart==0.20.*
 redis==6.2.*
+uvicorn-worker==0.3.*

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+docker run \
+    --name pastebin \
+    --platform linux/arm64 \
+    -d \
+    -p 5000:5000 \
+    --env-file docker-env \
+    jschnab/pastebin:dev-async

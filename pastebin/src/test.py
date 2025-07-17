@@ -13,7 +13,11 @@ def test_put_text():
     exp = now + timedelta(days=30)
 
     database.put_text(
-        "DySG", text_body, "anonymous", now, exp,
+        "DySG",
+        text_body,
+        "anonymous",
+        now,
+        exp,
     )
 
 

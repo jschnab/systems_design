@@ -1,0 +1,57 @@
+#!/bin/bash
+
+set -e
+
+cd "$(dirname "$0")"
+
+source .venv/bin/activate
+
+source config.sh
+
+python - <<EOF
+import asyncio
+from datetime import datetime, timedelta
+
+import src.database as db
+
+db.init_connection_pool()
+db.init_thread_pool()
+
+
+async def main():
+    #print(
+    #    "create user:",
+    #    await db.create_user("gloubiboulga", "casimir", "dino", "password")
+    #)
+    #print(
+    #    "put text:",
+    #    await db.put_text_metadata(
+    #        'new-text',
+    #        'gloubiboulga',
+    #        '127.0.0.1',
+    #        datetime.now(),
+    #        datetime.now() + timedelta(days=1),
+    #    )
+    #)
+    print(
+        "marked text for deletion:",
+        await db.mark_text_for_deletion("hello")
+    )
+    print(
+        "marked text deleted:",
+        await db.mark_text_deleted("hello", datetime.now())
+    )
+    print("texts by gloubiboulga:", await db.get_texts_by_user("gloubiboulga"))
+    print("anonynous user:", await db.get_user("anonymous"))
+    print("recent texts by anonymous:", await db.count_recent_texts_by_anonymous_user("127.0.0.1"))
+    print("recent texts by gloubiboulga:", await db.count_recent_texts_by_logged_user("gloubiboulga"))
+    print("texts marked for deletion:", await db.get_texts_for_deletion())
+    print("user for text new-text:", await db.get_user_by_text("new-text"))
+    print("user zorglub is locked:", await db.user_is_locked("zorglub"))
+    print(
+        "record gloubiboulga connected:",
+        await db.record_user_connect("gloubiboulga", "127.0.0.1", True)
+    )
+
+asyncio.run(main())
+EOF

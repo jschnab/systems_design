@@ -20,6 +20,7 @@ def manage_exceptions(func):
             return func(*args, **kwargs)
         except Exception as e:
             LOGGER.error(f"{e.__class__.__name__} when calling '{func}': {e}")
+
     return wrapper
 
 

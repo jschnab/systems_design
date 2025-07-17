@@ -1,5 +1,17 @@
+CREATE_DATABASE = """
+CREATE DATABASE IF NOT EXISTS {database_name}
+"""
+
+CREATE_DB_USER = """
+CREATE USER IF NOT EXISTS '{user_name}'@'%' IDENTIFIED BY '{password}'
+"""
+
+CREATE_DB_USER_PERMISSIONS = """
+GRANT ALL PRIVILEGES ON {database_name}.* TO '{user_name}'
+"""
+
 CREATE_TABLE_USERS = """
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   user_id VARCHAR(40) PRIMARY KEY,
   first_name VARCHAR(40),
   last_name VARCHAR(40),
@@ -9,7 +21,7 @@ CREATE TABLE users (
 ;"""
 
 CREATE_TABLE_USER_CONNECTIONS = """
-CREATE TABLE user_connections (
+CREATE TABLE IF NOT EXISTS user_connections (
   user_id VARCHAR(40) REFERENCES users(user_id),
   user_ip VARCHAR(15),
   ts TIMESTAMP,
@@ -18,11 +30,11 @@ CREATE TABLE user_connections (
 ;"""
 
 CREATE_INDEX_USER_CONNECT_TS = """
-CREATE INDEX user_connect_ts_idx ON user_connections (ts)
+CREATE INDEX IF NOT EXISTS user_connect_ts_idx ON user_connections (ts)
 ;"""
 
 CREATE_TABLE_TEXTS = """
-CREATE TABLE texts (
+CREATE TABLE IF NOT EXISTS texts (
   text_id VARCHAR(255) PRIMARY KEY,
   text_path VARCHAR(255),
   user_id VARCHAR(40) REFERENCES users(user_id),
@@ -35,15 +47,15 @@ CREATE TABLE texts (
 ;"""
 
 CREATE_INDEX_TEXTS_USERID = """
-CREATE INDEX texts_userid_idx ON texts (user_id)
+CREATE INDEX IF NOT EXISTS texts_userid_idx ON texts (user_id)
 ;"""
 
 CREATE_INDEX_TEXTS_USERIP = """
-CREATE INDEX texts_userip_idx ON texts (user_ip)
+CREATE INDEX IF NOT EXISTS texts_userip_idx ON texts (user_ip)
 ;"""
 
 CREATE_INDEX_TEXTS_CREATION = """
-CREATE INDEX texts_creation_idx ON texts (creation)
+CREATE INDEX IF NOT EXISTS texts_creation_idx ON texts (creation)
 ;"""
 
 CREATE_USER = """

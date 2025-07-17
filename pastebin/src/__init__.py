@@ -2,16 +2,15 @@ import os
 import secrets
 from datetime import datetime
 
-from flask import (
+from quart import (
     abort,
     flash,
-    Flask,
+    Quart,
     render_template,
     request,
     send_from_directory,
     session,
 )
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import api
 from . import auth
@@ -19,107 +18,98 @@ from . import database
 from .config import config
 
 APP_URL = config["app"]["url"]
-DEFAULT_USER = config["app"]["default_user"]
 TEXT_MIN_CHAR = 110
 TEXT_MAX_CHAR = 512000
-TEXTS_QUOTA_ANONYMOUS = config["app"]["texts_quota_anonymous"]
-TEXTS_QUOTA_USER = config["app"]["texts_quota_user"]
 
 
-def create_app(test_config=None):
-    app = Flask(__name__, instance_relative_config=True)
+def create_app():
+    app = Quart(__name__)
     app.secret_key = secrets.token_hex()
 
-    if test_config is None:
-        app.config.from_pyfile("config.py", silent=True)
-    else:
-        app.config.from_mapping(test_config)
-
     @app.route("/", methods=("GET", "POST"))
-    def index():
-        if request.method == "GET":
-            return render_template("index.html")
+    async def index():
 
-        if len(request.form["text-body"]) < TEXT_MIN_CHAR:
-            return render_template(
+        if request.method == "GET":
+            return await render_template("index.html")
+
+        # request.form is a coroutine
+        request_form = await request.form
+
+        if len(request_form["text-body"]) < TEXT_MIN_CHAR:
+            return await render_template(
                 "index.html",
                 message=f"Text should be at least {TEXT_MIN_CHAR} characters",
             )
 
-        if len(request.form["text-body"]) > TEXT_MAX_CHAR:
-            return render_template(
+        if len(request_form["text-body"]) > TEXT_MAX_CHAR:
+            return await render_template(
                 "index.html",
                 message=f"Text should be less than {TEXT_MAX_CHAR} characters",
             )
 
-        user_id = session.get("user_id", DEFAULT_USER)
-        user_ip = request.environ.get("HTTP_X_REAL_IP", request.remote_addr)
-        count_texts = database.count_recent_texts_by_user(
-            user_id=user_id, user_ip=user_ip,
-        )
-
-        if user_id == DEFAULT_USER:
-            quota = TEXTS_QUOTA_ANONYMOUS
-        else:
-            quota = TEXTS_QUOTA_USER
-
-        if count_texts >= quota:
+        user_id = session.get("user_id", config["app"]["default_user"])
+        user_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        if await api.user_exceeded_quota(user_id, user_ip):
+            if user_id == config["app"]["default_user"]:
+                quota = config["app"]["texts_quota_anonymous"]
+            else:
+                quota = config["app"]["texts_quota_user"]
             msg = (
                 f"User '{user_id}' stored more than {quota} texts during the "
                 "past day, come back later"
             )
         else:
-            text_id = api.put_text(
-                text_body=request.form["text-body"],
+            text_id = await api.put_text(
+                text_body=(await request.form)["text-body"],
                 user_id=user_id,
                 user_ip=user_ip,
-                ttl=request.form["ttl"],
+                ttl=(await request.form)["ttl"],
             )
             msg = f"Stored text at {APP_URL}/text/{text_id}"
 
-        return render_template("index.html", message=msg)
+        return await render_template("index.html", message=msg)
 
     @app.route("/text/<text_id>")
-    def get_text(text_id):
-        text_body = api.get_text(text_id)
+    async def get_text(text_id):
+        text_body = await api.get_text(text_id)
         if text_body is None:
             abort(404)
-        return render_template("text.html", text_body=text_body)
+        return await render_template("text.html", text_body=text_body)
 
     @app.route("/delete-text", methods=("POST",))
-    def delete_text():
-        text_id = request.form["text-id"]
-        user_id = database.get_user_by_text(text_id)["user_id"]
+    async def delete_text():
+        text_id = (await request.form)["text-id"]
+        user_id = await database.get_user_by_text(text_id)
         logged_user = session.get("user_id")
         if logged_user is None or user_id != logged_user:
             abort(403)
-        api.delete_text(text_id=text_id, deletion_timestamp=datetime.now())
+        await api.delete_text(
+            text_id=text_id, deletion_timestamp=datetime.now()
+        )
         return "OK"
 
     @app.route("/mytexts")
-    def user_texts():
+    async def user_texts():
         user_id = session.get("user_id")
         if user_id is None:
-            flash("Please log in to see your saved texts")
-            return render_template("index.html")
+            await flash("Please log in to see your saved texts")
+            return await render_template("index.html")
 
-        texts = database.get_texts_by_user(user_id)
-        return render_template(
-            "user_texts.html", mytexts=texts, app_url=APP_URL,
+        texts = await database.get_texts_by_user(user_id)
+        return await render_template(
+            "user_texts.html",
+            mytexts=texts,
+            app_url=APP_URL,
         )
 
     @app.route("/favicon.ico")
-    def favicon():
-        return send_from_directory(
+    async def favicon():
+        return await send_from_directory(
             os.path.join(app.root_path, "static"),
             "favicon.ico",
             mimetype="image/vnd.microsoft.icon",
         )
 
     app.register_blueprint(auth.bp)
-
-    app.wsgi_app = ProxyFix(
-        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1,
-    )
 
     return app

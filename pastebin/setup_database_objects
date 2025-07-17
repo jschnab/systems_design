@@ -1,3 +1,22 @@
 #!/bin/bash
 
-python -c "import src.database; src.database.setup_database_objects();"
+set -xe
+
+cd "$(dirname "$0")"
+
+source .venv/bin/activate
+
+source config.sh
+
+python - <<'EOF'
+import asyncio
+import os
+
+import src.database
+
+async def main():
+    await src.database.setup_database_objects(os.getenv("MARIADB_ROOT_PASSWORD"))
+
+
+asyncio.run(main())
+EOF

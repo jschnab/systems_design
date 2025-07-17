@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -xe
+
+cd "$(dirname "$0")"
+
+source .venv/bin/activate
+
+source config.sh
+
+python - <<'EOF'
+import asyncio
+
+import src.cache as cache
+
+async def main():
+    await cache.put('hello', 'world')
+    print(await cache.get('hello'))
+    await cache.delete('hello')
+    print(await cache.get('hello'))
+
+
+asyncio.run(main())
+EOF
