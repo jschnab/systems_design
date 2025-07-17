@@ -4,3 +4,4 @@ mysql-connector-python==9.3.*
 Quart==0.20.*
 redis==6.2.*
 uvicorn-worker==0.3.*
+uvloop==0.21.*
