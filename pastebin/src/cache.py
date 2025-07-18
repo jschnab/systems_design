@@ -28,6 +28,12 @@ def init_connection_pool():
         )
 
 
+def close_connection_pool():
+    if connection_pool is not None:
+        LOGGER.info("Closing cache connection pool")
+        connection_pool.aclose()
+
+
 def manage_errors(func):
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):

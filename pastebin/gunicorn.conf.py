@@ -7,3 +7,10 @@ def post_fork(server, worker):
     src.cache.init_connection_pool()
     src.database.init_thread_pool()
     src.database.init_connection_pool()
+
+
+def worker_exit(server, worker):
+    server.log.info(f"Cleaning up resources on worker {worker.pid}")
+    src.cache.close_connection_pool()
+    src.database.close_thread_pool()
+    src.database.close_connection_pool()

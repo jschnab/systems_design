@@ -14,7 +14,8 @@ WORKDIR ${USER_HOME}
 
 COPY requirements.txt requirements.txt
 COPY src src
-COPY run_quart run_quart
+COPY gunicorn.conf.py gunicorn.conf.py
+COPY run_asgi run_asgi
 
 RUN --mount=type=cache,target=${USER_HOME}/.cache python3 -m venv .venv \
     && . .venv/bin/activate \

@@ -37,6 +37,13 @@ def init_connection_pool():
         )
 
 
+def close_connection_pool():
+    if connection_pool is not None:
+        LOGGER.info("Closing database connection pool")
+        n_closed = connection_pool._remove_connections()
+        LOGGER.info(f"Closed {n_closed} database connections")
+
+
 thread_pool = None
 
 
@@ -45,6 +52,12 @@ def init_thread_pool():
     if thread_pool is None:
         LOGGER.info("Creating database thread pool")
         thread_pool = ThreadPoolExecutor()
+
+
+def close_thread_pool():
+    if thread_pool is not None:
+        LOGGER.info("Closing database thread pool")
+        thread_pool.shutdown()
 
 
 @contextmanager
