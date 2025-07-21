@@ -37,9 +37,7 @@ async def put_text(text_body, user_id, user_ip, ttl):
 async def get_text(text_id):
     text_body = await cache.get(text_id)
     if text_body is not None:
-        LOGGER.info(f"Cache hit for text ID '{text_id}'")
         return text_body
-    LOGGER.info(f"Cache miss for text ID '{text_id}'")
     text_body = await object_store.get_text(text_id)
     if text_body is not None:
         await cache.put(text_id, text_body)

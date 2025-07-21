@@ -194,19 +194,21 @@ we simply delete a text from the cache when necessary.
 
 ### 6.1. Web application
 
-#### 6.1.1. Software tools
+#### 6.1.1. Web framework
 
-There are many applications and libraries available to implement web
-applications. We use [Flask](https://palletsprojects.com/p/flask/) to build our
-application, [Gunicorn](https://gunicorn.org/) as a WSGI server, and
-[NGINX](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/) as
-a reverse proxy to HTTP requests.
+There are many [libraries](https://wiki.python.org/moin/WebFrameworks) available
+to implement web applications in Python.
 
-While Flask has a built-in WSGI server using
-[Werkzeug](https://werkzeug.palletsprojects.com/en/2.2.x/), it recommended to
-run a dedicated WSGI server in [production
-environments](https://werkzeug.palletsprojects.com/en/2.2.x/deployment/) (in
-this case Werkzeug is used as a WSGI application).
+I initially built the application with [Flask](https://palletsprojects.com/p/flask/).
+Later, I decided to rewrite the application to take advantage of concurrency
+using [asyncio](https://docs.python.org/3/library/asyncio.html), so I migrated
+the implementation to use [Quart](https://quart.palletsprojects.com/en/latest/).
+
+[Gunicorn](https://gunicorn.org/) and [uvicorn workers](https://github.com/Kludex/uvicorn-worker)
+server as an ASGI server. We use Gunicorn to take advantage of [server
+hooks](https://docs.gunicorn.org/en/stable/settings.html#server-hooks) and
+setup and teardown application resources such as connection pools (uvicorn does
+not expose this functionality).
 
 #### 6.1.2. Frontend
 
@@ -243,8 +245,8 @@ from `src/templates/html.index`:
 We then process form data in Flask (snippet adapted from `src/__init__.py`):
 
 ```python
-import flask import (
-    Flask,
+import quart import (
+    Quart,
     render_template,
     session,
 )
@@ -252,32 +254,28 @@ import flask import (
 from . import api
 
 
-def create_app(test_config=None):
-    app = Flask(__name__)
+def create_app():
+    app = Quart(__name__)
 
     @app.route("/", methods=("GET", "POST"))
-    def index():
+    async def def index():
         if request.method == "POST":
             user_id = session.get("user_id", "anonymous")
-            user_ip = request.environ.get(
-                "HTTP_X_REAL_IP", request.remote_addr
+            user_ip = request.headers.get(
+                "X-Forwarded-For", request.remote_addr
             )
-            text_id = api.put_text(
-                text_body=request.form["text-body"],
+            text_id = await api.put_text(
+                text_body=(await request.form)["text-body"],
                 user_id=user_id,
                 user_ip=user_ip,
-                ttl=request.form["ttl"],
+                ttl=(await request.form)["ttl"],
             )
             msg = f"Stored text at /text/{text_id}"
 
-            return render_template("index.html", message=msg)
+            return await render_template("index.html", message=msg)
 
     return app
 ```
-
-Because Flask is running under NGINX, we get the user IP address with
-`HTTP_X_REAL_IP`, as explained
-[here](https://stackoverflow.com/questions/3759981/get-ip-address-of-visitors-using-flask-for-python).
 
 The function `put_text` abstracts the details about text storage and metadata
 (snippet from `src/api.py`):
@@ -289,7 +287,7 @@ from datetime import datetime, timedelta
 from . import database
 from . import object_store
 
-def put_text(text_body, user_id, user_ip, ttl):
+async def put_text(text_body, user_id, user_ip, ttl):
     creation_timestamp = datetime.now()
     ttl_hours = {
         "1h": 1,
@@ -300,8 +298,8 @@ def put_text(text_body, user_id, user_ip, ttl):
     }[ttl]
     expiration_timestamp = creation_timestamp + timedelta(hours=ttl_hours)
     text_id = str(uuid.uuid4())
-    object_store.put_text(text_id, text_body)
-    database.put_text_metadata(
+    await object_store.put_text(text_id, text_body)
+    await database.put_text_metadata(
         text_id,
         user_id,
         user_ip,
@@ -334,12 +332,12 @@ of `src/templates/text.html`):
 </body>
 ```
 
-The Flask function to build the text page is simple (snippet adapted from
+The function to build the text page is simple (snippet adapted from
 `src/__init__.py`):
 
 ```python
-import flask import (
-    Flask,
+import Quart import (
+    Quart,
     render_template,
     session,
 )
@@ -347,15 +345,15 @@ import flask import (
 from . import api
 
 
-def create_app(test_config=None):
-    app = Flask(__name__)
+def create_app():
+    app = Quart(__name__)
 
     @app.route("/text/<text_id>")
-    def get_text(text_id):
-        text_body = api.get_text(text_id)
+    async def get_text(text_id):
+        text_body = await api.get_text(text_id)
         if text_body is None:
             abort(404)
-        return render_template("text.html", text_body=text_body)
+        return await render_template("text.html", text_body=text_body)
 
     return app
 ```
@@ -370,12 +368,13 @@ from . import cache
 from . import object_store
 
 
-def get_text(text_id):
-    text_body = cache.get(CACHE_TEXT_KEY.format(text_id=text_id))
+async def get_text(text_id):
+    text_body = await cache.get(text_id)
     if text_body is not None:
         return text_body
-    text_body = object_store.get_text(text_id)
-    cache.put(CACHE_TEXT_KEY.format(text_id=text_id), text_body)
+    text_body = await object_store.get_text(text_id)
+    if text_body is not None:
+        await cache.put(text_id, text_body)
     return text_body
 ```
 
@@ -445,8 +444,8 @@ and is adapted from `src/__init__.py`:
 ```python
 from datetime import datetime
 
-import flask import (
-    Flask,
+import quart import (
+    Quart,
     render_template,
     session,
 )
@@ -454,17 +453,19 @@ import flask import (
 from . import api
 
 
-def create_app(test_config=None):
-    app = Flask(__name__)
+def create_app():
+    app = Quart(__name__)
 
     @app.route("/delete-text", methods=("POST",))
-    def delete_text():
-        text_id = request.form["text-id"]
-        user_id = database.get_user_by_text(text_id)["user_id"]
+    async def delete_text():
+        text_id = (await request.form)["text-id"]
+        user_id = await database.get_user_by_text(text_id)["user_id"]
         logged_user = session.get("user_id")
         if logged_user is None or user_id != logged_user:
             abort(403)
-        api.delete_text(text_id=text_id, deletion_timestamp=datetime.now())
+        await api.delete_text(
+            text_id=text_id, deletion_timestamp=datetime.now()
+        )
         return "OK"
 
     return app
@@ -482,11 +483,11 @@ from . import database
 from . import object_store
 
 
-def delete_text(text_id, deletion_timestamp):
-    database.mark_text_for_deletion(text_id)
-    object_store.delete_text(text_id)
-    database.mark_text_deleted(text_id, deletion_timestamp)
-    cache.delete(f"text:{text_id}")
+async def delete_text(text_id, deletion_timestamp):
+    await database.mark_text_for_deletion(text_id)
+    await object_store.delete_text(text_id)
+    await database.mark_text_deleted(text_id, deletion_timestamp)
+    await cache.delete(text_id)
 ```
 
 We first mark the text for deletion with the SQL query:
@@ -501,42 +502,7 @@ storage during the cleanup process (see the section about text storage). Once
 the text is deleted from object storage, we record the deletion in the metadata
 database using a timestamp. Finally we delete the text from cache.
 
-#### 6.1.3. NGINX configuration
-
-To keep data transfer volumes and costs as low as possible, NGINX should be
-configured to send
-[compressed responses](http://nginx.org/en/docs/http/ngx_http_gzip_module.html).
-We use the following NGINX configuration:
-
-```
-gzip on;
-gzip_disable "msie6";
-gzip_vary on;
-gzip_proxied any;
-gzip_comp_level 6;
-gzip_buffers 32 4k;
-gzip_http_version 1.1;
-gzip_min_length 256;
-gzip_types
-  text/plain
-  text/css
-  application/json
-  application/javascript
-  text/xml
-  application/xml
-  application/xml+rss
-  text/javascript;
-```
-
-The parameter `gzip_buffers` sets the number and size of buffers used to
-compress a response. Our memory page size is 4 KiB, determined by running
-`getconf PAGESIZE` in the console, and we use the default number of buffers.
-
-The parameter `gzip_min_length` sets the minimum length of a response that will
-be compressed. We set this to 256 bytes to only send very small uncompressed
-responses.
-
-#### 6.1.4. Infrastructure and costs
+#### 6.1.4. Web server infrastructure and costs
 
 The web application will be installed on two [EC2](https://aws.amazon.com/ec2/)
 instances. We choose t3.large instances with 2 vCPU and 8 GiB of memory. Our
@@ -561,16 +527,67 @@ cost $400 per year. Autoscaling has no additional charge.
 
 ### 6.2. Metadata database
 
-Our metadata database engine is PostgreSQL. For durability, we will
-synchronously replicate the database to a standby database server. This will
-allow us to quickly recover the application if the main server becomes
-unavailable, at the cost of slower writes.
+Our metadata database engine is [MariaDB](https://mariadb.org/), a 
+[popular](https://db-engines.com/en/ranking/relational+dbms) and fully open
+source fork of MySQL.
 
-#### 6.2.1. Database interface code
+For durability, we will synchronously replicate the database to a standby database
+server. This will allow us to quickly recover the application if the main server
+becomes unavailable, at the cost of slower writes.
 
-All functions of the `database` module are alike, they run a SQL query that
-performs a specific step of the application workflow. For example, the function
-`put_text_metadata` saves text information when a user stores a text:
+#### 6.2.1. Python client library
+
+Since we are using Quart, a Python web framework based on asyncio, we need to
+make sure client libraries do not block the asyncio loop. Ideally, this is
+achieved by using libraries also built on asyncio, but it is not always
+possible to find such libraries, so we may need to use techniques such as
+multithreading to avoid blocking the asyncio loop.
+
+The following libraries are compatible with MariaDB:
+
+* [aiomysql](https://github.com/aio-libs/aiomysql)
+  * Pros: Based on asyncio
+  * Cons: Not actively maintained
+
+* [asyncmy](https://github.com/long2ice/asyncmy)
+  * Pros: Based on asyncio
+  * Cons: Not actively maintained
+
+* [mysql-connector-python](https://github.com/mysql/mysql-connector-python)
+  * Pros: Reference library, continuously maintained and large community
+  * Cons: Does not leverage asyncio
+
+Of the asyncio-compatible libraries asyncmy is the most-recently active, but it
+has not been updated in 6 months and I found bugs when I tested it with simple
+queries. mysql-connector-python is the reference library, but does not leverage
+asyncio so we will have to make sure we do not block the asyncio loop when
+executing database queries (more on this below).
+
+#### 6.2.2. Connection pools
+
+Opening and closing a connection to MariaDB takes a non-negligible amount of
+time, and is a source of significant latency when this is happening on every
+application request. It is therefore beneficial to reuse a connection for
+multiple database queries. However, because our application serves concurrent
+requests, we would encounter conflicts when concurrent database queries try to
+use the same connection and cursor. To overcome this issue, we use a connection
+pool.
+
+Gunicorn uses the [pre-fork](https://docs.gunicorn.org/en/latest/design.html)
+worker model, meaning that a master process manages a set of worker processes
+that are responsible for processing web requests. To avoid creating a database
+connection pool in the master process (where it would be useless and consume
+database resources), we manage the connection pool lifecycle with [server
+hooks](https://docs.gunicorn.org/en/stable/settings.html#server-hooks).
+
+The connection pool is initialized and accessible in a global variable when a
+gunicorn worker starts by calling the function `init_connection_pool`. The pool
+is destroyed when the worker stops by calling the function `close_connection_pool`.
+
+We wrap database connections in a context manager function, to provide a simple
+syntax to acquire and release connections, and to manage commits and rollbacks.
+
+The following excerpt from `src/database.py` implements connection pooling:
 
 ```python
 from . import sql_queries
@@ -586,16 +603,27 @@ DB_CONFIG = {
     "password": config["database"]["password"],
 }
 
-con_pool = mysql.connector.pooling.MySQLConnectionPool(
-    pool_name="pastebin",
-    pool_size=config["database"]["pool_size"],
-    **DB_CONFIG,
-)
+connection_pool = None
+
+
+def init_connection_pool():
+    global connection_pool
+    if connection_pool is None:
+        mysql.connector.pooling.MySQLConnectionPool(
+            pool_name="pastebin",
+            pool_size=config["database"]["pool_size"],
+            **DB_CONFIG,
+        )
+
+
+def close_connection_pool():
+    if connection_pool is not None:
+        connection_pool._remove_connections()
 
 
 @contextmanager
-def connect(dictionary=False):
-    con = con_pool.get_connection()
+def connect(db_config=DB_CONFIG, dictionary=False):
+    con = connection_pool.get_connection()
     cur = con.cursor(dictionary=dictionary)
     try:
         yield cur
@@ -606,24 +634,91 @@ def connect(dictionary=False):
     finally:
         cur.close()
         con.close()
+```
+
+There is one last problem to overcome: the library mysql-connector-python is
+not based on asyncio, so its functions block the asyncio loop. To avoid this,
+we can use the asyncio loop method
+[run_in_executor](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor)
+to run blocking functions in separate threads. Similarly to the connection
+pool, we use a thread pool. The function `execute_in_thread_pool` takes care of
+acquiring a connection from the pool, executing SQL queries, and returning
+results to the caller.
+
+The following excerpt from `src/database.py` implements query executing in
+threads:
 
 
-def put_text_metadata(
-    text_id, user_id, user_ip, creation_timestamp, expiration_timestamp,
-):
-    with connect() as cur:
-        cur.execute(
-            sql_queries.INSERT_TEXT,
-            (
-                text_id,
-                f"{config['text_storage']['s3_bucket']}/{text_id}",
-                user_id,
-                user_ip,
-                creation_timestamp,
-                expiration_timestamp,
+```python
+import asyncio
+from functools import partial
+
+thread_pool = None
+
+
+def init_thread_pool():
+    global thread_pool
+    if thread_pool is None:
+        thread_pool = ThreadPoolExecutor()
+
+
+def close_thread_pool():
+    if thread_pool is not None:
+        thread_pool.shutdown()
+
+
+async def execute_in_thread_pool(query, args=None):
+    with connect(dictionary=True) as cur:
+         await asyncio.get_running_loop().run_in_executor(
+            thread_pool,
+            partial(
+                cur.execute,
+                query,
+                args,
             ),
         )
+        return cur.fetchall()
 ```
+
+We define gunicorn server hooks in the file `gunicorn.conf.py`:
+
+```python
+import src.database
+
+
+def post_fork(server, worker):
+    src.database.init_thread_pool()
+    src.database.init_connection_pool()
+
+
+def worker_exit(server, worker):
+    src.database.close_thread_pool()
+    src.database.close_connection_pool()
+```
+
+#### 6.2.3. Database queries
+
+All functions of the `database` module are alike, they run a SQL query that
+performs a specific step of the application workflow. For example, the function
+`put_text_metadata` saves text information when a user stores a text:
+
+```python
+async def put_text_metadata(
+    text_id, user_id, user_ip, creation_timestamp, expiration_timestamp,
+):
+    await execute_in_thread_pool(
+        sql_queries.INSERT_TEXT,
+        (
+            text_id,
+            f"{config['text_storage']['s3_bucket']}/{text_id}",
+            user_id,
+            user_ip,
+            creation_timestamp,
+            expiration_timestamp,
+        ),
+    )
+```
+
 
 We store SQL queries in a separate module to help with code readability, as SQL
 queries have a tendency to spread over many lines and break the reader flow.
@@ -635,10 +730,10 @@ VALUES (%s, %s, %s, %s, %s, %s);
 ```
 
 We use the string placeholders `%s` to safely pass query parameters to the
-`execute()` method. This is especially important when query parameters are
-provided by application users, to avoid SQL injection.
+`cursor.execute()` method. This is especially important when query parameters
+are provided by application users, to avoid SQL injection.
 
-#### 6.2.1. Text storage quotas
+#### 6.2.4. Text storage quotas
 
 To enforce quotas, we need to keep track of how many texts were stored by
 users. Authenticated users are identified by their user ID, and unauthenticated
@@ -671,7 +766,7 @@ Given that we will need up to 10^8 text IDs and that there are 10^38 UUIDs
 available (a UUID is 128 bits), we will ignore the very unlikely event of text
 ID collision.
 
-#### 6.2.2. Infrastructure and costs
+#### 6.2.5. Database infrastructure and costs
 
 [AWS RDS](https://aws.amazon.com/rds/) supports MariaDB and has a feature
 named [Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) that allows
@@ -707,27 +802,26 @@ Code that interacts with AWS S3 is in the module `object_storage`. The function
 ```python
 import zlib
 
-import boto3
+import aioboto3
 
 from .config import config
 
-S3_CLIENT = boto3.client("s3")
+SESSION = aioboto3.Session()
 S3_BUCKET = config["text_storage"]["s3_bucket"]
 TEXT_ENCODING = config["text_storage"]["encoding"]
 
 
-def put_text(text_id, text_body):
-    S3_CLIENT.put_object(
-        Body=zlib.compress(
-            text_body.encode()
-        ),
-        Bucket=S3_BUCKET,
-        Key=text_id,
-    )
+async def put_text(text_id, text_body):
+    async with SESSION.client("s3") as s3:
+        await s3.put_object(
+            Body=zlib.compress(text_body.encode(TEXT_ENCODING)),
+            Bucket=S3_BUCKET,
+            Key=text_id,
+        )
 ```
 
 We use the
-[boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
+[aioboto3](https://aioboto3.readthedocs.io/en/latest/index.html)
 library to make AWS S3 requests. The
 [zlib module](https://docs.python.org/3/library/zlib.html) from the Python
 standard library is used to compress data before it is stored, which saves
@@ -754,7 +848,7 @@ If an expired object is not found during step 2, we can simply skip this step
 and carry on with step 3. Cleanup is performed daily at a time when load on the
 system is low.
 
-#### 6.3.2. Infrastructure costs
+#### 6.3.3. Object storage infrastructure costs
 
 If we use the S3 Standard storage class to store uncompressed data,
 [costs](https://aws.amazon.com/s3/pricing/) would amount to around $8,600
@@ -822,19 +916,20 @@ application user with the following permissions:
 * can perform the operations GET, SET, and DEL
 * can access keys prefixed with the application name (e.g. 'pastebin')
 
-#### 6.4.2. Infrastructure costs
+#### 6.4.2. Cache infrastructure costs
 
-Based on capacity estimations, we can deploy caching on memory-optimized EC2
-instances with around 16 GiB of memory. AWS r4, r5, or r6 large EC2 instances
-fit this requirement and cost around $1,500 per year (reserved instances with
-full upfront payment).
+[Amazon Elasticache](https://aws.amazon.com/elasticache/) provides a
+Redis-compatible offering. Based on capacity estimations, we can deploy caching
+on memory-optimized EC2 instances with around 16 GiB of memory. AWS r4, r5,
+or r6 large EC2 instances fit this requirement and cost around $1,500 per year
+(reserved instances with full upfront payment).
 
 ### 6.5. Total infrastructure cost
 
 Total costs for the first year are estimated at $26,000. The share of each AWS
 service in the cost is approximately:
 
-* EC2: $12,500, 48 % of total
+* EC2 (including Elasticache): $12,500, 48 % of total
 * S3: $5,100, 20 % of total
 * RDS: $8,200, 32 % of total
 
@@ -843,22 +938,3 @@ costs are due to data transfers from our system to the Internet, to display
 texts to users. Another large proportion of costs are related to text storage
 and requests related to text storage. Therefore, costs will be proportional to
 the amount of texts stored by users and how many times stored texts are read.
-
-### 6.6. General code design
-
-Our application does not need to store much state that frequently changes in
-memory. To store user and session information, we use the relevant Flask
-objects. All other state is store in the metadata database. For this reason,
-our application does not implement its own classes. Classes are useful when an
-application needs to represent objects that have a state (attributes) and
-functions that modify the state (methods). Custom classes are not justified
-to store permanent information such as application configuration, or
-encapsulate a group of related functions.
-
-Our application code encapsulates functions in modules, offering the same
-syntax for import and calls as a custom class. Configuration is available to
-all functions by storing it in global variables.
-
-## 7. How to run locally
-
-In progress.
