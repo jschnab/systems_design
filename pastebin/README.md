@@ -205,8 +205,8 @@ using [asyncio](https://docs.python.org/3/library/asyncio.html), so I migrated
 the implementation to use [Quart](https://quart.palletsprojects.com/en/latest/).
 
 [Gunicorn](https://gunicorn.org/) and [uvicorn workers](https://github.com/Kludex/uvicorn-worker)
-server as an ASGI server. We use Gunicorn to take advantage of [server
-hooks](https://docs.gunicorn.org/en/stable/settings.html#server-hooks) and
+provide an ASGI server. We use Gunicorn to take advantage of [server
+hooks](https://docs.gunicorn.org/en/stable/settings.html#server-hooks) to
 setup and teardown application resources such as connection pools (uvicorn does
 not expose this functionality).
 
@@ -245,7 +245,7 @@ from `src/templates/html.index`:
 We then process form data in Flask (snippet adapted from `src/__init__.py`):
 
 ```python
-import quart import (
+from quart import (
     Quart,
     render_template,
     session,
@@ -336,7 +336,7 @@ The function to build the text page is simple (snippet adapted from
 `src/__init__.py`):
 
 ```python
-import Quart import (
+from quart import (
     Quart,
     render_template,
     session,
@@ -444,7 +444,7 @@ and is adapted from `src/__init__.py`:
 ```python
 from datetime import datetime
 
-import quart import (
+from quart import (
     Quart,
     render_template,
     session,
