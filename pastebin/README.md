@@ -998,10 +998,6 @@ prefixed with `pastebin:`.
 
 ### 7.3. Run in docker
 
-The image `jschnab/pastebin:prod-async` was built for an ARM CPU architecture
-because it is meant to run on Raspberry Pi, this is why we pass `--platform
-linux/arm64` to the `docker run` command.
-
 Run the application in a docker a container:
 
 ```
@@ -1012,5 +1008,9 @@ docker run \
     --env-file docker-env \
     jschnab/pastebin:prod-async
 ```
+
+The image `jschnab/pastebin:prod-async` was built for an ARM CPU architecture
+because it is meant to run on Raspberry Pi, this is why we pass `--platform
+linux/arm64` to the `docker run` command.
 
 If you built the image locally, you can also pass the relevant image name.
