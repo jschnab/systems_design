@@ -1,6 +1,6 @@
 import string
 
-from flask import (
+from quart import (
     Blueprint,
     flash,
     g,
@@ -14,10 +14,20 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import database
 from . import return_codes
+from .config import config
 
-bp = Blueprint("auth", __name__, url_prefix="/auth")
+try:
+    # Some Python installations do not have scrypt, but all have pbkdf2.
+    from hashlib import scrypt  # noqa: F401
+
+    HASH_METHOD = "scrypt"
+except ImportError:
+    HASH_METHOD = "pbkdf2"
 
 MIN_PASSWORD_LEN = 10
+DEFAULT_USER = config["app"]["default_user"]
+
+bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 def check_password_complexity(pw):
@@ -43,13 +53,19 @@ def check_password_complexity(pw):
 
 
 @bp.route("/register", methods=("GET", "POST"))
-def register():
+async def register():
     if request.method == "POST":
-        user_id = request.form["user_id"]
-        firstname = request.form["firstname"]
-        lastname = request.form["lastname"]
-        password_1 = request.form["password_1"]
-        password_2 = request.form["password_2"]
+        request_form = await request.form
+
+        user_id = request_form["user_id"]
+        if user_id == DEFAULT_USER:
+            await flash(f"User ID '{DEFAULT_USER}' is already taken")
+            return await render_template("auth/register.html")
+
+        firstname = request_form["firstname"]
+        lastname = request_form["lastname"]
+        password_1 = request_form["password_1"]
+        password_2 = request_form["password_2"]
 
         error = None
         if user_id is None:
@@ -62,34 +78,44 @@ def register():
             error = "Passwords do not match"
 
         if error is None:
-            pw_hash = generate_password_hash(password_1)
-            rcode = database.create_user(
-                user_id, firstname, lastname, pw_hash,
+            pw_hash = generate_password_hash(password_1, method=HASH_METHOD)
+            rcode = await database.create_user(
+                user_id,
+                firstname,
+                lastname,
+                pw_hash,
             )
             if rcode is return_codes.USER_EXISTS:
                 error = f"User ID '{user_id}' is already taken"
             else:
+                await flash(f"User '{user_id}' successfully created!")
                 return redirect(url_for("auth.login"))
 
-        flash(error)
+        await flash(error)
 
-    return render_template("auth/register.html")
+    return await render_template("auth/register.html")
 
 
 @bp.route("/login", methods=("GET", "POST"))
-def login():
+async def login():
     if request.method == "POST":
-        user_id = request.form["user_id"]
-        password = request.form["password"]
+        request_form = await request.form
 
-        user_info = database.get_user(user_id)
+        user_id = request_form["user_id"]
+        if user_id == config["app"]["default_user"]:
+            await flash("Incorrect user")
+            return await render_template("auth/login.html")
+
+        password = request_form["password"]
+
+        user_info = await database.get_user(user_id)
         if user_info is None:
-            flash("Incorrect user")
-            return render_template("auth/login.html")
+            await flash("Incorrect user")
+            return await render_template("auth/login.html")
 
-        if database.user_is_locked(user_id):
-            flash("User account is locked for 15 minutes")
-            return render_template("auth/login.html")
+        if await database.user_is_locked(user_id):
+            await flash("User account is locked for 15 minutes")
+            return await render_template("auth/login.html")
 
         error = None
         success = True
@@ -97,10 +123,8 @@ def login():
             error = "Incorrect password"
             success = False
 
-        user_ip = request.environ.get(
-            "HTTP_X_REAL_IP", request.remote_addr
-        )
-        database.record_user_connect(
+        user_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        await database.record_user_connect(
             user_id=user_id,
             user_ip=user_ip,
             success=success,
@@ -111,21 +135,21 @@ def login():
             session["user_id"] = user_id
             return redirect(url_for("index"))
 
-        flash(error)
+        await flash(error)
 
-    return render_template("auth/login.html")
+    return await render_template("auth/login.html")
 
 
 @bp.before_app_request
-def load_logged_in_user():
+async def load_logged_in_user():
     user_id = session.get("user_id")
     if user_id is None:
         g.user = None
     else:
-        g.user = database.get_user(user_id)
+        g.user = await database.get_user(user_id)
 
 
 @bp.route("/logout")
-def logout():
+async def logout():
     session.clear()
     return redirect(url_for("index"))

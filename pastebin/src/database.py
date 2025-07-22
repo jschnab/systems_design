@@ -1,11 +1,15 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+from functools import partial
 
 import mysql.connector
 
 from . import return_codes
 from . import sql_queries
 from .config import config
+from .log import get_logger
 
 DB_CONFIG = {
     "host": config["database"]["host"],
@@ -17,17 +21,48 @@ DB_CONFIG = {
 DEFAULT_USER = config["app"]["default_user"]
 MAX_CONNECT_FAIL = 3
 USER_LOCK_TIMEOUT = 15  # minutes
+LOGGER = get_logger()
 
-con_pool = mysql.connector.pooling.MySQLConnectionPool(
-    pool_name="pastebin",
-    pool_size=config["database"]["pool_size"],
-    **DB_CONFIG,
-)
+connection_pool = None
+
+
+def init_connection_pool():
+    global connection_pool
+    if connection_pool is None:
+        LOGGER.info("Creating database connection pool")
+        connection_pool = mysql.connector.pooling.MySQLConnectionPool(
+            pool_name="pastebin",
+            pool_size=config["database"]["pool_size"],
+            **DB_CONFIG,
+        )
+
+
+def close_connection_pool():
+    if connection_pool is not None:
+        LOGGER.info("Closing database connection pool")
+        n_closed = connection_pool._remove_connections()
+        LOGGER.info(f"Closed {n_closed} database connections")
+
+
+thread_pool = None
+
+
+def init_thread_pool():
+    global thread_pool
+    if thread_pool is None:
+        LOGGER.info("Creating database thread pool")
+        thread_pool = ThreadPoolExecutor()
+
+
+def close_thread_pool():
+    if thread_pool is not None:
+        LOGGER.info("Closing database thread pool")
+        thread_pool.shutdown()
 
 
 @contextmanager
-def connect(dictionary=False):
-    con = con_pool.get_connection()
+def connect(db_config=DB_CONFIG, dictionary=False):
+    con = connection_pool.get_connection()
     cur = con.cursor(dictionary=dictionary)
     try:
         yield cur
@@ -40,99 +75,157 @@ def connect(dictionary=False):
         con.close()
 
 
-def setup_database_objects():
-    with connect() as cur:
-        cur.execute(sql_queries.CREATE_TABLE_USERS)
-        cur.execute(sql_queries.CREATE_ANONYMOUS_USER, (DEFAULT_USER,))
-        cur.execute(sql_queries.CREATE_TABLE_USER_CONNECTIONS)
-        cur.execute(sql_queries.CREATE_INDEX_USER_CONNECT_TS)
-        cur.execute(sql_queries.CREATE_TABLE_TEXTS)
-        cur.execute(sql_queries.CREATE_INDEX_TEXTS_USERID)
-        cur.execute(sql_queries.CREATE_INDEX_TEXTS_USERIP)
-        cur.execute(sql_queries.CREATE_INDEX_TEXTS_CREATION)
-
-
-def put_text_metadata(
-    text_id, user_id, user_ip, creation_timestamp, expiration_timestamp,
-):
-    with connect() as cur:
-        cur.execute(
-            sql_queries.INSERT_TEXT,
-            (
-                text_id,
-                f"{config['text_storage']['s3_bucket']}/{text_id}",
-                user_id,
-                user_ip,
-                creation_timestamp,
-                expiration_timestamp,
+async def execute_in_thread_pool(query, args=None):
+    with connect(dictionary=True) as cur:
+        await asyncio.get_running_loop().run_in_executor(
+            thread_pool,
+            partial(
+                cur.execute,
+                query,
+                args,
             ),
         )
-
-
-def mark_text_for_deletion(text_id):
-    with connect() as cur:
-        cur.execute(
-            sql_queries.MARK_TEXT_FOR_DELETION, (text_id,)
-        )
-
-
-def mark_text_deleted(text_id, deletion_timestamp):
-    with connect() as cur:
-        cur.execute(
-            sql_queries.MARK_TEXT_DELETED, (deletion_timestamp, text_id)
-        )
-
-
-def get_texts_by_user(user_id):
-    with connect(dictionary=True) as cur:
-        cur.execute(sql_queries.GET_TEXTS_BY_USER, (user_id,))
         return cur.fetchall()
 
 
-def create_user(user_id, firstname, lastname, password):
-    with connect() as cur:
-        try:
-            now = datetime.now()
+async def setup_database_objects(root_password):
+    root_db_config = {
+        "host": config["database"]["host"],
+        "port": config["database"]["port"],
+        "database": "mysql",
+        "user": "root",
+        "password": root_password,
+    }
+    with mysql.connector.connect(**root_db_config) as con:
+        with con.cursor() as cur:
             cur.execute(
-                sql_queries.CREATE_USER,
-                (user_id, firstname, lastname, now, password),
+                sql_queries.CREATE_DATABASE.format(
+                    database_name=config["database"]["database"],
+                )
             )
-        except mysql.connector.IntegrityError:
-            return return_codes.USER_EXISTS
+            cur.execute(
+                sql_queries.CREATE_DB_USER.format(
+                    user_name=config["database"]["user"],
+                    password=config["database"]["password"],
+                )
+            )
+            cur.execute(
+                sql_queries.CREATE_DB_USER_PERMISSIONS.format(
+                    database_name=config["database"]["database"],
+                    user_name=config["database"]["user"],
+                )
+            )
+        con.commit()
+
+    with mysql.connector.connect(**DB_CONFIG) as con:
+        with con.cursor() as cur:
+            cur.execute(sql_queries.CREATE_TABLE_USERS)
+            try:
+                cur.execute(sql_queries.CREATE_ANONYMOUS_USER, (DEFAULT_USER,))
+            except mysql.connector.IntegrityError:
+                pass
+            cur.execute(sql_queries.CREATE_TABLE_USER_CONNECTIONS)
+            cur.execute(sql_queries.CREATE_INDEX_USER_CONNECT_TS)
+            cur.execute(sql_queries.CREATE_TABLE_TEXTS)
+            cur.execute(sql_queries.CREATE_INDEX_TEXTS_USERID)
+            cur.execute(sql_queries.CREATE_INDEX_TEXTS_USERIP)
+            cur.execute(sql_queries.CREATE_INDEX_TEXTS_CREATION)
+        con.commit()
+
+
+async def put_text_metadata(
+    text_id,
+    user_id,
+    user_ip,
+    creation_timestamp,
+    expiration_timestamp,
+):
+    await execute_in_thread_pool(
+        sql_queries.INSERT_TEXT,
+        (
+            text_id,
+            f"{config['text_storage']['s3_bucket']}/{text_id}",
+            user_id,
+            user_ip,
+            creation_timestamp,
+            expiration_timestamp,
+        ),
+    )
+
+
+async def mark_text_for_deletion(text_id):
+    await execute_in_thread_pool(
+        sql_queries.MARK_TEXT_FOR_DELETION, (text_id,)
+    )
+
+
+async def mark_text_deleted(text_id, deletion_timestamp):
+    await execute_in_thread_pool(
+        sql_queries.MARK_TEXT_DELETED, (deletion_timestamp, text_id)
+    )
+
+
+async def get_texts_by_user(user_id):
+    return await execute_in_thread_pool(
+        sql_queries.GET_TEXTS_BY_USER, (user_id,)
+    )
+
+
+async def create_user(user_id, firstname, lastname, password):
+    try:
+        now = datetime.now()
+        await execute_in_thread_pool(
+            sql_queries.CREATE_USER,
+            (user_id, firstname, lastname, now, password),
+        )
+    except mysql.connector.IntegrityError:
+        return return_codes.USER_EXISTS
     return return_codes.OK
 
 
-def get_user(user_id):
-    with connect(dictionary=True) as cur:
-        cur.execute(sql_queries.GET_USER, (user_id,))
-        return cur.fetchone()
+async def get_user(user_id):
+    return (await execute_in_thread_pool(sql_queries.GET_USER, (user_id,)))[0]
 
 
-def count_recent_texts_by_user(user_id, user_ip):
-    with connect(dictionary=True) as cur:
-        if user_id == DEFAULT_USER:
-            cur.execute(sql_queries.COUNT_TEXTS_ANONYMOUS, (user_ip,))
-        else:
-            cur.execute(sql_queries.COUNT_TEXTS_USER, (user_id,))
-        return cur.fetchone()["quota"]
+async def count_recent_texts_by_anonymous_user(user_ip):
+    return (
+        (
+            await execute_in_thread_pool(
+                sql_queries.COUNT_TEXTS_ANONYMOUS, (user_ip,)
+            )
+        )[0]
+    )["quota"]
 
 
-def get_texts_for_deletion():
-    with connect() as cur:
-        cur.execute(sql_queries.GET_TEXTS_FOR_DELETION)
-        return cur.fetchall()
+async def count_recent_texts_by_logged_user(user_id):
+    return (
+        (
+            await execute_in_thread_pool(
+                sql_queries.COUNT_TEXTS_USER, (user_id,)
+            )
+        )[0]
+    )["quota"]
 
 
-def get_user_by_text(text_id):
-    with connect(dictionary=True) as cur:
-        cur.execute(sql_queries.GET_USER_BY_TEXT, (text_id,))
-        return cur.fetchone()
+async def get_texts_for_deletion():
+    return await execute_in_thread_pool(sql_queries.GET_TEXTS_FOR_DELETION)
 
 
-def user_is_locked(user_id):
-    with connect(dictionary=True) as cur:
-        cur.execute(sql_queries.GET_RECENT_USER_CONNECTIONS, (user_id,))
-        recent_connects = cur.fetchall()
+async def get_user_by_text(text_id):
+    # No guardrail for non-existant text ID, do not use with user input.
+    return (
+        (
+            await execute_in_thread_pool(
+                sql_queries.GET_USER_BY_TEXT, (text_id,)
+            )
+        )[0]
+    )["user_id"]
+
+
+async def user_is_locked(user_id):
+    recent_connects = await execute_in_thread_pool(
+        sql_queries.GET_RECENT_USER_CONNECTIONS, (user_id,)
+    )
 
     fails = 0
     for rc in recent_connects:
@@ -147,9 +240,7 @@ def user_is_locked(user_id):
     return False
 
 
-def record_user_connect(user_id, user_ip, success):
-    with connect() as cur:
-        cur.execute(
-            sql_queries.RECORD_USER_CONNECT,
-            (user_id, user_ip, success)
-        )
+async def record_user_connect(user_id, user_ip, success):
+    await execute_in_thread_pool(
+        sql_queries.RECORD_USER_CONNECT, (user_id, user_ip, success)
+    )
