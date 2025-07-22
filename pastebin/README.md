@@ -938,3 +938,79 @@ costs are due to data transfers from our system to the Internet, to display
 texts to users. Another large proportion of costs are related to text storage
 and requests related to text storage. Therefore, costs will be proportional to
 the amount of texts stored by users and how many times stored texts are read.
+
+## 7. How to run locally
+
+### 7.1 Application configuration
+
+The application relies on environment variables for its configuration. These
+variables can be stored in a file and passed to the `docker run` command,
+create a file named `docker-env` and populate the following variables
+appropriately:
+
+```
+MYPASTEBIN_S3_BUCKET=
+MYPASTEBIN_DB_HOST=
+MYPASTEBIN_DB_PORT=
+MYPASTEBIN_DB_DATABASE=
+MYPASTEBIN_DB_USER=
+MYPASTEBIN_DB_PASSWORD=
+MYPASTEBIN_CACHE_HOST=
+MYPASTEBIN_CACHE_PORT=
+MYPASTEBIN_CACHE_USER=
+MYPASTEBIN_CACHE_PASSWORD=
+MYPASTEBIN_URL=
+```
+
+You a free to choose the MariaDB database name, user and password. You can also
+choose your own Redis user and password.
+
+### 7.2 Dependencies
+
+#### 7.2.1. Python libraries
+
+Create a Python virtual environment and install dependencies by running:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip setuptools wheel
+pip install -r requirements.txt
+```
+
+#### 7.2.2. MariaDB
+
+Run a [MariaDB docker container](https://hub.docker.com/_/mariadb), then store
+the root password in the environment variable `MARIADB_ROOT_PASSWORD`.
+
+Create the database, application user and its permissions, and application
+tables by running:
+
+```bash
+./setup_database_objects
+```
+
+#### 7.2.3. Redis
+
+Run a [Redis 7 docker container](https://hub.docker.com/_/redis), then create a
+user with a password that has rights to call `SET`, `GET`, and `DELETE` keys
+prefixed with `pastebin:`.
+
+### 7.3. Run in docker
+
+The image `jschnab/pastebin:prod-async` was built for an ARM CPU architecture
+because it is meant to run on Raspberry Pi, this is why we pass `--platform
+linux/arm64` to the `docker run` command.
+
+Run the application in a docker a container:
+
+```
+docker run \
+    --platform linux/arm64 \
+    -d \
+    -p 5000:5000 \
+    --env-file docker-env \
+    jschnab/pastebin:prod-async
+```
+
+If you built the image locally, you can also pass the relevant image name.

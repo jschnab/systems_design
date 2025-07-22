@@ -10,7 +10,7 @@ set -ex
 #docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
 IMAGE_NAME=pastebin
-IMAGE_TAG=dev-async
+IMAGE_TAG=async-prod
 REPO_NAME=jschnab
 
 DOCKER_BUILDKIT=1 docker build --platform=linux/arm64 -t ${IMAGE_NAME}:${IMAGE_TAG} .

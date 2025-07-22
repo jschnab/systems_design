@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: pastebin
-        image: jschnab/pastebin:dev-async
+        image: jschnab/pastebin:async-dev
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
