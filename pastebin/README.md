@@ -182,9 +182,10 @@ distributed filesystem is a good option. We choose
 #### 5.3.4. Caching
 
 Most of the traffic will be reads, so we could cache texts in memory for faster
-retrieval. Cache eviction can simply follow a least-recently used policy. Cache
-invalidation is simple because our requirements do not include text updates, so
-we simply delete a text from the cache when necessary.
+retrieval using a cache-aside mechanism. Cache eviction can simply follow a
+least-recently used policy. Cache invalidation is simple because our
+requirements do not include text updates, so we simply delete a text from the
+cache when necessary.
 
 ### 5.4 System diagram
 
@@ -203,6 +204,10 @@ I initially built the application with [Flask](https://palletsprojects.com/p/fla
 Later, I decided to rewrite the application to take advantage of concurrency
 using [asyncio](https://docs.python.org/3/library/asyncio.html), so I migrated
 the implementation to use [Quart](https://quart.palletsprojects.com/en/latest/).
+Instead of the default asyncio event loop, we are using
+[uvloop](https://github.com/MagicStack/uvloop), a loop implemented in Cython
+that uses the [libuv library](https://github.com/libuv/libuv) (which was
+developed for Node.js).
 
 [Gunicorn](https://gunicorn.org/) and [uvicorn workers](https://github.com/Kludex/uvicorn-worker)
 provide an ASGI server. We use Gunicorn to take advantage of [server
@@ -874,19 +879,24 @@ stable and well-documented Python
 [client library](https://github.com/redis/redis-py), so we choose it as our
 caching engine.
 
-If we cache 20% of write traffic, this would represent in the order of 10^10
-bytes (10 GB) per day. This fits easily on the memory of a single server.
+We use a cache-aside mechanism:
+1. When we receive a request for a text, we try to retrieve it from the cache.
+2. If we have a cache hit for a text, we return it and request processing is
+   finished.
+3. If we have a cache miss for a text, we retrieve it from object storage,
+   cache the text, and then return it.
 
 Texts stored and shared usually have an initial peak of popularity which then
 fades out over time. A Least-Recently Used (LRU) eviction policy is suitable
 for this pattern of access, as it keeps the most recent (hence popular) data
 available.
 
-When a user requests a text, we try to retrieve the text from the cache. In the
-case of a cache miss, we retrieve the text from object storage and cache it.
 For cache invalidation, we simply delete a piece of data from cache when it is
 deleted by a user. Our application does not allow text updates besides
 deletion, so we do not have to cover more complex eviction mechanisms.
+
+If we cache 20% of write traffic, this would represent in the order of 10^10
+bytes (10 GB) per day. This fits easily on the memory of a single server.
 
 We have the options of running the caching service locally on webservers, or on
 separate servers. A local cache makes sense because cache requests only come
@@ -910,8 +920,8 @@ maxmemory-policy volatile-lru
 We use `volatile-lru` to allow use-cases where some keys should be kept forever
 (e.g. storing a counter for a rate-limiter).
 
-For access control, we use Redis [Access Control List](https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/) and create an
-application user with the following permissions:
+For access control, we use Redis [Access Control List](https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/)
+and create an application user with the following permissions:
 
 * can perform the operations GET, SET, and DEL
 * can access keys prefixed with the application name (e.g. 'pastebin')
@@ -998,6 +1008,15 @@ prefixed with `pastebin:`.
 
 ### 7.3. Run in docker
 
+The image `jschnab/pastebin:prod-async` was built for an ARM CPU architecture
+because it is meant to run on Raspberry Pi, so we have to ensure the proper
+virtualization libraries are in place before we run the application docker
+container. Run the following:
+
+```bash
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+```
+
 Run the application in a docker a container:
 
 ```
@@ -1009,8 +1028,5 @@ docker run \
     jschnab/pastebin:prod-async
 ```
 
-The image `jschnab/pastebin:prod-async` was built for an ARM CPU architecture
-because it is meant to run on Raspberry Pi, this is why we pass `--platform
-linux/arm64` to the `docker run` command.
 
 If you built the image locally, you can also pass the relevant image name.
