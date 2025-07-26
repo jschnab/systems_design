@@ -49,7 +49,7 @@ Typically, a circuit breaker has three states:
 * Half-open: The circuit breaker fails most operations immediately, but allows
     a certain number of them to pass through to test health recovery. If enough
     of these operations are successful, the circuit breaker moves to the
-    'closed' state. Otherwise, it moves back to the 'open' state. The half-open
+    'closed' state. Otherwise, it moves back to the 'open' state. The 'half-open'
     state prevents issues that could arise by suddenly sending a lot of
     requests to a service in the middle of a recovery.
 
@@ -79,7 +79,7 @@ async def call_redis():
     try:
         # do stuff
     except (CircuitBreakerBypass, CircuitBreakerException) as err:
-        # do more stuff, e.g logging
+        # do more stuff, e.g logging, return a fallback response, etc.
 ```
 
 When the circuit breaker catches an operation failure when in closed or
@@ -90,10 +90,10 @@ The circuit breaker can be parameterized using the following constructor
 parameters:
 
 * `monitored_exceptions`: A list of exceptions that should be counted as
-    failures. Default is `Exception`).
+    failures. Default is `Exception`.
 * `failure_monitor_timeout`: The time interval (in seconds) after which the
-    failure counter resets, allowing to only take recent failures into account.
-    Default is 60 seconds.
+    failure counter resets, allowing to only take recent failures into account
+    using a tumbling window monitor. Default is 60 seconds.
 * `failure_rate_trigger`: The proportion of calls that fail before the circuit
     breaker moves from the closed state to the open state. Default is 0.5 (50
     %).
@@ -118,3 +118,13 @@ parameters:
 
 [Azure architecture
 center](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker)
+
+[Circuit breaker at
+Netflix](https://netflixtechblog.com/making-the-netflix-api-more-resilient-a8ec62159c2d)
+
+[Wikipedia](https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern)
+
+[AWS prescriptive
+guidance](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/circuit-breaker.html)
+
+[Martin Fowler](https://martinfowler.com/bliki/CircuitBreaker.html)
