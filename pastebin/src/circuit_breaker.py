@@ -15,6 +15,11 @@ class CircuitBreakerException(Exception):
         self.error = error
 
 
+class CircuitBreakerBypass(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class CircuitBreakerState(enum.Enum):
     CLOSED = 1
     OPEN = 2
@@ -25,22 +30,23 @@ class AsyncCircuitBreaker:
     def __init__(
         self,
         monitored_exceptions=(Exception,),
-        failure_interval: int = 60,
-        open_interval: int = 60,
+        failure_monitor_timeout: int = 60,
         failure_rate_trigger: float = 0.5,
         min_calls_trigger: int = 10,
+        open_timeout: int = 60,
+        half_open_passthrough_rate: float = 0.5,
         recover_rate: float = 0.1,
         min_calls_recover: int = 10,
-        half_open_call_probability: float = 0.5,
     ) -> None:
         self.monitored_exceptions = monitored_exceptions
-        self.failure_interval = failure_interval
-        self.open_interval = open_interval
+        self.failure_monitor_timeout = failure_monitor_timeout
         self.failure_rate_trigger = failure_rate_trigger
         self.min_calls_trigger = min_calls_trigger
+
+        self.open_timeout = open_timeout
         self.recover_rate = recover_rate
         self.min_calls_recover = min_calls_recover
-        self.half_open_call_probability = half_open_call_probability
+        self.half_open_passthrough_rate = half_open_passthrough_rate
 
         self.trigger_timer_start = datetime.now()
         self.call_total = 0
@@ -91,18 +97,18 @@ class AsyncCircuitBreaker:
         async def wrapper(*args, **kwargs):
             if self.state == CircuitBreakerState.OPEN:
                 if datetime.now() > self.last_failure_ts + timedelta(
-                    seconds=self.open_interval
+                    seconds=self.open_timeout
                 ):
                     self.state = CircuitBreakerState.HALF_OPEN
                     LOGGER.info(self.log_msg_state_change("open", "half-open"))
                 else:
-                    LOGGER.info(
+                    raise CircuitBreakerBypass(
                         f"{type(self).__name__} state is open, bypassing "
                         f"{func.__module__}.{func.__name__}"
                     )
 
             if self.state == CircuitBreakerState.HALF_OPEN:
-                if random.random() > self.half_open_call_probability:
+                if random.random() > self.half_open_passthrough_rate:
                     LOGGER.info(
                         f"{type(self).__name__} state is half-open, testing "
                         f"{func.__module__}.{func.__name__}"
@@ -140,6 +146,11 @@ class AsyncCircuitBreaker:
                             ),
                             error=err,
                         )
+                else:
+                    raise CircuitBreakerBypass(
+                        f"{type(self).__name__} state is half-open, bypassing "
+                        f"{func.__module__}.{func.__name__}"
+                    )
 
             if self.state == CircuitBreakerState.CLOSED:
                 LOGGER.info(
@@ -147,7 +158,7 @@ class AsyncCircuitBreaker:
                     f"{func.__module__}.{func.__name__}"
                 )
                 if datetime.now() > self.trigger_timer_start + timedelta(
-                    seconds=self.failure_interval
+                    seconds=self.failure_monitor_timeout
                 ):
                     self.reset_failure_tracking()
 
