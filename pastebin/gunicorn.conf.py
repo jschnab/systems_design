@@ -1,3 +1,5 @@
+import asyncio
+
 import src.cache
 import src.database
 
@@ -11,6 +13,6 @@ def post_fork(server, worker):
 
 def worker_exit(server, worker):
     server.log.info(f"Cleaning up resources on worker {worker.pid}")
-    src.cache.close_connection_pool()
+    asyncio.run(src.cache.close_connection_pool())
     src.database.close_thread_pool()
     src.database.close_connection_pool()
