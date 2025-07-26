@@ -82,7 +82,6 @@ class AsyncCircuitBreaker:
 
     def should_close(self) -> bool:
         if self.call_total < self.min_calls_recover:
-            LOGGER.info(f"{self.call_total}/{self.min_calls_recover}")
             return False
         fail_rate = self.call_failures / self.call_total
         if fail_rate < self.recover_rate:
