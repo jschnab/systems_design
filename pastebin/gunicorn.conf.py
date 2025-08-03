@@ -3,6 +3,9 @@ import asyncio
 import src.cache
 import src.database
 
+loglevel = "debug"
+capture_output = True
+
 
 def post_fork(server, worker):
     server.log.info(f"Executing post-fork for worker {worker.pid}")
