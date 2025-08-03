@@ -14,7 +14,6 @@ from quart import (
 
 from . import api
 from . import auth
-from . import database
 from .config import config
 
 APP_URL = config["app"]["url"]
@@ -79,7 +78,7 @@ def create_app():
     @app.route("/delete-text", methods=("POST",))
     async def delete_text():
         text_id = (await request.form)["text-id"]
-        user_id = await database.get_user_by_text(text_id)
+        user_id = await api.get_text_owner(text_id)
         logged_user = session.get("user_id")
         if logged_user is None or user_id != logged_user:
             abort(403)
@@ -95,7 +94,7 @@ def create_app():
             await flash("Please log in to see your saved texts")
             return await render_template("index.html")
 
-        texts = await database.get_texts_by_user(user_id)
+        texts = await api.get_texts_by_owner(user_id)
         return await render_template(
             "user_texts.html",
             mytexts=texts,

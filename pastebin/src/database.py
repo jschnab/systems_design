@@ -165,9 +165,9 @@ async def mark_text_deleted(text_id, deletion_timestamp):
     )
 
 
-async def get_texts_by_user(user_id):
+async def get_texts_by_owner(user_id):
     return await execute_in_thread_pool(
-        sql_queries.GET_TEXTS_BY_USER, (user_id,)
+        sql_queries.GET_TEXTS_BY_OWNER, (user_id,)
     )
 
 
@@ -211,14 +211,12 @@ async def get_texts_for_deletion():
     return await execute_in_thread_pool(sql_queries.GET_TEXTS_FOR_DELETION)
 
 
-async def get_user_by_text(text_id):
+async def get_text_owner(text_id):
     # No guardrail for non-existant text ID, do not use with user input.
     return (
-        (
-            await execute_in_thread_pool(
-                sql_queries.GET_USER_BY_TEXT, (text_id,)
-            )
-        )[0]
+        (await execute_in_thread_pool(sql_queries.GET_TEXT_OWNER, (text_id,)))[
+            0
+        ]
     )["user_id"]
 
 
