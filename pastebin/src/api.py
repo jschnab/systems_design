@@ -65,3 +65,11 @@ async def user_exceeded_quota(user_id, user_ip):
         quota = config["app"]["texts_quota_user"]
 
     return count_texts > quota
+
+
+async def get_text_owner(text_id):
+    return await database.get_text_owner(text_id)
+
+
+async def get_texts_by_owner(user_id):
+    return await database.get_texts_by_owner(user_id)
