@@ -16,6 +16,7 @@ COPY requirements.txt requirements.txt
 COPY src src
 COPY gunicorn.conf.py gunicorn.conf.py
 COPY run_asgi run_asgi
+COPY run_cleanup run_cleanup
 
 RUN --mount=type=cache,target=${USER_HOME}/.cache python3 -m venv .venv \
     && . .venv/bin/activate \
