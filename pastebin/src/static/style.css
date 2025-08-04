@@ -7,7 +7,7 @@ hr { border: none; border-top: 1px solid lightgray; }
 
 nav {
     border-radius: 1em;
-    padding 0 0.5rem;
+    padding: 0 0.5rem;
     background: lightgray;
     display: flex;
     align-items: center;
@@ -65,3 +65,4 @@ code {
     border-width: 0;
     background-color: transparent;
     cursor: pointer;
+}
