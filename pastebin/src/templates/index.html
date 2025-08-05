@@ -26,8 +26,10 @@
         <span id="editable-placeholder">Paste contents here (up to 512,000 characters)</span>
     </div>
     <form method="post" action="{{ url_for('index') }}" onsubmit="return getContent()">
+        {% if g.user %}
         <label for="text-title">Title</label>
         <input name="text-title" id="text-title">
+        {% endif %}
         <textarea name="text-body" id="text-body" style="display:none"></textarea>
         <label for="ttl">Expire after</label>
         <select name="ttl" id="ttl">
@@ -50,6 +52,7 @@
                 }
             }
         )
+
         var copyButton = document.getElementById("copy-new-text-url");
         if (copyButton !== null) {
             addEventListener(
@@ -61,6 +64,7 @@
                 }
             )
         }
+
         function getContent() {
             console.log("start getContent");
             document.getElementById("text-body").value = document.getElementById("editable").innerHTML;
