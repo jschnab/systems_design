@@ -26,14 +26,16 @@
         <span id="editable-placeholder">Paste contents here (up to 512,000 characters)</span>
     </div>
     <form method="post" action="{{ url_for('index') }}" onsubmit="return getContent()">
-        <label for="text-title">Title</label>
-        <input
-            name="text-title"
-            id="text-title"
-            maxlength="60"
-            minlength="10"
-            placeholder="10 to 60 characters"
-        >
+        {% if g.user %}
+            <label for="text-title">Title</label>
+            <input
+                name="text-title"
+                id="text-title"
+                maxlength="60"
+                minlength="10"
+                placeholder="10 to 60 characters"
+            >
+        {% endif %}
         <textarea name="text-body" id="text-body" style="display:none"></textarea>
         <label for="ttl">Expire after</label>
         <select name="ttl" id="ttl">
