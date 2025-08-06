@@ -26,10 +26,14 @@
         <span id="editable-placeholder">Paste contents here (up to 512,000 characters)</span>
     </div>
     <form method="post" action="{{ url_for('index') }}" onsubmit="return getContent()">
-        {% if g.user %}
         <label for="text-title">Title</label>
-        <input name="text-title" id="text-title">
-        {% endif %}
+        <input
+            name="text-title"
+            id="text-title"
+            maxlength="60"
+            minlength="10"
+            placeholder="10 to 60 characters"
+        >
         <textarea name="text-body" id="text-body" style="display:none"></textarea>
         <label for="ttl">Expire after</label>
         <select name="ttl" id="ttl">
@@ -55,7 +59,7 @@
 
         var copyButton = document.getElementById("copy-new-text-url");
         if (copyButton !== null) {
-            addEventListener(
+            copyButton.addEventListener(
                 "click",
                 function() {
                     navigator.clipboard.writeText(

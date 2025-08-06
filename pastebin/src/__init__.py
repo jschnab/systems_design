@@ -49,10 +49,11 @@ def create_app():
                 quota = config["app"]["texts_quota_anonymous"]
             else:
                 quota = config["app"]["texts_quota_user"]
-            msg = (
+            await flash(
                 f"User '{user_id}' stored more than {quota} texts during the "
                 "past day, come back later"
             )
+            return await render_template("index.html")
         else:
             text_id = await api.put_text(
                 text_body=request_form["text-body"],
@@ -63,9 +64,7 @@ def create_app():
             )
 
         return await render_template(
-            "index.html",
-            app_url=APP_URL,
-            new_text_id=text_id
+            "index.html", app_url=APP_URL, new_text_id=text_id
         )
 
     @app.route("/text/<text_id>")

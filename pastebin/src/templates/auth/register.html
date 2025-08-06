@@ -7,25 +7,52 @@
 {% block content %}
     <form method="post">
         <label for="user_id">User ID</label>
-        <input name="user_id" id="user_id" maxlength=40 required>
-        <label for="firstname">First Name</label>
-        <input name="firstname" id="firstname" maxlength=40 required>
-        <label for="lastname">Last Name</label>
-        <input name="lastname" id="lastname" maxlength=40 required>
-        <label for="password">Password</label>
         <input
-            type="password"
-            name="password_1"
-            id="password_1"
-            placeholder="At least 10 characters, including lowercase, uppercase, digit, and punctuation characters."
+            name="user_id"
+            id="user_id"
+            maxlength="40"
+            minlength="3"
+            placeholder="10 to 40 characters"
             required
         >
+        <label for="firstname">First Name</label>
         <input
-            type="password"
-            name="password_2"
-            id="password_2"
-            placeholder="Re-type password."
+            name="firstname"
+            id="firstname"
+            maxlength="40"
+            minlength="3"
+            placeholder="10 to 40 characters"
             required
+        >
+        <label for="lastname">Last Name</label>
+        <input
+            name="lastname"
+            id="lastname"
+            maxlength="40"
+            minlength="3"
+            placeholder="10 to 40 characters"
+            required
+        >
+        <label for="password">Password</label>
+        <input
+            class="new-password"
+            id="password_1"
+            maxlength="40"
+            minlength="10"
+            name="password_1"
+            placeholder="10 to 40 characters, including lowercase, uppercase, digit, and punctuation characters"
+            required
+            type="password"
+        >
+        <input
+            class="new-password"
+            id="password_2"
+            maxlength="40"
+            minlength="10"
+            name="password_2"
+            placeholder="Re-type password"
+            required
+            type="password"
         >
         <input type="submit" value="Register">
     </form>
