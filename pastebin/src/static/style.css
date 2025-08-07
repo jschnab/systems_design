@@ -1,6 +1,11 @@
 a { color: #377ba8; }
 
-body { max-width: 960px; height: 100%; margin: 0 auto; background: white; }
+body {
+    max-width: 960px;
+    height: 100%;
+    margin: 0 auto;
+    background: white;
+}
 
 code {
     font-family: Consolas,"Liberation Mono",monospace;
@@ -14,9 +19,17 @@ h1 { font-family: serif; color: #377ba8; margin: 1rem 0; }
 
 hr { border: none; border-top: 1px solid lightgray; }
 
-html { height: 100%; font-family: sans-serif; padding: 1rem; }
+html {
+    font-family: sans-serif;
+    height: 100%;
+    padding: 1rem;
+}
 
-input[type=submit] { align-self: start; min-width: 10em; background: #12ad2b; }
+input[type=submit] {
+    align-self: start;
+    background: #12ad2b;
+    min-width: 10em;
+}
 
 input[class=new-password] { max-width: 40em; }
 
@@ -38,11 +51,15 @@ nav {
     align-items: center;
 }
 
-nav a { flex: auto; }
+nav a {
+    align-items: center;
+    flex: auto;
+    text-decoration: none;
+}
 
 nav h1 {margin: 0; }
 
-nav h1 a { text-decoration: none; padding: 0.25rem 0.5rem; }
+nav h1 a { padding: 0.25rem 0.5rem; }
 
 nav ul { display: flex; list-style: none; margin: 0; padding: 0; }
 
@@ -96,7 +113,17 @@ select { align-self: start; min-width: 10em; }
     background-color: lightgreen;
 }
 
+#share-new-text-icon { margin-right: 0.2em; }
+
 #share-new-text-nav {
     display: flex;
     margin-left: 1em;
+}
+
+@media screen and (max-width: 768px) {
+    html { font-size: 3vw; }
+
+    input { font-size: 3vw; }
+
+    select { font-size: 3vw; }
 }
