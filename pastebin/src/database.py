@@ -135,6 +135,7 @@ async def setup_database_objects(root_password):
 
 async def put_text_metadata(
     text_id,
+    text_title,
     user_id,
     user_ip,
     creation_timestamp,
@@ -144,6 +145,7 @@ async def put_text_metadata(
         sql_queries.INSERT_TEXT,
         (
             text_id,
+            text_title,
             f"{config['text_storage']['s3_bucket']}/{text_id}",
             user_id,
             user_ip,

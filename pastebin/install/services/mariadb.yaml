@@ -66,3 +66,18 @@ spec:
       resources:
         requests:
           storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-public
+  labels:
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: database
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app.kubernetes.io/name: mariadb

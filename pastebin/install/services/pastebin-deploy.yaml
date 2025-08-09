@@ -90,3 +90,11 @@ spec:
             secretKeyRef:
               name: pastebin-aws-credentials
               key: secret_access_key
+      # Remove affinity rule once networking between node is improved.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: svccontroller.k3s.cattle.io/enablelb
+                operator: Exists

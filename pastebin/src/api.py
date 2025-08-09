@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime, timedelta
 
@@ -5,7 +6,12 @@ from . import cache
 from . import database
 from . import object_store
 from .config import config
-from .log import get_logger
+
+H1_REGEX = re.compile(r"<h1.*>(.+)</h1>")
+SENTENCE_REGEX = re.compile(r"[\w,'&]+( [\w,'&]+)+")
+HTML_TAG_REGEX = re.compile(r"<.*?>")
+MINIMUM_TITLE_LENGTH = 40
+MAXIMUM_TITLE_LENGTH = 60
 
 TTL_TO_HOURS = {
     "1h": 1,
@@ -15,17 +21,43 @@ TTL_TO_HOURS = {
     "1y": 24 * 365,
 }
 
-LOGGER = get_logger()
+
+def remove_html_tags(text):
+    return re.sub(HTML_TAG_REGEX, "", text)
 
 
-async def put_text(text_body, user_id, user_ip, ttl):
+def truncate_title(title):
+    result = []
+    count = 0
+    for word in title.split():
+        count += len(word)
+        if count > MAXIMUM_TITLE_LENGTH:
+            break
+        result.append(word)
+    return " ".join(result)
+
+
+def get_text_title(text_body):
+    if (match := H1_REGEX.search(text_body)) is not None:
+        title = remove_html_tags(match.group(1))
+        return truncate_title(title)
+    for match in SENTENCE_REGEX.finditer(text_body):
+        if len(match.group(0)) >= MINIMUM_TITLE_LENGTH:
+            title = remove_html_tags(match.group(0))
+            return truncate_title(title)
+    return "Untitled"
+
+
+async def put_text(text_body, text_title, user_id, user_ip, ttl):
     creation_timestamp = datetime.now()
     ttl_hours = TTL_TO_HOURS[ttl]
     expiration_timestamp = creation_timestamp + timedelta(hours=ttl_hours)
     text_id = str(uuid.uuid4())
     await object_store.put_text(text_id=text_id, text_body=text_body)
+    text_title = text_title or get_text_title(text_body)
     await database.put_text_metadata(
         text_id=text_id,
+        text_title=text_title,
         user_id=user_id,
         user_ip=user_ip,
         creation_timestamp=creation_timestamp,
