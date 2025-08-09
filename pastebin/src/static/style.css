@@ -120,7 +120,7 @@ select { align-self: start; min-width: 10em; }
     margin-left: 1em;
 }
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
     html { font-size: 3vw; }
 
     input { font-size: 3vw; }
