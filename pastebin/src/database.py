@@ -186,7 +186,9 @@ async def create_user(user_id, firstname, lastname, password):
 
 
 async def get_user(user_id):
-    return (await execute_in_thread_pool(sql_queries.GET_USER, (user_id,)))[0]
+    user = await execute_in_thread_pool(sql_queries.GET_USER, (user_id,))
+    if user:
+        return user[0]
 
 
 async def count_recent_texts_by_anonymous_user(user_ip):

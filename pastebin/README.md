@@ -399,21 +399,20 @@ delete the text. The following snippet is from `src/template/user_texts.html`:
   <ul class="text-item-details">
     <li class="text-url">
       <a href="{{ url_for('get_text', text_id=text['text_id']) }}">{{ app_url }}{{ url_for('get_text', text_id=text['text_id']) }}</a>
+      <button class="delete-button" value="{{ text['text_id'] }}">
+        <svg>...</svg>
+      </button>
     </li>
     <li class="text-creation">Created on: {{ text['creation'] }}</li>
     <li class="text-expiration>Expires on: {{ text['expiration'] }}</li>
-    <form class="delete-text-form">
-      <input id="text-id" class="text-id-hidden" hidden readonly value="{{ text['text_id'] }}">
-      <input type="submit" class="delete-text" value="Delete text">
-    </form>
   </ul>
 </div>
 
 <script>
-function deleteText(form) {
+function deleteText(text_id) {
   if (confirm("Do you really want to delete this text?") == true) {
     var data = new FormData();
-    data.append("text-id", form.querySelector("#text-id").value);
+    data.append("text-id", text_id);
     const delete_url = {{ url_for("delete_text")|tojson }};
     fetch(delete_url, {"method": "POST", "body": data}).then(
       (resp) => { window.location.reload() }
@@ -421,10 +420,9 @@ function deleteText(form) {
   }
 }
 
-const forms = document.getElementsByClassName("delete-text-form");
-for (var i = 0; i < forms.length; i++) {
-  forms[i].addEventListener("submit", function(e) {
-    e.preventDefault();
+const deleteButtons = document.getElementsByClassName("delete-button");
+for (var i = 0; i < deleteButtons.length; i++) {
+  forms[i].addEventListener("click", function(e) {
     deleteText(e.target);
   });
 }
@@ -433,12 +431,12 @@ for (var i = 0; i < forms.length; i++) {
 {% endfor %}
 ```
 
-We add an event listener on each form "submit" action, which triggers the
+We add an event listener on each form "click" action, which triggers the
 function `deleteText()`. To prevent users from deleting text by mistake, we use
 the [confirm()](https://developer.mozilla.org/en-US/docs/Web/API/Window/confirm)
 function to control text deletion. Once confirmed, the text ID is obtained from
-the hidden input field identified by `text-id` and sent via a POST request to
-the URL for text deletion with the function
+the button value and sent via a POST request to the URL for text deletion with
+the function
 [fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch).
 We wait for the request to complete with the `then()` method and finally reload
 the page to display the updated list of texts.

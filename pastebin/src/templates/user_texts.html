@@ -61,7 +61,6 @@
   const deleteButtons = document.getElementsByClassName("delete-button");
   for (var i = 0; i < deleteButtons.length; i++) {
       deleteButtons[i].addEventListener("click", function(e) {
-          console.log("Deleting: " + this.value);
           deleteText(this.value);
       });
   }
