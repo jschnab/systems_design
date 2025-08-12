@@ -72,6 +72,19 @@ select { align-self: start; min-width: 10em; }
 
 .content { padding: 1em; }
 
+.copy-text-url {
+    border-width: 0;
+    background-color: transparent;
+    margin-left: 0.5em;
+    cursor: pointer;
+}
+
+.delete-button {
+    border-width: 0;
+    background-color: transparent;
+    cursor: pointer;
+}
+
 .text-created { font-style: italic; }
 
 .text-expires { font-style: italic; }

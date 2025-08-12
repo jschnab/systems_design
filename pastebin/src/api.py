@@ -40,7 +40,8 @@ def truncate_title(title):
 def get_text_title(text_body):
     if (match := H1_REGEX.search(text_body)) is not None:
         title = remove_html_tags(match.group(1))
-        return truncate_title(title)
+        if title != "":
+            return truncate_title(title)
     for match in SENTENCE_REGEX.finditer(text_body):
         if len(match.group(0)) >= MINIMUM_TITLE_LENGTH:
             title = remove_html_tags(match.group(0))
