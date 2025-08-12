@@ -247,7 +247,7 @@ from `src/templates/html.index`:
 </form>
 ```
 
-We then process form data in Flask (snippet adapted from `src/__init__.py`):
+We then process form data in Quart (snippet adapted from `src/__init__.py`):
 
 ```python
 from quart import (
@@ -264,23 +264,36 @@ def create_app():
 
     @app.route("/", methods=("GET", "POST"))
     async def def index():
-        if request.method == "POST":
-            user_id = session.get("user_id", "anonymous")
-            user_ip = request.headers.get(
-                "X-Forwarded-For", request.remote_addr
+        if request.method == "GET":
+            return await render_template(
+                "index.html",
+                app_url=config["app"]["url"],
+                confirmation=request.args.get("confirmation"),
             )
-            text_id = await api.put_text(
-                text_body=(await request.form)["text-body"],
-                user_id=user_id,
-                user_ip=user_ip,
-                ttl=(await request.form)["ttl"],
-            )
-            msg = f"Stored text at /text/{text_id}"
 
-            return await render_template("index.html", message=msg)
+        # If this executes, it is a POST request.
+        user_id = session.get("user_id", "anonymous")
+        user_ip = request.headers.get(
+            "X-Forwarded-For", request.remote_addr
+        )
+        text_id = await api.put_text(
+            text_body=(await request.form)["text-body"],
+            user_id=user_id,
+            user_ip=user_ip,
+            ttl=(await request.form)["ttl"],
+        )
+
+        return redirect(url_for("index", confirmation=text_id))
 
     return app
 ```
+
+After the POST request, we redirect to the index page instead of directly
+rendering the page to avoid issues with request re-submission: if a user
+creates a text and then refreshes the page (or navigates back to the page with
+the browser back arrow), the POST request could be re-submitted. This pattern
+is called
+[Post/Redirect/Get](https://en.wikipedia.org/wiki/Post/Redirect/Get), or PRG.
 
 The function `put_text` abstracts the details about text storage and metadata
 (snippet from `src/api.py`):
