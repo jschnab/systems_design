@@ -16,13 +16,14 @@
                     <path d="m12.922 16.587-3.671 3.671c-.693.645-1.626 1.041-2.651 1.041-2.152 0-3.896-1.744-3.896-3.896 0-1.025.396-1.958 1.043-2.654l-.002.002 3.671-3.671c.212-.23.341-.539.341-.878 0-.717-.582-1.299-1.299-1.299-.339 0-.647.13-.879.342l.001-.001-3.671 3.671c-1.108 1.162-1.789 2.74-1.789 4.476 0 3.586 2.907 6.494 6.494 6.494 1.738 0 3.316-.683 4.482-1.795l-.003.002 3.671-3.671c.212-.23.341-.539.341-.878 0-.717-.582-1.299-1.299-1.299-.339 0-.647.13-.879.342l.001-.001z"/><path d="m24.007 6.489c-.002-3.585-2.908-6.491-6.494-6.491-1.793 0-3.417.727-4.592 1.902l-3.671 3.671c-.259.238-.421.579-.421.958 0 .717.582 1.299 1.299 1.299.379 0 .719-.162.957-.42l.001-.001 3.671-3.671c.693-.645 1.626-1.041 2.651-1.041 2.152 0 3.896 1.744 3.896 3.896 0 1.025-.396 1.958-1.043 2.654l.002-.002-3.671 3.671c-.259.238-.421.579-.421.958 0 .717.582 1.299 1.299 1.299.379 0 .719-.162.957-.42l.001-.001 3.671-3.671c1.178-1.169 1.908-2.789 1.908-4.58 0-.003 0-.006 0-.009z"/><path d="m7.412 16.592c.235.235.559.38.918.38s.683-.145.918-.38l7.342-7.342c.212-.23.341-.539.341-.878 0-.717-.582-1.299-1.299-1.299-.339 0-.647.13-.879.342l.001-.001-7.342 7.342c-.235.235-.38.559-.38.918s.145.683.38.918z"/>
                 </svg>
             </button>
+            <button class="delete-button" value="{{ text['text_id'] }}">
+                <svg fill="#000000" width="1.2em" height="1.2em" viewBox="0 0 6.7 6.7" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6.48 1.44H5.4V1.08a0.841 0.841 0 0 0 -0.84 -0.84h-1.44a0.841 0.841 0 0 0 -0.84 0.84v0.36H1.2a0.36 0.36 0 0 0 0 0.72h0.12v4.08a0.601 0.601 0 0 0 0.6 0.6h3.84a0.601 0.601 0 0 0 0.6 -0.6V2.16h0.12a0.36 0.36 0 0 0 0 -0.72M3 1.08a0.12 0.12 0 0 1 0.12 -0.12h1.44a0.12 0.12 0 0 1 0.12 0.12v0.36h-1.68Zm2.64 5.04h-3.6V2.16h3.6ZM3.48 3.12v1.92a0.36 0.36 0 0 1 -0.72 0v-1.92a0.36 0.36 0 0 1 0.72 0m1.44 0v1.92a0.36 0.36 0 0 1 -0.72 0v-1.92a0.36 0.36 0 0 1 0.72 0"/>
+                </svg>
+            </button>
             </li>
           <li class="text-creation">Created on: {{ text['creation'] }}</li>
           <li class="text-expiration">Expires on: {{ text['expiration'] }}</li>
-          <form class="delete-text-form">
-            <input id="text-id" class="text-id-hidden" hidden readonly value="{{ text['text_id'] }}">
-            <input type="submit" class="delete-text" value="Delete text">
-          </form>
         </ul>
       </div>
     {% endfor %}
@@ -31,10 +32,10 @@
   {% endif %}
 
   <script>
-  function deleteText(form) {
+  function deleteText(text_id) {
     if (confirm("Do you really want to delete this text?") == true) {
       var data = new FormData();
-      data.append("text-id", form.querySelector("#text-id").value);
+      data.append("text-id", text_id);
       const delete_url = {{ url_for("delete_text")|tojson }};
       fetch(delete_url, {"method": "POST", "body": data}).then(
         (resp) => { window.location.reload() }
@@ -54,6 +55,14 @@
   for (var i = 0; i < links.length; i++) {
       links[i].addEventListener("click", function(e) {
           navigator.clipboard.writeText(this.value);
+      });
+  }
+
+  const deleteButtons = document.getElementsByClassName("delete-button");
+  for (var i = 0; i < deleteButtons.length; i++) {
+      deleteButtons[i].addEventListener("click", function(e) {
+          console.log("Deleting: " + this.value);
+          deleteText(this.value);
       });
   }
   </script>
