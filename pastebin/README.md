@@ -252,8 +252,10 @@ We then process form data in Quart (snippet adapted from `src/__init__.py`):
 ```python
 from quart import (
     Quart,
+    redirect,
     render_template,
     session,
+    url_for,
 )
 
 from . import api
@@ -462,7 +464,6 @@ from datetime import datetime
 
 from quart import (
     Quart,
-    render_template,
     session,
 )
 
