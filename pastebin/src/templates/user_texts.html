@@ -43,14 +43,6 @@
     }
   }
 
-  const forms = document.getElementsByClassName("delete-text-form");
-  for (var i = 0; i < forms.length; i++) {
-      forms[i].addEventListener("submit", function(e) {
-          e.preventDefault();
-          deleteText(e.target); 
-      });
-  }
-
   const links = document.getElementsByClassName("copy-text-url");
   for (var i = 0; i < links.length; i++) {
       links[i].addEventListener("click", function(e) {

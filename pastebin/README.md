@@ -438,7 +438,7 @@ function deleteText(text_id) {
 const deleteButtons = document.getElementsByClassName("delete-button");
 for (var i = 0; i < deleteButtons.length; i++) {
   forms[i].addEventListener("click", function(e) {
-    deleteText(e.target);
+    deleteText(this.value);
   });
 }
 </script>
