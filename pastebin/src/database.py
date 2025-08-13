@@ -71,8 +71,11 @@ def connect(db_config=DB_CONFIG, dictionary=False):
         con.rollback()
         raise
     finally:
-        cur.close()
-        con.close()
+        # Avoid 'OperationalError: MySQL Connection not available.'
+        # when closing the connection.
+        if con.is_connected():
+            cur.close()
+            con.close()
 
 
 async def execute_in_thread_pool(query, args=None):
