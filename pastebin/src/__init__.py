@@ -6,10 +6,12 @@ from quart import (
     abort,
     flash,
     Quart,
+    redirect,
     render_template,
     request,
     send_from_directory,
     session,
+    url_for,
 )
 
 from . import api
@@ -27,20 +29,23 @@ def create_app():
 
     @app.route("/", methods=("GET", "POST"))
     async def index():
-
         if request.method == "GET":
-            return await render_template("index.html")
+            return await render_template(
+                "index.html",
+                app_url=APP_URL,
+                confirmation=request.args.get("confirmation"),
+            )
 
         # request.form is a coroutine
         request_form = await request.form
 
         if len(request_form["text-body"]) < TEXT_MIN_CHAR:
             await flash(f"Text should be at least {TEXT_MIN_CHAR} characters")
-            return await render_template("index.html")
+            return redirect(url_for("index"))
 
         if len(request_form["text-body"]) > TEXT_MAX_CHAR:
             await flash(f"Text should be less than {TEXT_MAX_CHAR} characters")
-            return await render_template("index.html")
+            return redirect(url_for("index"))
 
         user_id = session.get("user_id", config["app"]["default_user"])
         user_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
@@ -53,7 +58,7 @@ def create_app():
                 f"User '{user_id}' stored more than {quota} texts during the "
                 "past day, come back later"
             )
-            return await render_template("index.html")
+            return redirect(url_for("index"))
         else:
             text_id = await api.put_text(
                 text_body=request_form["text-body"],
@@ -63,9 +68,7 @@ def create_app():
                 ttl=request_form["ttl"],
             )
 
-        return await render_template(
-            "index.html", app_url=APP_URL, new_text_id=text_id
-        )
+        return redirect(url_for("index", confirmation=text_id))
 
     @app.route("/text/<text_id>")
     async def get_text(text_id):

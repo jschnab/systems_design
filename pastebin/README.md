@@ -247,13 +247,15 @@ from `src/templates/html.index`:
 </form>
 ```
 
-We then process form data in Flask (snippet adapted from `src/__init__.py`):
+We then process form data in Quart (snippet adapted from `src/__init__.py`):
 
 ```python
 from quart import (
     Quart,
+    redirect,
     render_template,
     session,
+    url_for,
 )
 
 from . import api
@@ -264,23 +266,36 @@ def create_app():
 
     @app.route("/", methods=("GET", "POST"))
     async def def index():
-        if request.method == "POST":
-            user_id = session.get("user_id", "anonymous")
-            user_ip = request.headers.get(
-                "X-Forwarded-For", request.remote_addr
+        if request.method == "GET":
+            return await render_template(
+                "index.html",
+                app_url=config["app"]["url"],
+                confirmation=request.args.get("confirmation"),
             )
-            text_id = await api.put_text(
-                text_body=(await request.form)["text-body"],
-                user_id=user_id,
-                user_ip=user_ip,
-                ttl=(await request.form)["ttl"],
-            )
-            msg = f"Stored text at /text/{text_id}"
 
-            return await render_template("index.html", message=msg)
+        # If this executes, it is a POST request.
+        user_id = session.get("user_id", "anonymous")
+        user_ip = request.headers.get(
+            "X-Forwarded-For", request.remote_addr
+        )
+        text_id = await api.put_text(
+            text_body=(await request.form)["text-body"],
+            user_id=user_id,
+            user_ip=user_ip,
+            ttl=(await request.form)["ttl"],
+        )
+
+        return redirect(url_for("index", confirmation=text_id))
 
     return app
 ```
+
+After the POST request, we redirect to the index page instead of directly
+rendering the page to avoid issues with request re-submission: if a user
+creates a text and then refreshes the page (or navigates back to the page with
+the browser back arrow), the POST request could be re-submitted. This pattern
+is called
+[Post/Redirect/Get](https://en.wikipedia.org/wiki/Post/Redirect/Get), or PRG.
 
 The function `put_text` abstracts the details about text storage and metadata
 (snippet from `src/api.py`):
@@ -399,21 +414,20 @@ delete the text. The following snippet is from `src/template/user_texts.html`:
   <ul class="text-item-details">
     <li class="text-url">
       <a href="{{ url_for('get_text', text_id=text['text_id']) }}">{{ app_url }}{{ url_for('get_text', text_id=text['text_id']) }}</a>
+      <button class="delete-button" value="{{ text['text_id'] }}">
+        <svg>...</svg>
+      </button>
     </li>
     <li class="text-creation">Created on: {{ text['creation'] }}</li>
     <li class="text-expiration>Expires on: {{ text['expiration'] }}</li>
-    <form class="delete-text-form">
-      <input id="text-id" class="text-id-hidden" hidden readonly value="{{ text['text_id'] }}">
-      <input type="submit" class="delete-text" value="Delete text">
-    </form>
   </ul>
 </div>
 
 <script>
-function deleteText(form) {
+function deleteText(text_id) {
   if (confirm("Do you really want to delete this text?") == true) {
     var data = new FormData();
-    data.append("text-id", form.querySelector("#text-id").value);
+    data.append("text-id", text_id);
     const delete_url = {{ url_for("delete_text")|tojson }};
     fetch(delete_url, {"method": "POST", "body": data}).then(
       (resp) => { window.location.reload() }
@@ -421,11 +435,10 @@ function deleteText(form) {
   }
 }
 
-const forms = document.getElementsByClassName("delete-text-form");
-for (var i = 0; i < forms.length; i++) {
-  forms[i].addEventListener("submit", function(e) {
-    e.preventDefault();
-    deleteText(e.target);
+const deleteButtons = document.getElementsByClassName("delete-button");
+for (var i = 0; i < deleteButtons.length; i++) {
+  forms[i].addEventListener("click", function(e) {
+    deleteText(this.value);
   });
 }
 </script>
@@ -433,12 +446,12 @@ for (var i = 0; i < forms.length; i++) {
 {% endfor %}
 ```
 
-We add an event listener on each form "submit" action, which triggers the
+We add an event listener on each form "click" action, which triggers the
 function `deleteText()`. To prevent users from deleting text by mistake, we use
 the [confirm()](https://developer.mozilla.org/en-US/docs/Web/API/Window/confirm)
 function to control text deletion. Once confirmed, the text ID is obtained from
-the hidden input field identified by `text-id` and sent via a POST request to
-the URL for text deletion with the function
+the button value and sent via a POST request to the URL for text deletion with
+the function
 [fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch).
 We wait for the request to complete with the `then()` method and finally reload
 the page to display the updated list of texts.
@@ -451,7 +464,6 @@ from datetime import datetime
 
 from quart import (
     Quart,
-    render_template,
     session,
 )
 

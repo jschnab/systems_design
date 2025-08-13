@@ -60,7 +60,7 @@ async def register():
         user_id = request_form["user_id"]
         if user_id == DEFAULT_USER:
             await flash(f"User ID '{DEFAULT_USER}' is already taken")
-            return await render_template("auth/register.html")
+            return redirect(url_for("auth.register"))
 
         firstname = request_form["firstname"]
         lastname = request_form["lastname"]
@@ -104,18 +104,18 @@ async def login():
         user_id = request_form["user_id"]
         if user_id == config["app"]["default_user"]:
             await flash("Incorrect user")
-            return await render_template("auth/login.html")
+            return redirect(url_for("auth.login"))
 
         password = request_form["password"]
 
         user_info = await database.get_user(user_id)
         if user_info is None:
             await flash("Incorrect user")
-            return await render_template("auth/login.html")
+            return redirect(url_for("auth.login"))
 
         if await database.user_is_locked(user_id):
             await flash("User account is locked for 15 minutes")
-            return await render_template("auth/login.html")
+            return redirect(url_for("auth.login"))
 
         error = None
         success = True
@@ -130,12 +130,13 @@ async def login():
             success=success,
         )
 
-        if error is None:
-            session.clear()
-            session["user_id"] = user_id
-            return redirect(url_for("index"))
+        if error:
+            await flash(error)
+            return redirect(url_for("auth.login"))
 
-        await flash(error)
+        session.clear()
+        session["user_id"] = user_id
+        return redirect(url_for("index"))
 
     return await render_template("auth/login.html")
 
