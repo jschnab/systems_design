@@ -1,6 +1,6 @@
 # Pastebin
 
-## 1. Requirements
+## 1. Requirements and features
 
 ### 1.1. Functional requirements
 
@@ -18,6 +18,9 @@ Users can signup and authenticated or store text anonymously as unauthenticated
 Users have quotas, they cannot store more than a certain number of texts per
 time interval.
 
+Bonus features:
+* burn after reading (stored text can be read only once)
+
 ### 1.2. Non-functional requirements
 
 The application should be highly available.
@@ -27,6 +30,14 @@ see an update for a short period of time, it's acceptable.
 
 Data storage durability is crucial: text uploaded by users should never be
 lost.
+
+### 1.3. Optional features
+
+#### 1.3.1. Burn after reading
+
+When storing a text, a user can enable "burn after reading", which will delete
+the text after it was read once. In other words, the text will be the target of
+a single GET request.
 
 ## 2. Capacity estimations
 
@@ -221,8 +232,23 @@ not expose this functionality).
 
 To store a text, users are given a
 [form](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) where
-they can paste text and choose an expiration. The following code is a snippet
-from `src/templates/html.index`:
+they can paste text and choose an expiration.
+
+Burn after reading can be implemented by:
+1. Recording whether or not a text should be burned after reading with a
+   boolean field `burn_after_reading` in the `texts` database table.
+2. Adding a check for the `to_be_deleted` field of the `texts` database table,
+   which should be `false` for the GET request to be satistifed.
+3. Setting `to_be_deleted` to `true` just after it is read for the first time.
+
+Subsequent requests for the same text will be unfulfilled, and the document
+will be lazily deleted during the next cleaner run.
+
+One caveat is that two concurrent requests for the text could be fulfilled,
+which can be prevented by using a database transaction, therefore locking the
+record for the relevant text when it marked for deletion.
+
+The following code is a snippet from `src/templates/html.index`:
 
 ```html
 <form method="post">
@@ -243,6 +269,8 @@ from `src/templates/html.index`:
     <option value="1m">1 month</option>
     <option value="1y">1 year</option>
   </select>
+  <label for="burn-after-reading">Burn after reading</label>
+  <input name="burn-after-reading" id="burn-after-reading" type="checkbox">
   <input type="submit" value="Store text">
 </form>
 ```
@@ -278,11 +306,14 @@ def create_app():
         user_ip = request.headers.get(
             "X-Forwarded-For", request.remote_addr
         )
+        request_form = await request.form
+
         text_id = await api.put_text(
-            text_body=(await request.form)["text-body"],
+            text_body=request_form["text-body"],
             user_id=user_id,
             user_ip=user_ip,
-            ttl=(await request.form)["ttl"],
+            ttl=request_form["ttl"],
+            burn_after_reading=request_form.get("burn-after-reading")=="on",
         )
 
         return redirect(url_for("index", confirmation=text_id))
@@ -325,6 +356,7 @@ async def put_text(text_body, user_id, user_ip, ttl):
         user_ip,
         creation_timestamp,
         expiration_timestamp,
+        burn_after_reading=burn_after_reading,
     )
     return text_id
 ```
@@ -378,7 +410,6 @@ def create_app():
     return app
 ```
 
-
 The function `api.get_text` deals with retrieving texts. If it returns `None`,
 this means the text ID does not exist and we return a 404 error (not found).
 Otherwise we return the text. The following snippet is from `src/api.py`:
@@ -389,17 +420,32 @@ from . import object_store
 
 
 async def get_text(text_id):
+    if not await database.text_is_visible(text_id):
+        return
+
     text_body = await cache.get(text_id)
     if text_body is not None:
         return text_body
     text_body = await object_store.get_text(text_id)
-    if text_body is not None:
-        await cache.put(text_id, text_body)
+
+    if await database.is_text_burn_after_reading(text_id):
+        await database.mark_text_for_deletion(text_id)
+    else:
+        if text_body is not None:
+            await cache.put(text_id, text_body)
+
     return text_body
 ```
 
-First, we try to obtain a text from cache. In case of a cache miss, we get the
-text from the object store and cache results before returning them to the user.
+We first check if the text is visible (i.e. not to be deleted), in case the
+text was "burned" after it was read.
+
+If the text is visible, we try to retrieve it from the cache, otherwise we
+query the object store.
+
+Finally, if the text should be "burned" after reading, we mark it for later
+deletion by the text cleaner. Otherwise, we cache the text for future
+retrieval.
 
 #### 6.1.2.3 Delete a text
 
@@ -1042,3 +1088,4 @@ docker run \
 
 
 If you built the image locally, you can also pass the relevant image name.
+

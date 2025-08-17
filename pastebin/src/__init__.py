@@ -18,6 +18,7 @@ from . import api
 from . import auth
 from .config import config
 
+
 APP_URL = config["app"]["url"]
 TEXT_MIN_CHAR = 110
 TEXT_MAX_CHAR = 512000
@@ -66,6 +67,8 @@ def create_app():
                 user_id=user_id,
                 user_ip=user_ip,
                 ttl=request_form["ttl"],
+                burn_after_reading=request_form.get("burn-after-reading")
+                == "on",
             )
 
         return redirect(url_for("index", confirmation=text_id))

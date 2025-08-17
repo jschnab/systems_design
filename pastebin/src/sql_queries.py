@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS texts (
   creation TIMESTAMP,
   expiration TIMESTAMP,
   to_be_deleted BOOLEAN,
-  deletion TIMESTAMP
+  deletion TIMESTAMP,
+  burn_after_reading BOOLEAN DEFAULT FALSE
 )
 ;"""
 
@@ -75,8 +76,9 @@ INSERT INTO texts (
     , user_ip
     , creation
     , expiration
+    , burn_after_reading
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
 ;"""
 
 MARK_TEXT_FOR_DELETION = """
@@ -123,4 +125,12 @@ GET_RECENT_USER_CONNECTIONS = """
 SELECT ts, success FROM user_connections
 WHERE user_id = %s AND ts >= NOW() - INTERVAL 15 MINUTE
 ORDER BY ts DESC
+;"""
+
+TEXT_IS_VISIBLE = """
+SELECT NOT to_be_deleted AS is_visible FROM texts WHERE text_id = %s
+;"""
+
+IS_TEXT_BURN_AFTER_READING = """
+SELECT burn_after_reading FROM texts WHERE text_id = %s
 ;"""

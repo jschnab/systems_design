@@ -143,6 +143,7 @@ async def put_text_metadata(
     user_ip,
     creation_timestamp,
     expiration_timestamp,
+    burn_after_reading,
 ):
     await execute_in_thread_pool(
         sql_queries.INSERT_TEXT,
@@ -154,6 +155,7 @@ async def put_text_metadata(
             user_ip,
             creation_timestamp,
             expiration_timestamp,
+            burn_after_reading,
         ),
     )
 
@@ -249,3 +251,17 @@ async def record_user_connect(user_id, user_ip, success):
     await execute_in_thread_pool(
         sql_queries.RECORD_USER_CONNECT, (user_id, user_ip, success)
     )
+
+
+async def text_is_visible(text_id):
+    return (
+        await execute_in_thread_pool(sql_queries.TEXT_IS_VISIBLE, (text_id,))
+    )[0]["is_visible"]
+
+
+async def is_text_burn_after_reading(text_id):
+    return (
+        await execute_in_thread_pool(
+            sql_queries.IS_TEXT_BURN_AFTER_READING, (text_id,)
+        )
+    )[0]["burn_after_reading"]
