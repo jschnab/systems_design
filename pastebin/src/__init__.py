@@ -18,7 +18,6 @@ from . import api
 from . import auth
 from .config import config
 
-
 APP_URL = config["app"]["url"]
 TEXT_MIN_CHAR = 110
 TEXT_MAX_CHAR = 512000

@@ -18,9 +18,6 @@ Users can signup and authenticated or store text anonymously as unauthenticated
 Users have quotas, they cannot store more than a certain number of texts per
 time interval.
 
-Bonus features:
-* burn after reading (stored text can be read only once)
-
 ### 1.2. Non-functional requirements
 
 The application should be highly available.
