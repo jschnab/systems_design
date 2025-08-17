@@ -33,8 +33,7 @@ lost.
 #### 1.3.1. Burn after reading
 
 When storing a text, a user can enable "burn after reading", which will delete
-the text after it was read once. In other words, the text will be the target of
-a single GET request.
+the text after it is read once.
 
 ## 2. Capacity estimations
 
@@ -232,14 +231,15 @@ To store a text, users are given a
 they can paste text and choose an expiration.
 
 Burn after reading can be implemented by:
-1. Recording whether or not a text should be burned after reading with a
-   boolean field `burn_after_reading` in the `texts` database table.
-2. Adding a check for the `to_be_deleted` field of the `texts` database table,
-   which should be `false` for the GET request to be satistifed.
-3. Setting `to_be_deleted` to `true` just after it is read for the first time.
+1. When a new text is stored, we record whether or not it should be burned
+   after reading with a boolean column `burn_after_reading` in the `texts` database table.
+2. When the text is read for the first time, `to_be_deleted` is set to `true`.
+3. When we read a text, we check `to_be_deleted`: if it is `false`, the request
+   is fulfilled, otherwise we return a 404 error.
 
-Subsequent requests for the same text will be unfulfilled, and the document
-will be lazily deleted during the next cleaner run.
+After the initial successful read of the text, subsequent requests for the
+same text will be unsuccessful, and the document will be lazily deleted during
+the next cleaner run.
 
 One caveat is that two concurrent requests for the text could be fulfilled,
 which can be prevented by using a database transaction, therefore locking the
