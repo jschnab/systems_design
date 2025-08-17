@@ -27,23 +27,31 @@
     </div>
     <form method="post" action="{{ url_for('index') }}" onsubmit="return getContent()">
         {% if g.user %}
-            <label for="text-title">Title</label>
-            <input
-                name="text-title"
-                id="text-title"
-                maxlength="60"
-                minlength="10"
-                placeholder="10 to 60 characters"
-            >
+            <div>
+                <label for="text-title">Title</label>
+                <input
+                    name="text-title"
+                    id="text-title"
+                    maxlength="60"
+                    minlength="10"
+                    placeholder="10 to 60 characters"
+                >
+            </div>
         {% endif %}
         <textarea name="text-body" id="text-body" style="display:none"></textarea>
-        <label for="ttl">Expire after</label>
-        <select name="ttl" id="ttl">
-            <option value="1d">1 day</option>
-            <option value="1w">1 week</option>
-            <option value="1m">1 month</option>
-            <option value="1y">1 year</option>
-        </select>
+        <div>
+            <label for="ttl">Expire after</label>
+            <select name="ttl" id="ttl">
+                <option value="1d">1 day</option>
+                <option value="1w">1 week</option>
+                <option value="1m">1 month</option>
+                <option value="1y">1 year</option>
+            </select>
+        </div>
+        <div>
+            <label for="burn-after-reading">Burn after reading</label>
+            <input id="burn-after-reading" name="burn-after-reading" type="checkbox">
+        </div>
         <input type="submit" value="Store text">
     </form>
 

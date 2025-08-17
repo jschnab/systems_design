@@ -6,6 +6,9 @@ from . import cache
 from . import database
 from . import object_store
 from .config import config
+from .log import get_logger
+
+LOGGER = get_logger()
 
 H1_REGEX = re.compile(r"<h1.*>(.+)</h1>")
 SENTENCE_REGEX = re.compile(r"[\w,'&]+( [\w,'&]+)+")
@@ -49,7 +52,9 @@ def get_text_title(text_body):
     return "Untitled"
 
 
-async def put_text(text_body, text_title, user_id, user_ip, ttl):
+async def put_text(
+    text_body, text_title, user_id, user_ip, ttl, burn_after_reading
+):
     creation_timestamp = datetime.now()
     ttl_hours = TTL_TO_HOURS[ttl]
     expiration_timestamp = creation_timestamp + timedelta(hours=ttl_hours)
@@ -63,17 +68,31 @@ async def put_text(text_body, text_title, user_id, user_ip, ttl):
         user_ip=user_ip,
         creation_timestamp=creation_timestamp,
         expiration_timestamp=expiration_timestamp,
+        burn_after_reading=burn_after_reading,
     )
     return text_id
 
 
 async def get_text(text_id):
+    if not await database.text_is_visible(text_id):
+        LOGGER.info(f"Text {text_id} was burned, ignoring")
+        return
+
     text_body = await cache.get(text_id)
     if text_body is not None:
+        LOGGER.info(f"Text {text_id} found in cache")
         return text_body
+    LOGGER.info(f"Text {text_id} not found in cache")
     text_body = await object_store.get_text(text_id)
-    if text_body is not None:
-        await cache.put(text_id, text_body)
+
+    if await database.is_text_burn_after_reading(text_id):
+        LOGGER.info(f"Text {text_id} should be burned")
+        await database.mark_text_for_deletion(text_id)
+    else:
+        LOGGER.info(f"Text {text_id} should not be burned")
+        if text_body is not None:
+            await cache.put(text_id, text_body)
+
     return text_body
 
 
