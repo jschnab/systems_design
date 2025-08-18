@@ -62,7 +62,7 @@ def create_app():
         else:
             text_id = await api.put_text(
                 text_body=request_form["text-body"],
-                text_title=request_form["text-title"],
+                text_title=request_form.get("text-title"),
                 user_id=user_id,
                 user_ip=user_ip,
                 ttl=request_form["ttl"],
