@@ -78,7 +78,7 @@ def connect(db_config=DB_CONFIG, dictionary=False):
             con.close()
 
 
-async def execute_in_thread_pool(query, args=None):
+async def execute_in_thread_pool(query, args=None, fetchone=False):
     with connect(dictionary=True) as cur:
         await asyncio.get_running_loop().run_in_executor(
             thread_pool,
@@ -88,6 +88,8 @@ async def execute_in_thread_pool(query, args=None):
                 args,
             ),
         )
+        if fetchone:
+            return cur.fetchone()
         return cur.fetchall()
 
 
@@ -191,18 +193,18 @@ async def create_user(user_id, firstname, lastname, password):
 
 
 async def get_user(user_id):
-    user = await execute_in_thread_pool(sql_queries.GET_USER, (user_id,))
-    if user:
-        return user[0]
+    return await execute_in_thread_pool(
+        sql_queries.GET_USER, (user_id,), fetchone=True
+    )
 
 
 async def count_recent_texts_by_anonymous_user(user_ip):
     return (
         (
             await execute_in_thread_pool(
-                sql_queries.COUNT_TEXTS_ANONYMOUS, (user_ip,)
+                sql_queries.COUNT_TEXTS_ANONYMOUS, (user_ip,), fetchone=True
             )
-        )[0]
+        )
     )["quota"]
 
 
@@ -210,9 +212,9 @@ async def count_recent_texts_by_logged_user(user_id):
     return (
         (
             await execute_in_thread_pool(
-                sql_queries.COUNT_TEXTS_USER, (user_id,)
+                sql_queries.COUNT_TEXTS_USER, (user_id,), fetchone=True
             )
-        )[0]
+        )
     )["quota"]
 
 
@@ -223,9 +225,9 @@ async def get_texts_for_deletion():
 async def get_text_owner(text_id):
     # No guardrail for non-existant text ID, do not use with user input.
     return (
-        (await execute_in_thread_pool(sql_queries.GET_TEXT_OWNER, (text_id,)))[
-            0
-        ]
+        await execute_in_thread_pool(
+            sql_queries.GET_TEXT_OWNER, (text_id,), fetchone=True
+        )
     )["user_id"]
 
 
@@ -255,13 +257,15 @@ async def record_user_connect(user_id, user_ip, success):
 
 async def text_is_visible(text_id):
     return (
-        await execute_in_thread_pool(sql_queries.TEXT_IS_VISIBLE, (text_id,))
-    )[0]["is_visible"]
+        await execute_in_thread_pool(
+            sql_queries.TEXT_IS_VISIBLE, (text_id,), fetchone=True
+        )
+    )["is_visible"]
 
 
 async def is_text_burn_after_reading(text_id):
     return (
         await execute_in_thread_pool(
-            sql_queries.IS_TEXT_BURN_AFTER_READING, (text_id,)
+            sql_queries.IS_TEXT_BURN_AFTER_READING, (text_id,), fetchone=True
         )
-    )[0]["burn_after_reading"]
+    )["burn_after_reading"]
