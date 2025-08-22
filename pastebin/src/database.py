@@ -1,4 +1,5 @@
 import asyncio
+import enum
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -22,6 +23,13 @@ DEFAULT_USER = config["app"]["default_user"]
 MAX_CONNECT_FAIL = 3
 USER_LOCK_TIMEOUT = 15  # minutes
 LOGGER = get_logger()
+
+
+class TextVisibility(enum.Enum):
+    PUBLIC = "public"
+    UNLISTED = "unlisted"
+    PRIVATE = "private"
+
 
 connection_pool = None
 
@@ -146,6 +154,7 @@ async def put_text_metadata(
     creation_timestamp,
     expiration_timestamp,
     burn_after_reading,
+    visibility,
 ):
     await execute_in_thread_pool(
         sql_queries.INSERT_TEXT,
@@ -158,6 +167,7 @@ async def put_text_metadata(
             creation_timestamp,
             expiration_timestamp,
             burn_after_reading,
+            visibility,
         ),
     )
 
@@ -255,17 +265,25 @@ async def record_user_connect(user_id, user_ip, success):
     )
 
 
-async def text_is_visible(text_id):
-    return (
-        await execute_in_thread_pool(
-            sql_queries.TEXT_IS_VISIBLE, (text_id,), fetchone=True
-        )
-    )["is_visible"]
+def text_is_visible(metadata):
+    return not metadata["to_be_deleted"]
 
 
-async def is_text_burn_after_reading(text_id):
-    return (
-        await execute_in_thread_pool(
-            sql_queries.IS_TEXT_BURN_AFTER_READING, (text_id,), fetchone=True
-        )
-    )["burn_after_reading"]
+def is_text_burn_after_reading(metadata):
+    return metadata["burn_after_reading"]
+
+
+async def get_text_metadata(text_id):
+    return await execute_in_thread_pool(
+        sql_queries.GET_TEXT_METADATA, (text_id,), fetchone=True
+    )
+
+
+def text_is_private(text_metadata):
+    return text_metadata["visibility"] == TextVisibility.PRIVATE.value
+
+
+def text_owner_matches_logged_user(user_context, text_metadata):
+    if user_context is None:
+        return False
+    return user_context["user_id"] == text_metadata["user_id"]

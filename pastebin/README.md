@@ -35,6 +35,19 @@ lost.
 When storing a text, a user can enable "burn after reading", which will delete
 the text after it is read once.
 
+#### 1.3.2. Controllable text visibility
+
+The visibility of texts is controlled by users, and is one of:
+* public: The default setting. The text is visible by anybody, and is indexed
+    by the search engine.
+* unlisted: The text is visible by anybody, but is not indexed by the search
+    engine. To read a shared text, a user must have the link.
+* private: The text is only visible by the user who created it after logging
+    in. The text is not indexed by the search engine.
+
+Anonymous users can only create public texts. To create unlisted or private
+texts, a user must be registered and logged-in.
+
 ## 2. Capacity estimations
 
 In this section we are interested in orders of magnitude and will use power of
@@ -245,6 +258,16 @@ One caveat is that two concurrent requests for the text could be fulfilled,
 which can be prevented by using a database transaction, therefore locking the
 record for the relevant text when it marked for deletion.
 
+During text storage, visibility is implemented as follows:
+1. When a new text is stored, its visibility is recorded in the column
+   `visibility` of type `ENUM` in the `texts` database table. Acceptable values
+   are `public` (default), `unlisted`, and `private`.
+2. When a text is read, if `visibility` is `private`, we verify the user is
+   logged in and that the text owner matches the user name before displaying
+   the text. Otherwise we return a 'not found' error.
+3. If the text visibility is `public`, the text is indexed by the search
+   engine, otherwise it is ignored.
+
 The following code is a snippet from `src/templates/html.index`:
 
 ```html
@@ -265,6 +288,12 @@ The following code is a snippet from `src/templates/html.index`:
     <option value="1w">1 week</option>
     <option value="1m">1 month</option>
     <option value="1y">1 year</option>
+  </select>
+  <label for="visibility">Visibility</label>
+  <select id="visibility" name="visibility">
+    <option value="public">Public</option>
+    <option value="unlisted" {% if not g.user %}disabled="true"{% endif %}>Unlisted</option>
+    <option value="private" {% if not g.user %}disabled="true"{% endif %}>Private</option>
   </select>
   <label for="burn-after-reading">Burn after reading</label>
   <input name="burn-after-reading" id="burn-after-reading" type="checkbox">
@@ -311,6 +340,7 @@ def create_app():
             user_ip=user_ip,
             ttl=request_form["ttl"],
             burn_after_reading=request_form.get("burn-after-reading")=="on",
+            visibility=request_form["visibility"],
         )
 
         return redirect(url_for("index", confirmation=text_id))
@@ -335,7 +365,7 @@ from datetime import datetime, timedelta
 from . import database
 from . import object_store
 
-async def put_text(text_body, user_id, user_ip, ttl):
+async def put_text(text_body, user_id, user_ip, ttl, burn_after_reading, visibility):
     creation_timestamp = datetime.now()
     ttl_hours = {
         "1h": 1,
@@ -354,6 +384,7 @@ async def put_text(text_body, user_id, user_ip, ttl):
         creation_timestamp,
         expiration_timestamp,
         burn_after_reading=burn_after_reading,
+        visibility=visibility,
     )
     return text_id
 ```
@@ -399,7 +430,7 @@ def create_app():
 
     @app.route("/text/<text_id>")
     async def get_text(text_id):
-        text_body = await api.get_text(text_id)
+        text_body = await api.get_text(text_id, g.user)
         if text_body is None:
             abort(404)
         return await render_template("text.html", text_body=text_body)
@@ -407,7 +438,8 @@ def create_app():
     return app
 ```
 
-The function `api.get_text` deals with retrieving texts. If it returns `None`,
+The function `api.get_text` deals with retrieving texts. It takes the ID of the
+text to retrieve, and application context about the user. If it returns `None`,
 this means the text ID does not exist and we return a 404 error (not found).
 Otherwise we return the text. The following snippet is from `src/api.py`:
 
@@ -416,16 +448,22 @@ from . import cache
 from . import object_store
 
 
-async def get_text(text_id):
-    if not await database.text_is_visible(text_id):
+async def get_text(text_id, user):
+    metadata = await database.get_text_metadata(text_id)
+
+    if not database.text_is_visible(metadata):
         return
+
+    if database.text_is_private(metadata):
+        if not database.text_owner_matches_logged_user(user, metadata):
+            return
 
     text_body = await cache.get(text_id)
     if text_body is not None:
         return text_body
     text_body = await object_store.get_text(text_id)
 
-    if await database.is_text_burn_after_reading(text_id):
+    if database.is_text_burn_after_reading(text_id):
         await database.mark_text_for_deletion(text_id)
     else:
         if text_body is not None:
@@ -434,11 +472,19 @@ async def get_text(text_id):
     return text_body
 ```
 
+There could be many database calls to the `texts` table to check text
+visibility depending on text life-cycle and user access permissions, so we
+first make a single call to get all user metadata and we will later parse
+results as needed.
+
 We first check if the text is visible (i.e. not to be deleted), in case the
 text was "burned" after it was read.
 
-If the text is visible, we try to retrieve it from the cache, otherwise we
-query the object store.
+If the text is visible, we check if it is private, in which case we restrict
+access to the logged-in text owner.
+
+Then, we try to retrieve it from the cache, otherwise we query the object
+store.
 
 Finally, if the text should be "burned" after reading, we mark it for later
 deletion by the text cleaner. Otherwise, we cache the text for future
