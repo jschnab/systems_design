@@ -42,8 +42,8 @@ The visibility of texts is controlled by users, and is one of:
     by the search engine.
 * unlisted: The text is visible by anybody, but is not indexed by the search
     engine. To read a shared text, a user must have the link.
-* private: The text is only visible by the user who created after logging in.
-    The text is not indexed by the search engine.
+* private: The text is only visible by the user who created it after logging
+    in. The text is not indexed by the search engine.
 
 Anonymous users can only create public texts. To create unlisted or private
 texts, a user must be registered and logged-in.
@@ -258,13 +258,13 @@ One caveat is that two concurrent requests for the text could be fulfilled,
 which can be prevented by using a database transaction, therefore locking the
 record for the relevant text when it marked for deletion.
 
-Text visibility is implemented by:
+During text storage, visibility is implemented as follows:
 1. When a new text is stored, its visibility is recorded in the column
    `visibility` of type `ENUM` in the `texts` database table. Acceptable values
    are `public` (default), `unlisted`, and `private`.
-2. When a text is read, if `visibility` is `private`, we check the user is
-   logged in and that the text owner matches the user name. Otherwise we return
-   a 'not found' error.
+2. When a text is read, if `visibility` is `private`, we verify the user is
+   logged in and that the text owner matches the user name before displaying
+   the text. Otherwise we return a 'not found' error.
 3. If the text visibility is `public`, the text is indexed by the search
    engine, otherwise it is ignored.
 
