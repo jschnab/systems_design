@@ -84,7 +84,7 @@ async def get_text(text_id, user):
     metadata = await database.get_text_metadata(text_id)
 
     if not database.text_is_visible(metadata):
-        LOGGER.info(f"Text {text_id} will be deleted, ignoring")
+        LOGGER.info(f"Text {text_id} is or will be deleted, ignoring")
         return
 
     if database.text_is_private(metadata):
