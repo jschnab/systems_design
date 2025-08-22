@@ -49,6 +49,14 @@
             </select>
         </div>
         <div>
+            <label for="visibility">Visibility</label>
+            <select id="visibility" name="visibility">
+                <option value="public">Public</option>
+                <option value="unlisted" {% if not g.user %}disabled="true"{% endif %}>Unlisted</option>
+                <option value="private" {% if not g.user %}disabled="true"{% endif %}>Private</option>
+            </select>
+        </div>
+        <div>
             <label for="burn-after-reading">Burn after reading</label>
             <input id="burn-after-reading" name="burn-after-reading" type="checkbox">
         </div>

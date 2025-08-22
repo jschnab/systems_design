@@ -42,9 +42,10 @@ CREATE TABLE IF NOT EXISTS texts (
   user_ip VARCHAR(15),
   creation TIMESTAMP,
   expiration TIMESTAMP,
-  to_be_deleted BOOLEAN,
+  to_be_deleted BOOLEAN NOT NULL DEFAULT FALSE,
   deletion TIMESTAMP,
-  burn_after_reading BOOLEAN DEFAULT FALSE
+  burn_after_reading BOOLEAN NOT NULL DEFAULT FALSE,
+  visibility ENUM('public', 'unlisted', 'private') NOT NULL DEFAULT 'public'
 )
 ;"""
 
@@ -77,12 +78,13 @@ INSERT INTO texts (
     , creation
     , expiration
     , burn_after_reading
+    , visibility
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 ;"""
 
 MARK_TEXT_FOR_DELETION = """
-UPDATE texts SET to_be_deleted = true WHERE text_id = %s
+UPDATE texts SET to_be_deleted = TRUE WHERE text_id = %s
 ;"""
 
 MARK_TEXT_DELETED = "UPDATE texts SET deletion = %s WHERE text_id = %s;"
@@ -127,10 +129,6 @@ WHERE user_id = %s AND ts >= NOW() - INTERVAL 15 MINUTE
 ORDER BY ts DESC
 ;"""
 
-TEXT_IS_VISIBLE = """
-SELECT NOT to_be_deleted AS is_visible FROM texts WHERE text_id = %s
-;"""
-
-IS_TEXT_BURN_AFTER_READING = """
-SELECT burn_after_reading FROM texts WHERE text_id = %s
+GET_TEXT_METADATA = """
+SELECT * FROM texts WHERE text_id = %s
 ;"""

@@ -53,7 +53,13 @@ def get_text_title(text_body):
 
 
 async def put_text(
-    text_body, text_title, user_id, user_ip, ttl, burn_after_reading
+    text_body,
+    text_title,
+    user_id,
+    user_ip,
+    ttl,
+    burn_after_reading,
+    visibility,
 ):
     creation_timestamp = datetime.now()
     ttl_hours = TTL_TO_HOURS[ttl]
@@ -69,14 +75,24 @@ async def put_text(
         creation_timestamp=creation_timestamp,
         expiration_timestamp=expiration_timestamp,
         burn_after_reading=burn_after_reading,
+        visibility=visibility,
     )
     return text_id
 
 
-async def get_text(text_id):
-    if not await database.text_is_visible(text_id):
-        LOGGER.info(f"Text {text_id} was burned, ignoring")
+async def get_text(text_id, user):
+    metadata = await database.get_text_metadata(text_id)
+
+    if not database.text_is_visible(metadata):
+        LOGGER.info(f"Text {text_id} will be deleted, ignoring")
         return
+
+    if database.text_is_private(metadata):
+        LOGGER.info(f"Text {text_id} is private")
+        if not database.text_owner_matches_logged_user(user, metadata):
+            LOGGER.info(f"Text {text_id} accessed by non-owner, ignoring")
+            return
+        LOGGER.info(f"Text {text_id} accessed by owner")
 
     text_body = await cache.get(text_id)
     if text_body is not None:
@@ -85,7 +101,7 @@ async def get_text(text_id):
     LOGGER.info(f"Text {text_id} not found in cache")
     text_body = await object_store.get_text(text_id)
 
-    if await database.is_text_burn_after_reading(text_id):
+    if database.is_text_burn_after_reading(metadata):
         LOGGER.info(f"Text {text_id} should be burned")
         await database.mark_text_for_deletion(text_id)
     else:

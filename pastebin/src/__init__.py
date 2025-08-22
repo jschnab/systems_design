@@ -5,6 +5,7 @@ from datetime import datetime
 from quart import (
     abort,
     flash,
+    g,
     Quart,
     redirect,
     render_template,
@@ -68,13 +69,14 @@ def create_app():
                 ttl=request_form["ttl"],
                 burn_after_reading=request_form.get("burn-after-reading")
                 == "on",
+                visibility=request_form["visibility"],
             )
 
         return redirect(url_for("index", confirmation=text_id))
 
     @app.route("/text/<text_id>")
     async def get_text(text_id):
-        text_body = await api.get_text(text_id)
+        text_body = await api.get_text(text_id, g.user)
         if text_body is None:
             abort(404)
         return await render_template("text.html", text_body=text_body)
