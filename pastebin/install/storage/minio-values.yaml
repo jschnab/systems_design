@@ -1,0 +1,82 @@
+# Get root user/password from secret
+existingSecret: minio-creds
+
+# Number of drives attached to a node
+drivesPerNode: 1
+# Number of MinIO containers running
+replicas: 3
+# Number of expanded MinIO clusters
+pools: 1
+
+# Persistence
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  accessMode: ReadWriteOnce
+  size: 20Gi
+
+# Resource request
+resources:
+  requests:
+    memory: 1Gi
+
+# Service Monitor
+metrics:
+  serviceMonitor:
+    enabled: false
+    includeNode: true
+
+# Minio Buckets
+buckets:
+  - name: <bucket-name>
+    policy: none
+
+# Ingress resource (nginx)
+ingress:
+  ## Enable creation of ingress resource
+  enabled: false
+  ## Add ingressClassName to the Ingress
+  ingressClassName: nginx
+  # ingress host
+  hosts:
+    - s3.${CLUSTER_DOMAIN}
+  ## TLS Secret Name
+  tls:
+    - secretName: minio-tls
+      hosts:
+        - s3.${CLUSTER_DOMAIN}
+  ## Default ingress path
+  path: /
+  ## Ingress annotations
+  annotations:
+    # Enable cert-manager to create automatically the SSL certificate and store in Secret
+    # Possible Cluster-Issuer values:
+    #   * 'letsencrypt-issuer' (trusted TLS certificate using IONOS API)
+    #   * 'ca-issuer' (CA-signed certificate, not valid)
+    cert-manager.io/cluster-issuer: letsencrypt-issuer
+    cert-manager.io/common-name: s3.${CLUSTER_DOMAIN}
+
+# console Ingress (nginx)
+consoleIngress:
+  ## Enable creation of ingress resource
+  enabled: false
+  ## Add ingressClassName to the Ingress
+  ingressClassName: nginx
+  # ingress host
+  hosts:
+    - minio.${CLUSTER_DOMAIN}
+  ## TLS Secret Name
+  tls:
+    - secretName: minio-console-tls
+      hosts:
+        - minio.${CLUSTER_DOMAIN}
+  ## Default ingress path
+  path: /
+  ## Ingress annotations
+  annotations:
+    # Enable cert-manager to create automatically the SSL certificate and store in Secret
+    # Possible Cluster-Issuer values:
+    #   * 'letsencrypt-issuer' (valid TLS certificate using IONOS API)
+    #   * 'ca-issuer' (CA-signed certificate, not valid)
+    cert-manager.io/cluster-issuer: letsencrypt-issuer
+    cert-manager.io/common-name: minio.${CLUSTER_DOMAIN}
