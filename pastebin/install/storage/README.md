@@ -39,8 +39,6 @@ Longhorn was installed in the namespace `longhorn-system` with a plain K8 YAML:
 kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.8.1/deploy/longhorn.yaml
 ```
 
-The contents of this file are saved in `longhorn.yaml`.
-
 ### MinIO
 
 MinIO was installed with Helm.
