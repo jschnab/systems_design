@@ -6,8 +6,11 @@ def get_config():
     # or scalar values (string, integer).
     return {
         "text_storage": {
-            "s3_bucket": os.getenv("MYPASTEBIN_S3_BUCKET"),
+            "bucket": os.getenv("MYPASTEBIN_OBJECT_STORE_BUCKET"),
             "encoding": os.getenv("MYPASTEBIN_TEXT_ENCODING", "utf-8"),
+            "endpoint": os.getenv("MYPASTEBIN_OBJECT_STORE_ENDPOINT"),
+            "user": os.getenv("MINIO_USER"),
+            "password": os.getenv("MINIO_PASSWORD"),
         },
         "database": {
             "host": os.getenv("MYPASTEBIN_DB_HOST", "localhost"),

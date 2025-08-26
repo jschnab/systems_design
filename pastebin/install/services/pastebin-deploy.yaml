@@ -30,11 +30,16 @@ spec:
         - containerPort: 8000
           name: gunicorn-port
         env:
-        - name: MYPASTEBIN_S3_BUCKET
+        - name: MYPASTEBIN_OBJECT_STORE_BUCKET
           valueFrom:
             configMapKeyRef:
               name: pastebin-config
-              key: s3_bucket
+              key: object_store_bucket
+        - name: MYPASTEBIN_OBJECT_STORE_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: pastebin-config
+              key: object_store_endpoint
         - name: MYPASTEBIN_DB_HOST
           valueFrom:
             configMapKeyRef:
@@ -80,16 +85,16 @@ spec:
             secretKeyRef:
               name: redis-pastebin-credentials
               key: password
-        - name: AWS_ACCESS_KEY_ID
+        - name: MINIO_USER
           valueFrom:
             secretKeyRef:
-              name: pastebin-aws-credentials
-              key: access_key_id
-        - name: AWS_SECRET_ACCESS_KEY
+              name: pastebin-object-store-credentials
+              key: user
+        - name: MINIO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: pastebin-aws-credentials
-              key: secret_access_key
+              name: pastebin-object-store-credentials
+              key: password
       # Remove affinity rule once networking between node is improved.
       affinity:
         nodeAffinity:

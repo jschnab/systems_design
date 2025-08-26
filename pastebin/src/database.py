@@ -161,7 +161,7 @@ async def put_text_metadata(
         (
             text_id,
             text_title,
-            f"{config['text_storage']['s3_bucket']}/{text_id}",
+            f"{config['text_storage']['bucket']}/{text_id}",
             user_id,
             user_ip,
             creation_timestamp,

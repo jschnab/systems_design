@@ -8,23 +8,29 @@ from .log import get_logger
 
 LOGGER = get_logger()
 SESSION = aioboto3.Session()
-S3_BUCKET = config["text_storage"]["s3_bucket"]
-TEXT_ENCODING = config["text_storage"]["encoding"]
+CONF = config["text_storage"]
+BUCKET = CONF["bucket"]
+TEXT_ENCODING = CONF["encoding"]
+CLIENT_PARAMS = {
+    "endpoint_url": CONF["endpoint"],
+    "aws_access_key_id": CONF["user"],
+    "aws_secret_access_key": CONF["password"],
+}
 
 
 async def put_text(text_id, text_body):
-    async with SESSION.client("s3") as s3:
-        await s3.put_object(
+    async with SESSION.client("s3", **CLIENT_PARAMS) as client:
+        await client.put_object(
             Body=zlib.compress(text_body.encode(TEXT_ENCODING)),
-            Bucket=S3_BUCKET,
+            Bucket=BUCKET,
             Key=text_id,
         )
 
 
 async def get_text(text_id):
     try:
-        async with SESSION.client("s3") as s3:
-            response = await s3.get_object(Bucket=S3_BUCKET, Key=text_id)
+        async with SESSION.client("s3", **CLIENT_PARAMS) as client:
+            response = await client.get_object(Bucket=BUCKET, Key=text_id)
             body = await response["Body"].read()
             return zlib.decompress(body).decode(TEXT_ENCODING)
     except botocore.exceptions.ClientError as e:
@@ -35,5 +41,5 @@ async def get_text(text_id):
 
 
 async def delete_text(text_id):
-    async with SESSION.client("s3") as s3:
-        await s3.delete_object(Bucket=S3_BUCKET, Key=text_id)
+    async with SESSION.client("s3", **CLIENT_PARAMS) as client:
+        await client.delete_object(Bucket=BUCKET, Key=text_id)
