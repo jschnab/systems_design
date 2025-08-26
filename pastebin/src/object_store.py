@@ -10,10 +10,9 @@ LOGGER = get_logger()
 SESSION = aioboto3.Session()
 CONF = config["text_storage"]
 BUCKET = CONF["bucket"]
-ENDPOINT_URL = CONF["endpoint"]
 TEXT_ENCODING = CONF["encoding"]
 CLIENT_PARAMS = {
-    "endpoint_url": ENDPOINT_URL,
+    "endpoint_url": CONF["endpoint"],
     "aws_access_key_id": CONF["user"],
     "aws_secret_access_key": CONF["password"],
 }
