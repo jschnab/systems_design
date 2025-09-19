@@ -3,18 +3,17 @@ import zlib
 import aioboto3
 import botocore
 
-from .config import config
+from .config.object_store import config
 from .log import get_logger
 
 LOGGER = get_logger()
 SESSION = aioboto3.Session()
-CONF = config["text_storage"]
-BUCKET = CONF["bucket"]
-TEXT_ENCODING = CONF["encoding"]
+BUCKET = config["bucket"]
+TEXT_ENCODING = config["encoding"]
 CLIENT_PARAMS = {
-    "endpoint_url": CONF["endpoint"],
-    "aws_access_key_id": CONF["user"],
-    "aws_secret_access_key": CONF["password"],
+    "endpoint_url": config["endpoint"],
+    "aws_access_key_id": config["user"],
+    "aws_secret_access_key": config["password"],
 }
 
 

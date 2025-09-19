@@ -1,5 +1,4 @@
 import asyncio
-import enum
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -7,29 +6,25 @@ from functools import partial
 
 import mysql.connector
 
+from . import constants as cst
 from . import return_codes
 from . import sql_queries
-from .config import config
+from .config.app import config as app_config
+from .config.database import config as db_config
+from .config.object_store import config as obj_config
 from .log import get_logger
 
 DB_CONFIG = {
-    "host": config["database"]["host"],
-    "port": config["database"]["port"],
-    "database": config["database"]["database"],
-    "user": config["database"]["user"],
-    "password": config["database"]["password"],
+    "host": db_config["host"],
+    "port": db_config["port"],
+    "database": db_config["database"],
+    "user": db_config["user"],
+    "password": db_config["password"],
 }
-DEFAULT_USER = config["app"]["default_user"]
+DEFAULT_USER = app_config["default_user"]
 MAX_CONNECT_FAIL = 3
 USER_LOCK_TIMEOUT = 15  # minutes
 LOGGER = get_logger()
-
-
-class TextVisibility(enum.Enum):
-    PUBLIC = "public"
-    UNLISTED = "unlisted"
-    PRIVATE = "private"
-
 
 connection_pool = None
 
@@ -40,7 +35,7 @@ def init_connection_pool():
         LOGGER.info("Creating database connection pool")
         connection_pool = mysql.connector.pooling.MySQLConnectionPool(
             pool_name="pastebin",
-            pool_size=config["database"]["pool_size"],
+            pool_size=db_config["pool_size"],
             **DB_CONFIG,
         )
 
@@ -103,8 +98,8 @@ async def execute_in_thread_pool(query, args=None, fetchone=False):
 
 async def setup_database_objects(root_password):
     root_db_config = {
-        "host": config["database"]["host"],
-        "port": config["database"]["port"],
+        "host": db_config["host"],
+        "port": db_config["port"],
         "database": "mysql",
         "user": "root",
         "password": root_password,
@@ -113,19 +108,19 @@ async def setup_database_objects(root_password):
         with con.cursor() as cur:
             cur.execute(
                 sql_queries.CREATE_DATABASE.format(
-                    database_name=config["database"]["database"],
+                    database_name=db_config["database"],
                 )
             )
             cur.execute(
                 sql_queries.CREATE_DB_USER.format(
-                    user_name=config["database"]["user"],
-                    password=config["database"]["password"],
+                    user_name=db_config["user"],
+                    password=db_config["password"],
                 )
             )
             cur.execute(
                 sql_queries.CREATE_DB_USER_PERMISSIONS.format(
-                    database_name=config["database"]["database"],
-                    user_name=config["database"]["user"],
+                    database_name=db_config["database"],
+                    user_name=db_config["user"],
                 )
             )
         con.commit()
@@ -161,7 +156,7 @@ async def put_text_metadata(
         (
             text_id,
             text_title,
-            f"{config['text_storage']['bucket']}/{text_id}",
+            f"{obj_config['bucket']}/{text_id}",
             user_id,
             user_ip,
             creation_timestamp,
@@ -280,7 +275,7 @@ async def get_text_metadata(text_id):
 
 
 def text_is_private(text_metadata):
-    return text_metadata["visibility"] == TextVisibility.PRIVATE.value
+    return text_metadata["visibility"] == cst.TextVisibility.PRIVATE.value
 
 
 def text_owner_matches_logged_user(user_context, text_metadata):

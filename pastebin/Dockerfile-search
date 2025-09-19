@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+FROM --platform=linux/arm64 arm64v8/alpine:3.22
+
+ARG USER_NAME=pastebin
+ARG USER_HOME=/home/${USER_NAME}
+
+RUN apk update \
+    && apk update \
+    && apk add build-base python3-dev linux-headers gcc musl-dev librdkafka-dev \
+    && adduser -S ${USER_NAME}
+
+USER ${USER_NAME}
+WORKDIR ${USER_HOME}
+
+COPY requirements-search.txt requirements-search.txt
+COPY run_search_indexing run_search_indexing
+COPY src/constants.py src/constants.py
+COPY src/config/ src/config/
+COPY src/kafka.py src/kafka.py
+COPY src/log.py src/log.py
+COPY src/object_store.py src/object_store.py
+COPY src/search_indexing.py src/search_indexing.py
+
+RUN --mount=type=cache,target=${USER_HOME}/.cache python3 -m venv .venv \
+    && . .venv/bin/activate \
+    && pip install -U pip setuptools wheel \
+    && pip install -r requirements-search.txt
+
+ENTRYPOINT ["./run_search_indexing"]

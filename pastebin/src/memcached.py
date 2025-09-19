@@ -2,12 +2,12 @@ import functools
 
 from pymemcache.client.base import Client
 
-from .config import config
+from .config.cache import config
 from .log import get_logger
 
 CACHE_CLIENT = Client(
-    config["cache"]["host"],
-    encoding=config["cache"]["encoding"],
+    config["host"],
+    encoding=config["encoding"],
 )
 
 LOGGER = get_logger()
@@ -33,7 +33,7 @@ def put(key, value):
 def get(key):
     value = CACHE_CLIENT.get(key)
     if value is not None:
-        return value.decode(config["cache"]["encoding"])
+        return value.decode(config["encoding"])
 
 
 @manage_exceptions

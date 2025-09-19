@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from . import cache
 from . import database
 from . import object_store
-from .config import config
+from .config.app import config
 from .log import get_logger
 
 LOGGER = get_logger()
@@ -123,14 +123,14 @@ async def delete_text(text_id, deletion_timestamp):
 
 
 async def user_exceeded_quota(user_id, user_ip):
-    if user_id == config["app"]["default_user"]:
+    if user_id == config["default_user"]:
         count_texts = await database.count_recent_texts_by_anonymous_user(
             user_ip
         )
-        quota = config["app"]["texts_quota_anonymous"]
+        quota = config["texts_quota_anonymous"]
     else:
         count_texts = await database.count_recent_texts_by_logged_user(user_id)
-        quota = config["app"]["texts_quota_user"]
+        quota = config["texts_quota_user"]
 
     return count_texts > quota
 

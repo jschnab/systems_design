@@ -17,9 +17,9 @@ from quart import (
 
 from . import api
 from . import auth
-from .config import config
+from .config.app import config
 
-APP_URL = config["app"]["url"]
+APP_URL = config["url"]
 TEXT_MIN_CHAR = 110
 TEXT_MAX_CHAR = 512000
 
@@ -48,13 +48,13 @@ def create_app():
             await flash(f"Text should be less than {TEXT_MAX_CHAR} characters")
             return redirect(url_for("index"))
 
-        user_id = session.get("user_id", config["app"]["default_user"])
+        user_id = session.get("user_id", config["default_user"])
         user_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
         if await api.user_exceeded_quota(user_id, user_ip):
-            if user_id == config["app"]["default_user"]:
-                quota = config["app"]["texts_quota_anonymous"]
+            if user_id == config["default_user"]:
+                quota = config["texts_quota_anonymous"]
             else:
-                quota = config["app"]["texts_quota_user"]
+                quota = config["texts_quota_user"]
             await flash(
                 f"User '{user_id}' stored more than {quota} texts during the "
                 "past day, come back later"

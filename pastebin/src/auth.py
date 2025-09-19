@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import database
 from . import return_codes
-from .config import config
+from .config.app import config
 
 try:
     # Some Python installations do not have scrypt, but all have pbkdf2.
@@ -25,7 +25,7 @@ except ImportError:
     HASH_METHOD = "pbkdf2"
 
 MIN_PASSWORD_LEN = 10
-DEFAULT_USER = config["app"]["default_user"]
+DEFAULT_USER = config["default_user"]
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -102,7 +102,7 @@ async def login():
         request_form = await request.form
 
         user_id = request_form["user_id"]
-        if user_id == config["app"]["default_user"]:
+        if user_id == config["default_user"]:
             await flash("Incorrect user")
             return redirect(url_for("auth.login"))
 

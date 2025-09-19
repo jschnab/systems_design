@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pastebin-search-indexing
+  labels:
+    app.kubernetes.io/name: pastebin
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pastebin
+  revisionHistoryLimit: 3
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  progressDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pastebin
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+      - name: pastebin-search-indexing
+        image: jschnab/pastebin-search-indexing:dev
+        imagePullPolicy: Always
+        env:
+        - name: MYPASTEBIN_OBJECT_STORE_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: object_store_bucket
+        - name: MYPASTEBIN_OBJECT_STORE_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: object_store_endpoint
+        - name: MINIO_USER
+          valueFrom:
+            secretKeyRef:
+              name: pastebin-object-store-credentials
+              key: user
+        - name: MINIO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pastebin-object-store-credentials
+              key: password
+        - name: MYPASTEBIN_DEBEZIUM_TEXTS_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: debezium_texts_topic
+        - name: MYPASTEBIN_KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: kafka_bootstrap_servers
+        - name: MYPASTEBIN_KAFKA_CONSUMER_GROUP_ID
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: kafka_consumer_group_id
+        - name: MYPASTEBIN_ELASTICSEARCH_TEXTS_INDEX_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: elasticsearch_index_name
+        - name: MYPASTEBIN_ELASTICSEARCH_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: elasticsearch_host
+        - name: MYPASTEBIN_ELASTICSEARCH_USER
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-creds
+              key: user
+        - name: MYPASTEBIN_ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-creds
+              key: password
