@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from . import cache
 from . import database
 from . import object_store
+from . import search
+from . import utils
 from .config.app import config
 from .log import get_logger
 
@@ -12,7 +14,6 @@ LOGGER = get_logger()
 
 H1_REGEX = re.compile(r"<h1.*>(.+)</h1>")
 SENTENCE_REGEX = re.compile(r"[\w,'&]+( [\w,'&]+)+")
-HTML_TAG_REGEX = re.compile(r"<.*?>")
 MINIMUM_TITLE_LENGTH = 40
 MAXIMUM_TITLE_LENGTH = 60
 
@@ -23,10 +24,6 @@ TTL_TO_HOURS = {
     "1m": 24 * 30,
     "1y": 24 * 365,
 }
-
-
-def remove_html_tags(text):
-    return re.sub(HTML_TAG_REGEX, "", text)
 
 
 def truncate_title(title):
@@ -42,12 +39,12 @@ def truncate_title(title):
 
 def get_text_title(text_body):
     if (match := H1_REGEX.search(text_body)) is not None:
-        title = remove_html_tags(match.group(1))
+        title = utils.remove_html_tags(match.group(1))
         if title != "":
             return truncate_title(title)
     for match in SENTENCE_REGEX.finditer(text_body):
         if len(match.group(0)) >= MINIMUM_TITLE_LENGTH:
-            title = remove_html_tags(match.group(0))
+            title = utils.remove_html_tags(match.group(0))
             return truncate_title(title)
     return "Untitled"
 
@@ -141,3 +138,11 @@ async def get_text_owner(text_id):
 
 async def get_texts_by_owner(user_id):
     return await database.get_texts_by_owner(user_id)
+
+
+async def search_texts(query, from_):
+    try:
+        results = await search.search(query, from_)
+        return results
+    except search.BadRequestError:
+        return []

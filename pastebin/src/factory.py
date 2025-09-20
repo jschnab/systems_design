@@ -115,6 +115,18 @@ def create_app():
             mimetype="image/vnd.microsoft.icon",
         )
 
+    @app.route("/search")
+    async def search():
+        results = await api.search_texts(
+            request.args.get("q"),
+            request.args.get("from", 0),
+        )
+
+        return await render_template(
+            "search_results.html",
+            results=results,
+        )
+
     app.register_blueprint(auth.bp)
 
     return app

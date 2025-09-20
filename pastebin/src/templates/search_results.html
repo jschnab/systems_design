@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+  <h2>Search results</h2>
+  {% if results %}
+    {% for res in results %}
+      <div class="search-result-item">
+        <ul class="search-result-item-details">
+          <li class="search-result-title">
+            <a href="{{ url_for('get_text', text_id=res['text_id']) }}" target="_blank">
+                {{res['text_title']}}
+            </a>
+          </li>
+          <ul class="search-result-highlights">
+            {% for highlight in res['text_body_highlights'] %}
+              <li class="search-result-highlights-item">{{ highlight | safe }}</li>
+            {% endfor %}
+          </ul>
+        </ul>
+      </div>
+    {% endfor %}
+  {% else %}
+  <p>No results found, try another search!</p>
+  {% endif %}
+
+{% endblock %}

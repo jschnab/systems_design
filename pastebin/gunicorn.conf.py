@@ -2,6 +2,7 @@ import asyncio
 
 import src.cache
 import src.database
+import src.search
 
 loglevel = "debug"
 capture_output = True
@@ -12,6 +13,7 @@ def post_fork(server, worker):
     src.cache.init_connection_pool()
     src.database.init_thread_pool()
     src.database.init_connection_pool()
+    src.search.init_search_client()
 
 
 def worker_exit(server, worker):
@@ -19,3 +21,4 @@ def worker_exit(server, worker):
     asyncio.run(src.cache.close_connection_pool())
     src.database.close_thread_pool()
     src.database.close_connection_pool()
+    src.search.close_search_client()

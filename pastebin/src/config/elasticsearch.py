@@ -11,6 +11,10 @@ def get_elasticsearch_config():
         ),
         "user": os.getenv("MYPASTEBIN_ELASTICSEARCH_USER"),
         "password": os.getenv("MYPASTEBIN_ELASTICSEARCH_PASSWORD"),
+        "connections_per_node": os.getenv(
+            "MYPASTEBIN_ELASTICSEARCH_CONNECTIONS_PER_NODE", 10
+        ),
+        "page_size": os.getenv("MYPASTEBIN_ELASTICSEARCH_PAGE_SIZE", 10),
     }
 
 
