@@ -117,14 +117,17 @@ def create_app():
 
     @app.route("/search")
     async def search():
-        results = await api.search_texts(
+        results, previous_offset, next_offset = await api.search_texts(
             request.args.get("q"),
-            request.args.get("from", 0),
+            int(request.args.get("from", 0)),
         )
 
         return await render_template(
             "search_results.html",
             results=results,
+            query=request.args.get("q"),
+            previous_offset=previous_offset,
+            next_offset=next_offset,
         )
 
     app.register_blueprint(auth.bp)

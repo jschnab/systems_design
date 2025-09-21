@@ -17,20 +17,20 @@ def get_kafka_config():
         "enable_auto_offset_store": os.getenv(
             "MYPASTEBIN_KAFKA_CONSUMER_ENABLE_AUTO_OFFSET_STORE", False
         ),
-        "fetch_min_bytes": os.getenv(
-            "MYPASTEBIN_KAFKA_CONSUMER_FETCH_MIN_BYTES", 1000
+        "fetch_min_bytes": int(
+            os.getenv("MYPASTEBIN_KAFKA_CONSUMER_FETCH_MIN_BYTES", 1000)
         ),
-        "fetch_max_wait_ms": os.getenv(
-            "MYPASTEBIN_KAFKA_CONSUMER_FETCH_MAX_WAIT_MS", 1000
+        "fetch_max_wait_ms": int(
+            os.getenv("MYPASTEBIN_KAFKA_CONSUMER_FETCH_MAX_WAIT_MS", 1000)
         ),
         "isolation_level": os.getenv(
             "MYPASTEBIN_KAFKA_CONSUMER_ISOLATION_LEVEL", "read_committed"
         ),
-        "message_batch_size": os.getenv(
-            "MYPASTEBIN_KAFKA_MESSAGE_BATCH_SIZE", 5
+        "message_batch_size": int(
+            os.getenv("MYPASTEBIN_KAFKA_MESSAGE_BATCH_SIZE", 5)
         ),
-        "poll_timeout": os.getenv(
-            "MYPASTEBIN_KAFKA_CONSUMER_POLL_TIMEOUT", 1.0
+        "poll_timeout": float(
+            os.getenv("MYPASTEBIN_KAFKA_CONSUMER_POLL_TIMEOUT", 1.0)
         ),
     }
 

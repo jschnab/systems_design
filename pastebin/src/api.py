@@ -142,7 +142,6 @@ async def get_texts_by_owner(user_id):
 
 async def search_texts(query, from_):
     try:
-        results = await search.search(query, from_)
-        return results
+        return await search.search(query, from_)
     except search.BadRequestError:
-        return []
+        return None, []

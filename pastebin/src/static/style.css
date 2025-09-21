@@ -80,7 +80,7 @@ select { align-self: start; min-width: 10em; }
     cursor: pointer;
 }
 
-.search-result-item-details { list-style: none; }
+.search-result-item { list-style: none; }
 
 .search-result-title {
     font-size: larger;
@@ -158,6 +158,25 @@ select { align-self: start; min-width: 10em; }
     flex-direction: row;
     margin-right: auto;
 }
+
+#search-results-page-navigation {
+    display: flex;
+    margin: 2em 0;
+}
+
+#search-results-next-page {
+    margin-left: 1em;
+    margin-right: auto;
+}
+
+#search-results-next-page-only { margin: auto; }
+
+#search-results-previous-page {
+    margin-left: auto;
+    margin-right: 1em;
+}
+
+#search-results-previous-page-only { margin: auto; }
 
 #share-new-text-icon { margin-right: 0.2em; }
 

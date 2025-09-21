@@ -10,7 +10,7 @@ def get_database_config():
         "database": os.getenv("MYPASTEBIN_DB_DATABASE"),
         "user": os.getenv("MYPASTEBIN_DB_USER"),
         "password": os.getenv("MYPASTEBIN_DB_PASSWORD"),
-        "pool_size": os.getenv("MYPASTEBIN_DB_CON_POOL_SIZE", 32),
+        "pool_size": int(os.getenv("MYPASTEBIN_DB_CON_POOL_SIZE", 32)),
     }
 
 

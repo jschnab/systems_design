@@ -3,10 +3,11 @@
 {% block content %}
 
   <h2>Search results</h2>
+
   {% if results %}
+    <div id="search-results-list">
     {% for res in results %}
-      <div class="search-result-item">
-        <ul class="search-result-item-details">
+        <ul class="search-result-item">
           <li class="search-result-title">
             <a href="{{ url_for('get_text', text_id=res['text_id']) }}" target="_blank">
                 {{res['text_title']}}
@@ -18,10 +19,33 @@
             {% endfor %}
           </ul>
         </ul>
-      </div>
     {% endfor %}
+    </div>
+
+    <div id="search-results-page-navigation">
+    {% if previous_offset is not none and next_offset is not none %}
+      <a href="{{ url_for('search', q=query, from=previous_offset) }}" id="search-results-previous-page">
+          Previous results
+      </a>
+
+      <a href="{{ url_for('search', q=query, from=next_offset) }}" id="search-results-next-page">
+          Next results
+
+    {% elif previous_offset is not none %}
+      <a href="{{ url_for('search', q=query, from=previous_offset) }}" id="search-results-previous-page-only">
+          Previous results
+      </a>
+
+    {% elif next_offset is not none %}
+      <a href="{{ url_for('search', q=query, from=next_offset) }}" id="search-results-next-page-only">
+          Next results
+      </a>
+
+    {% endif %}
+    </div>
+
   {% else %}
-  <p>No results found, try another search!</p>
+    <p>No results found, try another search!</p>
   {% endif %}
 
 {% endblock %}

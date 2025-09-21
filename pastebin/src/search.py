@@ -52,7 +52,22 @@ async def search(query, from_=0, size=config["page_size"]):
         raise
 
     log_search_results(query, response)
-    return [parse_result_item(item) for item in response["hits"]["hits"]]
+
+    if from_ > 0:
+        previous_offset = max(0, from_ - size)
+    else:
+        previous_offset = None
+
+    if from_ + size < response["hits"]["total"]["value"]:
+        next_offset = from_ + size
+    else:
+        next_offset = None
+
+    return (
+        [parse_result_item(item) for item in response["hits"]["hits"]],
+        previous_offset,
+        next_offset,
+    )
 
 
 def parse_result_item(item):
