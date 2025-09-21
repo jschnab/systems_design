@@ -11,4 +11,4 @@ black --line-length 79 src
 
 flake8 src
 
-mypy src/search.py src/kafka.py src/search_indexing.py
+mypy src/search.py src/kafka.py src/search_indexing.py src/config/

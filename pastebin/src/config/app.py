@@ -3,7 +3,13 @@ import os
 from . import validation
 
 
-def get_app_config():
+def get_app_config() -> dict:
+    """
+    Builds general application configuration.
+
+    Returns:
+        dict: Configuration
+    """
     return {
         "url": os.getenv("MYPASTEBIN_URL", "localhost"),
         "default_user": os.getenv("MYPASTEBIN_DEFAULT_USER", "anonymous"),
@@ -15,5 +21,5 @@ def get_app_config():
     }
 
 
-config = get_app_config()
+config: dict = get_app_config()
 validation.check_config(config)

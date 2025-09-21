@@ -3,7 +3,13 @@ import os
 from . import validation
 
 
-def get_database_config():
+def get_database_config() -> dict:
+    """
+    Builds database configuration.
+
+    Returns:
+        dict: Configuration.
+    """
     return {
         "host": os.getenv("MYPASTEBIN_DB_HOST", "localhost"),
         "port": int(os.getenv("MYPASTEBIN_DB_PORT", 3306)),
@@ -14,5 +20,5 @@ def get_database_config():
     }
 
 
-config = get_database_config()
+config: dict = get_database_config()
 validation.check_config(config)

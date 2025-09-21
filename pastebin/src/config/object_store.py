@@ -3,7 +3,13 @@ import os
 from . import validation
 
 
-def get_object_store_config():
+def get_object_store_config() -> dict:
+    """
+    Builds object store configuration.
+
+    Returns:
+        dict: Configuration.
+    """
     return {
         "bucket": os.getenv("MYPASTEBIN_OBJECT_STORE_BUCKET"),
         "encoding": os.getenv("MYPASTEBIN_TEXT_ENCODING", "utf-8"),
@@ -13,5 +19,5 @@ def get_object_store_config():
     }
 
 
-config = get_object_store_config()
+config: dict = get_object_store_config()
 validation.check_config(config)

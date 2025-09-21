@@ -3,7 +3,13 @@ import os
 from . import validation
 
 
-def get_kafka_config():
+def get_kafka_config() -> dict:
+    """
+    Builds Kafka configuration.
+
+    Returns:
+        None
+    """
     return {
         "bootstrap_servers": os.getenv(
             "MYPASTEBIN_KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"
@@ -35,5 +41,5 @@ def get_kafka_config():
     }
 
 
-config = get_kafka_config()
+config: dict = get_kafka_config()
 validation.check_config(config)

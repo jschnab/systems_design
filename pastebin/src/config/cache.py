@@ -3,7 +3,13 @@ import os
 from . import validation
 
 
-def get_cache_config():
+def get_cache_config() -> dict:
+    """
+    Builds cache configuration.
+
+    Returns:
+        dict: Configuration.
+    """
     return {
         "host": os.getenv("MYPASTEBIN_CACHE_HOST", "localhost"),
         "port": int(os.getenv("MYPASTEBIN_CACHE_PORT", 6379)),
@@ -15,5 +21,5 @@ def get_cache_config():
     }
 
 
-config = get_cache_config()
+config: dict = get_cache_config()
 validation.check_config(config)

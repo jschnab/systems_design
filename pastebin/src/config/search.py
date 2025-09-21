@@ -3,7 +3,13 @@ import os
 from . import validation
 
 
-def get_elasticsearch_config():
+def get_elasticsearch_config() -> dict:
+    """
+    Builds Elasticsearch configuration.
+
+    Returns:
+        dict: Configuration.
+    """
     return {
         "index_name": os.getenv("MYPASTEBIN_ELASTICSEARCH_TEXTS_INDEX_NAME"),
         "host": os.getenv(
@@ -18,5 +24,5 @@ def get_elasticsearch_config():
     }
 
 
-config = get_elasticsearch_config()
+config: dict = get_elasticsearch_config()
 validation.check_config(config)
