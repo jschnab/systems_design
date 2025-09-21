@@ -1,15 +1,19 @@
+import logging
+from typing import Optional
+
 import elasticsearch
+from elastic_transport import ObjectApiResponse
 
 from . import utils
 from .log import get_logger
 from .config.elasticsearch import config
 
-LOGGER = get_logger()
+LOGGER: logging.Logger = get_logger()
 
-client = None
+client: Optional[elasticsearch.AsyncElasticsearch] = None
 
 
-def init_search_client():
+def init_search_client() -> None:
     global client
     if client is None:
         LOGGER.info("Initializing Elasticsearch client")
@@ -21,7 +25,7 @@ def init_search_client():
         )
 
 
-async def close_search_client():
+async def close_search_client() -> None:
     if client is not None:
         LOGGER.info("Closing Elasticsearch client")
         await client.close()
@@ -33,11 +37,19 @@ class BadRequestError(Exception):
         super().__init__(message)
 
 
-async def search(query, from_=0, size=config["page_size"]):
+async def search(
+    query: str,
+    from_: int = 0,
+    size: int = config["page_size"],
+) -> tuple[list[dict], Optional[int], Optional[int]]:
+    if client is None:
+        raise RuntimeError("Elasticsearch client is not initialized")
     try:
-        response = await client.search(
+        response: ObjectApiResponse = await client.search(
             index=config["index_name"],
-            source=["title"],
+            # A list of string would work but a dictionary is required to
+            # satisfy type hints.
+            source={"include": ["title"]},
             q=query,
             from_=from_,
             size=size,
@@ -70,7 +82,7 @@ async def search(query, from_=0, size=config["page_size"]):
     )
 
 
-def parse_result_item(item):
+def parse_result_item(item: dict) -> dict:
     return {
         "text_id": item["_id"],
         "text_title": item["_source"]["title"],
@@ -81,8 +93,10 @@ def parse_result_item(item):
     }
 
 
-def log_search_results(query, response):
-    metadata = {key: response[key] for key in ("took", "timed_out", "_shards")}
+def log_search_results(query: str, response: ObjectApiResponse) -> None:
+    metadata: dict = {
+        key: response[key] for key in ("took", "timed_out", "_shards")
+    }
     metadata.update(
         {
             "hits.total": response["hits"]["total"],
