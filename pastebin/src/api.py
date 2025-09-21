@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 
 from . import cache
 from . import database
@@ -140,8 +141,11 @@ async def get_texts_by_owner(user_id):
     return await database.get_texts_by_owner(user_id)
 
 
-async def search_texts(query, from_):
+async def search_texts(
+    query: str,
+    page_start: int,
+) -> tuple[list[dict], Optional[int], Optional[int]]:
     try:
-        return await search.search(query, from_)
+        return await search.search_texts(query, page_start)
     except search.BadRequestError:
-        return None, []
+        return [], None, None

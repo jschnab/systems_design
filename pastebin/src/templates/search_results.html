@@ -24,20 +24,20 @@
 
     <div id="search-results-page-navigation">
     {% if previous_offset is not none and next_offset is not none %}
-      <a href="{{ url_for('search', q=query, from=previous_offset) }}" id="search-results-previous-page">
+      <a href="{{ url_for('search', q=query, page_start=previous_offset) }}" id="search-results-previous-page">
           Previous results
       </a>
 
-      <a href="{{ url_for('search', q=query, from=next_offset) }}" id="search-results-next-page">
+      <a href="{{ url_for('search', q=query, page_start=next_offset) }}" id="search-results-next-page">
           Next results
 
     {% elif previous_offset is not none %}
-      <a href="{{ url_for('search', q=query, from=previous_offset) }}" id="search-results-previous-page-only">
+      <a href="{{ url_for('search', q=query, page_start=previous_offset) }}" id="search-results-previous-page-only">
           Previous results
       </a>
 
     {% elif next_offset is not none %}
-      <a href="{{ url_for('search', q=query, from=next_offset) }}" id="search-results-next-page-only">
+      <a href="{{ url_for('search', q=query, page_start=next_offset) }}" id="search-results-next-page-only">
           Next results
       </a>
 

@@ -1,6 +1,10 @@
 import re
 
-from bs4 import BeautifulSoup
+# This is not required by the search indexing app.
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    pass
 
 HTML_TAG_REGEX = re.compile(r"<.*?>")
 

@@ -119,7 +119,7 @@ def create_app():
     async def search():
         results, previous_offset, next_offset = await api.search_texts(
             request.args.get("q"),
-            int(request.args.get("from", 0)),
+            int(request.args.get("page_start", 0)),
         )
 
         return await render_template(

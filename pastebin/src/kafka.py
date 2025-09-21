@@ -1,9 +1,16 @@
-from confluent_kafka import Consumer, KafkaException
+"""
+This module defines functions and classes to interact with Kafka.
+"""
+
+import logging
+from typing import Optional
+
+from confluent_kafka import Consumer, KafkaException, Message
 
 from .config.kafka import config
 from .log import get_logger
 
-LOGGER = get_logger()
+LOGGER: logging.Logger = get_logger()
 
 CONSUMER_CONFIG = {
     "bootstrap.servers": config["bootstrap_servers"],
@@ -15,24 +22,24 @@ CONSUMER_CONFIG = {
     "isolation.level": config["isolation_level"],
 }
 
-MESSAGE_BATCH_SIZE = config["message_batch_size"]
-POLL_TIMEOUT = config["poll_timeout"]
+MESSAGE_BATCH_SIZE: int = config["message_batch_size"]
+POLL_TIMEOUT: float = config["poll_timeout"]
 
 
-def init_consumer(topic, configuration=CONSUMER_CONFIG):
+def init_consumer(topic, configuration=CONSUMER_CONFIG) -> Consumer:
     consumer = Consumer(configuration)
     consumer.subscribe([topic])
     return consumer
 
 
 def get_message_batch(
-    consumer,
-    batch_size=MESSAGE_BATCH_SIZE,
-    poll_timeout=POLL_TIMEOUT,
-):
+    consumer: Consumer,
+    batch_size: int = MESSAGE_BATCH_SIZE,
+    poll_timeout: float = POLL_TIMEOUT,
+) -> list[Message]:
     messages = []
     for _ in range(batch_size):
-        msg = consumer.poll(POLL_TIMEOUT)
+        msg: Optional[Message] = consumer.poll(POLL_TIMEOUT)
         if msg is None:
             continue
         if msg.error():
@@ -41,6 +48,6 @@ def get_message_batch(
     return messages
 
 
-def acknowledge_messages(consumer, messages):
+def acknowledge_messages(consumer: Consumer, messages: list[Message]) -> None:
     for msg in messages:
         consumer.store_offsets(msg)
