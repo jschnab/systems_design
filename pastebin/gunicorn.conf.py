@@ -21,4 +21,4 @@ def worker_exit(server, worker):
     asyncio.run(src.cache.close_connection_pool())
     src.database.close_thread_pool()
     src.database.close_connection_pool()
-    src.search.close_search_client()
+    asyncio.run(src.search.close_search_client())
