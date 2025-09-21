@@ -27,7 +27,7 @@
         {% endif %}
     </ul>
 </nav>
-<section class="content">
+<div class="content">
     <header>
         {% block header %}{% endblock %}
     </header>
@@ -35,4 +35,4 @@
         <div class="flash">{{ message }}</div>
     {% endfor %}
     {% block content %}{% endblock %}
-</section>
+</div>
