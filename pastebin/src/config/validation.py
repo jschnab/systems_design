@@ -20,12 +20,10 @@ def check_config(cnf: dict) -> None:
     while stack != []:
         cur, parent = stack.pop()
         for k, v in cur.items():
+            full_key = f"{parent + '.' if parent is not None else ''}{k}"
             if isinstance(v, dict):
-                stack.append(
-                    (v, f"{parent + '.' if parent is not None else ''}{k}")
-                )
+                stack.append((v, full_key))
             else:
-                full_key = f"{parent}.{k}"
                 if v is None:
                     null_values.append(full_key)
     if null_values != []:
