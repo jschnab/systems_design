@@ -95,6 +95,26 @@ spec:
             secretKeyRef:
               name: pastebin-object-store-credentials
               key: password
+        - name: MYPASTEBIN_ELASTICSEARCH_TEXTS_INDEX_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: elasticsearch_index_name
+        - name: MYPASTEBIN_ELASTICSEARCH_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: search-indexing-config
+              key: elasticsearch_host
+        - name: MYPASTEBIN_ELASTICSEARCH_USER
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-creds
+              key: user
+        - name: MYPASTEBIN_ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-creds
+              key: password
       # Remove affinity rule once networking between node is improved.
       affinity:
         nodeAffinity:
