@@ -2,7 +2,7 @@
 
 {% block content %}
 
-  <h2>Search results</h2>
+<h2>Search results: {{ query }}</h2>
 
   {% if results %}
     <div id="search-results-list">
@@ -10,9 +10,10 @@
         <ul class="search-result-item">
           <li class="search-result-title">
             <a href="{{ url_for('get_text', text_id=res['text_id']) }}" target="_blank">
-                {{res['text_title']}}
+                {{ res['text_title'] }}
             </a>
           </li>
+          <li class="text-creation">Created on: {{ res['text_creation_timestamp'] }}</li>
           <ul class="search-result-highlights">
             {% for highlight in res['text_body_highlights'] %}
               <li class="search-result-highlights-item">{{ highlight | safe }}</li>

@@ -4,6 +4,7 @@ interface is opaque to the underlying search technology used.
 """
 
 import logging
+from datetime import datetime
 from typing import Optional
 
 import elasticsearch
@@ -92,7 +93,7 @@ async def search_texts(
             index=config["index_name"],
             # A list of string would work but a dictionary is required to
             # satisfy type hints.
-            source={"include": ["title"]},
+            source={"include": ["title", "created_at"]},
             q=query,
             from_=page_start,
             size=page_size,
@@ -139,11 +140,30 @@ def parse_result_item(item: dict) -> dict:
     return {
         "text_id": item["_id"],
         "text_title": item["_source"]["title"],
+        "text_creation_timestamp": format_timestamp(
+            item["_source"]["created_at"]
+        ),
         "text_body_highlights": [
             utils.remove_html_tags_except_em(text)
-            for text in item["highlight"].get("body", [])
+            for text in item.get("highlight", {}).get("body", [])
         ],
     }
+
+
+def format_timestamp(timestamp: str) -> str:
+    """
+    Reformats at timestamp string given by Elasticsearch to YYYY-MM-DD
+    HH:MM:SS.
+
+    Args:
+        timestamp (str): Timestamp string as YYYY-MM-DDTHH:MM:SSZ.
+
+    Returns:
+        str: Timestamp string as YYYY-MM-DD HH:MM:SS.
+    """
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
 
 def log_search_results(query: str, response: ObjectApiResponse) -> None:
