@@ -158,8 +158,13 @@ async def run_indexing(kafka_consumer: Consumer) -> None:
         if not messages:
             continue
         LOGGER.info(f"Fetched {len(messages)} Kafka messages")
+
         operations: list[dict] = await parse_kafka_messages(messages)
-        await search.bulk_index_texts(operations=operations)
+        # There will be no operations to perform if texts are all unlisted or
+        # private.
+        if operations:
+            await search.bulk_index_texts(operations=operations)
+
         await execute_in_thread_pool(
             kafka.acknowledge_messages, (kafka_consumer, messages)
         )
