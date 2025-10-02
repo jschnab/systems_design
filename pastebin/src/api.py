@@ -1,18 +1,20 @@
 import re
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 
 from . import cache
 from . import database
 from . import object_store
-from .config import config
+from . import search
+from . import utils
+from .config.app import config
 from .log import get_logger
 
 LOGGER = get_logger()
 
 H1_REGEX = re.compile(r"<h1.*>(.+)</h1>")
 SENTENCE_REGEX = re.compile(r"[\w,'&]+( [\w,'&]+)+")
-HTML_TAG_REGEX = re.compile(r"<.*?>")
 MINIMUM_TITLE_LENGTH = 40
 MAXIMUM_TITLE_LENGTH = 60
 
@@ -23,10 +25,6 @@ TTL_TO_HOURS = {
     "1m": 24 * 30,
     "1y": 24 * 365,
 }
-
-
-def remove_html_tags(text):
-    return re.sub(HTML_TAG_REGEX, "", text)
 
 
 def truncate_title(title):
@@ -42,12 +40,12 @@ def truncate_title(title):
 
 def get_text_title(text_body):
     if (match := H1_REGEX.search(text_body)) is not None:
-        title = remove_html_tags(match.group(1))
+        title = utils.remove_html_tags(match.group(1))
         if title != "":
             return truncate_title(title)
     for match in SENTENCE_REGEX.finditer(text_body):
         if len(match.group(0)) >= MINIMUM_TITLE_LENGTH:
-            title = remove_html_tags(match.group(0))
+            title = utils.remove_html_tags(match.group(0))
             return truncate_title(title)
     return "Untitled"
 
@@ -123,14 +121,14 @@ async def delete_text(text_id, deletion_timestamp):
 
 
 async def user_exceeded_quota(user_id, user_ip):
-    if user_id == config["app"]["default_user"]:
+    if user_id == config["default_user"]:
         count_texts = await database.count_recent_texts_by_anonymous_user(
             user_ip
         )
-        quota = config["app"]["texts_quota_anonymous"]
+        quota = config["texts_quota_anonymous"]
     else:
         count_texts = await database.count_recent_texts_by_logged_user(user_id)
-        quota = config["app"]["texts_quota_user"]
+        quota = config["texts_quota_user"]
 
     return count_texts > quota
 
@@ -141,3 +139,13 @@ async def get_text_owner(text_id):
 
 async def get_texts_by_owner(user_id):
     return await database.get_texts_by_owner(user_id)
+
+
+async def search_texts(
+    query: str,
+    page_start: int,
+) -> tuple[list[dict], Optional[int], Optional[int]]:
+    try:
+        return await search.search_texts(query, page_start)
+    except search.BadRequestError:
+        return [], None, None

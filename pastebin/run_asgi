@@ -4,4 +4,4 @@ cd "$(dirname "$0")"
 
 . .venv/bin/activate
 
-gunicorn --bind 0.0.0.0 --worker-class uvicorn.workers.UvicornWorker src:create_app
+gunicorn --bind 0.0.0.0 --worker-class uvicorn.workers.UvicornWorker src.factory:create_app

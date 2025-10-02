@@ -4,11 +4,11 @@ import redis.asyncio as redis
 from redis.exceptions import RedisError
 
 from .circuit_breaker import AsyncCircuitBreaker
-from .config import config
+from .config.cache import config
 from .log import get_logger
 
 EXPIRATION_DEFAULT = 3600 * 24  # 1 day
-KEY_PREFIX = config["cache"]["key_prefix"]
+KEY_PREFIX = config["key_prefix"]
 LOGGER = get_logger()
 
 circuit_breaker = AsyncCircuitBreaker(monitored_exceptions=(RedisError,))
@@ -21,12 +21,12 @@ def init_connection_pool():
     if connection_pool is None:
         LOGGER.info("Creating cache connection pool")
         connection_pool = redis.connection.ConnectionPool(
-            max_connections=config["cache"]["pool_size"],
-            host=config["cache"]["host"],
-            port=config["cache"]["port"],
-            username=config["cache"]["username"],
-            password=config["cache"]["password"],
-            encoding=config["cache"]["encoding"],
+            max_connections=config["pool_size"],
+            host=config["host"],
+            port=config["port"],
+            username=config["username"],
+            password=config["password"],
+            encoding=config["encoding"],
             decode_responses=True,
         )
 

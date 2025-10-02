@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: search-indexing-config
+  labels:
+    app.kubernetes.io/name: pastebin
+    app.kubernetes.io/component: backend
+data:
+  object_store_bucket:
+  object_store_endpoint:
+  text_encoding: utf-8
+  kafka_bootstrap_servers:
+  kafka_consumer_group_id: search-consumer-1
+  debezium_texts_topic:
+  elasticsearch_index_name:
+  elasticsearch_host:

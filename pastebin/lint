@@ -1,0 +1,14 @@
+#!/bin/sh
+
+
+cd "$(dirname "$0")"
+
+. .venv-lint/bin/activate
+
+set -x
+
+black --line-length 79 src
+
+flake8 src
+
+mypy src/search.py src/kafka.py src/search_indexing.py src/config/

@@ -1,6 +1,6 @@
 import logging
 
-from .config import config
+from .config.app import config
 
 
 def get_logger() -> logging.Logger:
@@ -17,6 +17,6 @@ def get_logger() -> logging.Logger:
     }
     logging.basicConfig(
         format="%(asctime)s %(name)s %(filename)s %(levelname)s %(message)s",
-        level=level[config["app"]["log_level"]],
+        level=level[config["log_level"]],
     )
     return logging.getLogger("pastebin")

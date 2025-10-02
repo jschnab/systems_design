@@ -1,4 +1,6 @@
 aioboto3==15.0.*
+beautifulsoup4==4.13.*
+elasticsearch==9.1.*
 gunicorn==23.0.*
 mysql-connector-python==9.3.*
 Quart==0.20.*
